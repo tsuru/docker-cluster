@@ -38,8 +38,8 @@ func TestNext(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for i := 0; i < len(ids) * 2; i++ {
-		expected := ids[i % len(ids)]
+	for i := 0; i < len(ids)*2; i++ {
+		expected := ids[i%len(ids)]
 		node := cluster.next()
 		if node.id != expected {
 			t.Errorf("Wrong node from next call. Want %q. Got %q.", expected, node.id)

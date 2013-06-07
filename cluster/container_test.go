@@ -15,13 +15,13 @@ import (
 func TestCreateContainer(t *testing.T) {
 	body := `{"Id":"e90302"}`
 	handler := []bool{false, false}
-	server1 := httptest.NewServer(http.HandlerFunc(func (w http.ResponseWriter, r *http.Request) {
+	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		handler[0] = true
 		w.Header().Set("Content-Type", "application/json")
 		w.Write([]byte(body))
 	}))
 	defer server1.Close()
-	server2 := httptest.NewServer(http.HandlerFunc(func (w http.ResponseWriter, r *http.Request) {
+	server2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		handler[1] = true
 		w.Header().Set("Content-Type", "application/json")
 		w.Write([]byte(body))
@@ -49,16 +49,16 @@ func TestCreateContainer(t *testing.T) {
 
 func TestInspectContainer(t *testing.T) {
 	body := `{"Id":"e90302","Path":"date","Args":[]}`
-	server1 := httptest.NewServer(http.HandlerFunc(func (w http.ResponseWriter, r *http.Request) {
+	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "No such container", http.StatusNotFound)
 	}))
 	defer server1.Close()
-	server2 := httptest.NewServer(http.HandlerFunc(func (w http.ResponseWriter, r *http.Request) {
+	server2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.Write([]byte(body))
 	}))
 	defer server2.Close()
-	server3 := httptest.NewServer(http.HandlerFunc(func (w http.ResponseWriter, r *http.Request) {
+	server3 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "No such container", http.StatusNotFound)
 	}))
 	defer server3.Close()
@@ -84,11 +84,11 @@ func TestInspectContainer(t *testing.T) {
 }
 
 func TestInspectContainerNoSuchContainer(t *testing.T) {
-	server1 := httptest.NewServer(http.HandlerFunc(func (w http.ResponseWriter, r *http.Request) {
+	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "No such container", http.StatusNotFound)
 	}))
 	defer server1.Close()
-	server2 := httptest.NewServer(http.HandlerFunc(func (w http.ResponseWriter, r *http.Request) {
+	server2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "No such container", http.StatusNotFound)
 	}))
 	defer server2.Close()
@@ -110,7 +110,7 @@ func TestInspectContainerNoSuchContainer(t *testing.T) {
 }
 
 func TestInspectContainerFailure(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func (w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "No such container", http.StatusInternalServerError)
 	}))
 	defer server.Close()
