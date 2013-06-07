@@ -1,4 +1,6 @@
-docker-cluster
+#docker-cluster
+
+[![Build Status](https://drone.io/github.com/globocom/docker-cluster/status.png)](https://drone.io/github.com/globocom/docker-cluster/latest)
 
 Support for running Docker on multiple hosts, with autoscaling capabilities and
 pluggable scheduling algorithms.
