@@ -63,14 +63,14 @@ func (c *Cluster) next() node {
 
 // Register adds new nodes to the cluster.
 func (c *Cluster) Register(nodes ...Node) error {
-	c.mut.Lock()
-	defer c.mut.Unlock()
 	for _, n := range nodes {
 		client, err := docker.NewClient(n.Address)
 		if err != nil {
 			return err
 		}
+		c.mut.Lock()
 		c.nodes = append(c.nodes, node{id: n.ID, Client: client})
+		c.mut.Unlock()
 	}
 	return nil
 }
