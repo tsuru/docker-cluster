@@ -29,3 +29,22 @@ func TestNewCluster(t *testing.T) {
 		}
 	}
 }
+
+func TestNext(t *testing.T) {
+	ids := []string{"abcdef", "abcdefg", "abcdefgh"}
+	nodes := make([]Node, len(ids))
+	for i, id := range ids {
+		nodes[i] = Node{Id: id, Address: "http://localhost:4243"}
+	}
+	cluster, err := New(nodes...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < len(ids) * 2; i++ {
+		expected := ids[i % len(ids)]
+		node := cluster.next()
+		if node.id != expected {
+			t.Errorf("Wrong node from next call. Want %q. Got %q.", expected, node.id)
+		}
+	}
+}

@@ -6,6 +6,7 @@ package cluster
 
 import (
 	"github.com/fsouza/go-dockerclient"
+	"sync/atomic"
 )
 
 type Node struct {
@@ -40,4 +41,9 @@ func New(nodes ...Node) (*Cluster, error) {
 		}
 	}
 	return &c, nil
+}
+
+func (c *Cluster) next() node {
+	index := atomic.AddInt64(&c.lastUsed, 1) % int64(len(c.nodes))
+	return c.nodes[index]
 }
