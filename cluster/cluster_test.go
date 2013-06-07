@@ -4,9 +4,7 @@
 
 package cluster
 
-import (
-	"testing"
-)
+import "testing"
 
 func TestNewCluster(t *testing.T) {
 	var tests = []struct {
