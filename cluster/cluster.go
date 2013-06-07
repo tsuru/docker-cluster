@@ -6,11 +6,12 @@ package cluster
 
 import (
 	"github.com/fsouza/go-dockerclient"
+	"sync"
 	"sync/atomic"
 )
 
 type Node struct {
-	Id      string
+	ID      string
 	Address string
 }
 
@@ -23,6 +24,7 @@ type node struct {
 type Cluster struct {
 	nodes    []node
 	lastUsed int64
+	mut      sync.RWMutex
 }
 
 func New(nodes ...Node) (*Cluster, error) {
@@ -36,7 +38,7 @@ func New(nodes ...Node) (*Cluster, error) {
 			return nil, err
 		}
 		c.nodes[i] = node{
-			id:     n.Id,
+			id:     n.ID,
 			Client: client,
 		}
 	}
@@ -44,6 +46,21 @@ func New(nodes ...Node) (*Cluster, error) {
 }
 
 func (c *Cluster) next() node {
+	c.mut.RLock()
+	defer c.mut.RUnlock()
 	index := atomic.AddInt64(&c.lastUsed, 1) % int64(len(c.nodes))
 	return c.nodes[index]
+}
+
+func (c *Cluster) Register(nodes ...Node) error {
+	c.mut.Lock()
+	defer c.mut.Unlock()
+	for _, n := range nodes {
+		client, err := docker.NewClient(n.Address)
+		if err != nil {
+			return err
+		}
+		c.nodes = append(c.nodes, node{id: n.ID, Client: client})
+	}
+	return nil
 }
