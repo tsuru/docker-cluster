@@ -24,32 +24,22 @@ func (c *Cluster) CreateContainer(config *docker.Config) (string, *docker.Contai
 // InspectContainer returns information about a container by its ID, getting
 // the information from the right node.
 func (c *Cluster) InspectContainer(id string) (*docker.Container, error) {
-	return c.runOnNodes(func(n node, r chan<- *docker.Container, errChan chan<- error, wg *sync.WaitGroup) {
-		defer wg.Done()
-		container, err := n.InspectContainer(id)
-		if err == nil {
-			r <- container
-		} else if err != dcli.ErrNoSuchContainer {
-			errChan <- err
-		}
+	return c.runOnNodes(func(n node) (*docker.Container, error) {
+		return n.InspectContainer(id)
 	})
 }
 
 // KillContainer kills a container, returning an error in case of failure.
 func (c *Cluster) KillContainer(id string) error {
-	_, err := c.runOnNodes(func(n node, r chan<- *docker.Container, errChan chan<- error, wg *sync.WaitGroup) {
-		defer wg.Done()
-		err := n.KillContainer(id)
-		if err == nil {
-			r <- nil
-		} else if err != dcli.ErrNoSuchContainer {
-			errChan <- err
-		}
+	_, err := c.runOnNodes(func(n node) (*docker.Container, error) {
+		return nil, n.KillContainer(id)
 	})
 	return err
 }
 
-func (c *Cluster) runOnNodes(fn func(node, chan<- *docker.Container, chan<- error, *sync.WaitGroup)) (*docker.Container, error) {
+type containerFunc func(node) (*docker.Container, error)
+
+func (c *Cluster) runOnNodes(fn containerFunc) (*docker.Container, error) {
 	c.mut.RLock()
 	defer c.mut.RUnlock()
 	var wg sync.WaitGroup
@@ -58,7 +48,15 @@ func (c *Cluster) runOnNodes(fn func(node, chan<- *docker.Container, chan<- erro
 	result := make(chan *docker.Container, 1)
 	for _, n := range c.nodes {
 		wg.Add(1)
-		go fn(n, result, errChan, &wg)
+		go func(n node) {
+			defer wg.Done()
+			container, err := fn(n)
+			if err == nil {
+				result <- container
+			} else if err != dcli.ErrNoSuchContainer {
+				errChan <- err
+			}
+		}(n)
 	}
 	go func() {
 		wg.Wait()
