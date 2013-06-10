@@ -78,7 +78,6 @@ func (c *Cluster) RemoveContainer(id string) error {
 	return err
 }
 
-// StartContainer starts a container.
 func (c *Cluster) StartContainer(id string) error {
 	_, err := c.runOnNodes(func(n node) (*docker.Container, error) {
 		return nil, n.StartContainer(id)
