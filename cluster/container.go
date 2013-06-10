@@ -24,14 +24,18 @@ func (c *Cluster) CreateContainer(config *docker.Config) (string, *docker.Contai
 // InspectContainer returns information about a container by its ID, getting
 // the information from the right node.
 func (c *Cluster) InspectContainer(id string) (*docker.Container, error) {
-	return c.runOnNodes(func(n node) (*docker.Container, error) {
+	container, err := c.runOnNodes(func(n node) (interface{}, error) {
 		return n.InspectContainer(id)
 	})
+	if err != nil {
+		return nil, err
+	}
+	return container.(*docker.Container), err
 }
 
 // KillContainer kills a container, returning an error in case of failure.
 func (c *Cluster) KillContainer(id string) error {
-	_, err := c.runOnNodes(func(n node) (*docker.Container, error) {
+	_, err := c.runOnNodes(func(n node) (interface{}, error) {
 		return nil, n.KillContainer(id)
 	})
 	return err
@@ -72,14 +76,14 @@ func (c *Cluster) ListContainers(opts *dcli.ListContainersOptions) ([]docker.API
 
 // RemoveContainer removes a container from the cluster.
 func (c *Cluster) RemoveContainer(id string) error {
-	_, err := c.runOnNodes(func(n node) (*docker.Container, error) {
+	_, err := c.runOnNodes(func(n node) (interface{}, error) {
 		return nil, n.RemoveContainer(id)
 	})
 	return err
 }
 
 func (c *Cluster) StartContainer(id string) error {
-	_, err := c.runOnNodes(func(n node) (*docker.Container, error) {
+	_, err := c.runOnNodes(func(n node) (interface{}, error) {
 		return nil, n.StartContainer(id)
 	})
 	return err
@@ -88,7 +92,7 @@ func (c *Cluster) StartContainer(id string) error {
 // StopContainer stops a container, killing it after the given timeout, if it
 // fails to stop nicely.
 func (c *Cluster) StopContainer(id string, timeout uint) error {
-	_, err := c.runOnNodes(func(n node) (*docker.Container, error) {
+	_, err := c.runOnNodes(func(n node) (interface{}, error) {
 		return nil, n.StopContainer(id, timeout)
 	})
 	return err
@@ -97,28 +101,28 @@ func (c *Cluster) StopContainer(id string, timeout uint) error {
 // RestartContainer restarts a container, killing it after the given timeout,
 // if it fails to stop nicely.
 func (c *Cluster) RestartContainer(id string, timeout uint) error {
-	_, err := c.runOnNodes(func(n node) (*docker.Container, error) {
+	_, err := c.runOnNodes(func(n node) (interface{}, error) {
 		return nil, n.RestartContainer(id, timeout)
 	})
 	return err
 }
 
-type containerFunc func(node) (*docker.Container, error)
+type containerFunc func(node) (interface{}, error)
 
-func (c *Cluster) runOnNodes(fn containerFunc) (*docker.Container, error) {
+func (c *Cluster) runOnNodes(fn containerFunc) (interface{}, error) {
 	c.mut.RLock()
 	defer c.mut.RUnlock()
 	var wg sync.WaitGroup
 	finish := make(chan int8, 1)
 	errChan := make(chan error, len(c.nodes))
-	result := make(chan *docker.Container, 1)
+	result := make(chan interface{}, 1)
 	for _, n := range c.nodes {
 		wg.Add(1)
 		go func(n node) {
 			defer wg.Done()
-			container, err := fn(n)
+			value, err := fn(n)
 			if err == nil {
-				result <- container
+				result <- value
 			} else if err != dcli.ErrNoSuchContainer {
 				errChan <- err
 			}
@@ -129,8 +133,8 @@ func (c *Cluster) runOnNodes(fn containerFunc) (*docker.Container, error) {
 		close(finish)
 	}()
 	select {
-	case container := <-result:
-		return container, nil
+	case value := <-result:
+		return value, nil
 	case err := <-errChan:
 		return nil, err
 	case <-finish:
