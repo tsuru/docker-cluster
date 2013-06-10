@@ -107,6 +107,15 @@ func (c *Cluster) RestartContainer(id string, timeout uint) error {
 	return err
 }
 
+// WaitContainer blocks until the given container stops, returning the exit
+// code of the container command.
+func (c *Cluster) WaitContainer(id string) (int, error) {
+	exit, err := c.runOnNodes(func(n node) (interface{}, error) {
+		return n.WaitContainer(id)
+	})
+	return exit.(int), err
+}
+
 type containerFunc func(node) (interface{}, error)
 
 func (c *Cluster) runOnNodes(fn containerFunc) (interface{}, error) {
