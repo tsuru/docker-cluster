@@ -318,3 +318,31 @@ func TestStartContainer(t *testing.T) {
 		t.Errorf("StartContainer(%q): Did not call node HTTP server", id)
 	}
 }
+
+func TestStopContainer(t *testing.T) {
+	var called bool
+	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "No such container", http.StatusNotFound)
+	}))
+	defer server1.Close()
+	server2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		w.Write([]byte("ok"))
+	}))
+	defer server2.Close()
+	cluster, err := New(
+		Node{ID: "handler0", Address: server1.URL},
+		Node{ID: "handler1", Address: server2.URL},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := "abc123"
+	err = cluster.StopContainer(id, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !called {
+		t.Errorf("StopContainer(%q, 10): Did not call node HTTP server", id)
+	}
+}

@@ -85,6 +85,15 @@ func (c *Cluster) StartContainer(id string) error {
 	return err
 }
 
+// StopContainer stops a container, killing it after the given timeout, if it
+// fails to stop nicely.
+func (c *Cluster) StopContainer(id string, timeout uint) error {
+	_, err := c.runOnNodes(func(n node) (*docker.Container, error) {
+		return nil, n.StopContainer(id, timeout)
+	})
+	return err
+}
+
 type containerFunc func(node) (*docker.Container, error)
 
 func (c *Cluster) runOnNodes(fn containerFunc) (*docker.Container, error) {
