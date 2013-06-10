@@ -37,6 +37,39 @@ func (c *Cluster) KillContainer(id string) error {
 	return err
 }
 
+// ListContainers returns a slice of all containers in the cluster matching the
+// given criteria.
+func (c *Cluster) ListContainers(opts *dcli.ListContainersOptions) ([]docker.APIContainers, error) {
+	c.mut.RLock()
+	defer c.mut.RUnlock()
+	var wg sync.WaitGroup
+	result := make(chan []docker.APIContainers, len(c.nodes))
+	errs := make(chan error, len(c.nodes))
+	for _, n := range c.nodes {
+		wg.Add(1)
+		go func(n node) {
+			defer wg.Done()
+			if containers, err := n.ListContainers(opts); err != nil {
+				errs <- err
+			} else {
+				result <- containers
+			}
+		}(n)
+	}
+	wg.Wait()
+	var group []docker.APIContainers
+	var err error
+	for {
+		select {
+		case containers := <-result:
+			group = append(group, containers...)
+		case err = <-errs:
+		default:
+			return group, err
+		}
+	}
+}
+
 type containerFunc func(node) (*docker.Container, error)
 
 func (c *Cluster) runOnNodes(fn containerFunc) (*docker.Container, error) {

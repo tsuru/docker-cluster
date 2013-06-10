@@ -9,6 +9,8 @@ import (
 	dclient "github.com/fsouza/go-dockerclient"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
+	"sort"
 	"testing"
 )
 
@@ -153,5 +155,110 @@ func TestKillContainer(t *testing.T) {
 	}
 	if !called {
 		t.Errorf("KillContainer(%q): Did not call node http server", id)
+	}
+}
+
+func TestListContainers(t *testing.T) {
+	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body := `[
+     {
+             "Id": "8dfafdbc3a40",
+             "Image": "base:latest",
+             "Command": "echo 1",
+             "Created": 1367854155,
+             "Status": "Exit 0"
+     }
+]`
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(body))
+	}))
+	defer server1.Close()
+	server2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body := `[
+     {
+             "Id": "3176a2479c92",
+             "Image": "base:latest",
+             "Command": "echo 3333333333333333",
+             "Created": 1367854154,
+             "Status": "Exit 0"
+     },
+     {
+             "Id": "9cd87474be90",
+             "Image": "base:latest",
+             "Command": "echo 222222",
+             "Created": 1367854155,
+             "Status": "Exit 0"
+     }
+]`
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(body))
+	}))
+	defer server2.Close()
+	server3 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body := `[]`
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(body))
+	}))
+	defer server3.Close()
+	cluster, err := New(
+		Node{ID: "handler0", Address: server1.URL},
+		Node{ID: "handler1", Address: server2.URL},
+		Node{ID: "handler2", Address: server3.URL},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	expected := containerList([]docker.APIContainers{
+		{ID: "3176a2479c92", Image: "base:latest", Command: "echo 3333333333333333", Created: 1367854154, Status: "Exit 0"},
+		{ID: "9cd87474be90", Image: "base:latest", Command: "echo 222222", Created: 1367854155, Status: "Exit 0"},
+		{ID: "8dfafdbc3a40", Image: "base:latest", Command: "echo 1", Created: 1367854155, Status: "Exit 0"},
+	})
+	sort.Sort(expected)
+	containers, err := cluster.ListContainers(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := containerList(containers)
+	sort.Sort(got)
+	if !reflect.DeepEqual(got, expected) {
+		t.Errorf("ListContainers: Wrong containers. Want %#v. Got %#v.", expected, got)
+	}
+}
+
+func TestListContainersFailure(t *testing.T) {
+	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body := `[
+     {
+             "Id": "8dfafdbc3a40",
+             "Image": "base:latest",
+             "Command": "echo 1",
+             "Created": 1367854155,
+             "Status": "Exit 0"
+     }
+]`
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(body))
+	}))
+	defer server1.Close()
+	server2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "Internal failure", http.StatusInternalServerError)
+	}))
+	defer server2.Close()
+	cluster, err := New(
+		Node{ID: "handler0", Address: server1.URL},
+		Node{ID: "handler1", Address: server2.URL},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	expected := []docker.APIContainers{
+		{ID: "8dfafdbc3a40", Image: "base:latest", Command: "echo 1", Created: 1367854155, Status: "Exit 0"},
+	}
+	containers, err := cluster.ListContainers(nil)
+	if err == nil {
+		t.Error("ListContainers: Expected non-nil error, got <nil>")
+	}
+	if !reflect.DeepEqual(containers, expected) {
+		t.Errorf("ListContainers: Want %#v. Got %#v.", expected, containers)
 	}
 }
