@@ -43,7 +43,7 @@ func (c *Cluster) KillContainer(id string) error {
 
 // ListContainers returns a slice of all containers in the cluster matching the
 // given criteria.
-func (c *Cluster) ListContainers(opts *dcli.ListContainersOptions) ([]docker.APIContainers, error) {
+func (c *Cluster) ListContainers(opts dcli.ListContainersOptions) ([]docker.APIContainers, error) {
 	c.mut.RLock()
 	defer c.mut.RUnlock()
 	var wg sync.WaitGroup

@@ -215,7 +215,7 @@ func TestListContainers(t *testing.T) {
 		{ID: "8dfafdbc3a40", Image: "base:latest", Command: "echo 1", Created: 1367854155, Status: "Exit 0"},
 	})
 	sort.Sort(expected)
-	containers, err := cluster.ListContainers(nil)
+	containers, err := cluster.ListContainers(dclient.ListContainersOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -255,7 +255,7 @@ func TestListContainersFailure(t *testing.T) {
 	expected := []docker.APIContainers{
 		{ID: "8dfafdbc3a40", Image: "base:latest", Command: "echo 1", Created: 1367854155, Status: "Exit 0"},
 	}
-	containers, err := cluster.ListContainers(nil)
+	containers, err := cluster.ListContainers(dclient.ListContainersOptions{})
 	if err == nil {
 		t.Error("ListContainers: Expected non-nil error, got <nil>")
 	}
