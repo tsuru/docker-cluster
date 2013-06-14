@@ -436,3 +436,36 @@ func TestAttachToContainer(t *testing.T) {
 		t.Error("AttachToContainer: Did not call the remote HTTP API")
 	}
 }
+
+func TestCommitContainer(t *testing.T) {
+	var called bool
+	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "container not found", http.StatusNotFound)
+	}))
+	defer server1.Close()
+	server2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		w.Write([]byte(`{"Id":"596069db4bf5"}`))
+	}))
+	defer server2.Close()
+	cluster, err := New(
+		Node{ID: "handler0", Address: server1.URL},
+		Node{ID: "handler1", Address: server2.URL},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	opts := dclient.CommitContainerOptions{
+		Container: "abcdef",
+	}
+	image, err := cluster.CommitContainer(opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if image.ID != "596069db4bf5" {
+		t.Errorf("CommitContainer: the image container is %s, expected: '596069db4bf5'", image.ID)
+	}
+	if !called {
+		t.Error("CommitContainer: Did not call the remote HTTP API")
+	}
+}

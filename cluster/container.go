@@ -125,6 +125,14 @@ func (c *Cluster) AttachToContainer(opts dcli.AttachToContainerOptions) error {
 	return err
 }
 
+// CommitContainer commits a container and returns the image id.
+func (c *Cluster) CommitContainer(opts dcli.CommitContainerOptions) (*docker.Image, error) {
+	image, err := c.runOnNodes(func(n node) (interface{}, error) {
+		return n.CommitContainer(opts)
+	})
+	return image.(*docker.Image), err
+}
+
 type containerFunc func(node) (interface{}, error)
 
 func (c *Cluster) runOnNodes(fn containerFunc) (interface{}, error) {
