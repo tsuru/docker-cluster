@@ -116,6 +116,14 @@ func (c *Cluster) WaitContainer(id string) (int, error) {
 	return exit.(int), err
 }
 
+// AttachToContainer attaches to a container, using the given options.
+func (c *Cluster) AttachToContainer(opts dcli.AttachToContainerOptions) error {
+	_, err := c.runOnNodes(func(n node) (interface{}, error) {
+		return nil, n.AttachToContainer(opts)
+	})
+	return err
+}
+
 type containerFunc func(node) (interface{}, error)
 
 func (c *Cluster) runOnNodes(fn containerFunc) (interface{}, error) {
@@ -132,7 +140,7 @@ func (c *Cluster) runOnNodes(fn containerFunc) (interface{}, error) {
 			value, err := fn(n)
 			if err == nil {
 				result <- value
-			} else if err != dcli.ErrNoSuchContainer {
+			} else if _, ok := err.(*dcli.Error); !ok && err != dcli.ErrNoSuchContainer {
 				errChan <- err
 			}
 		}(n)

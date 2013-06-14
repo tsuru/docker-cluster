@@ -5,6 +5,7 @@
 package cluster
 
 import (
+	"bytes"
 	"github.com/dotcloud/docker"
 	dclient "github.com/fsouza/go-dockerclient"
 	"net/http"
@@ -400,5 +401,38 @@ func TestWaitContainer(t *testing.T) {
 	}
 	if status != expected {
 		t.Errorf("WaitContainer(%q): Wrong status. Want %d. Got %d.", id, expected, status)
+	}
+}
+
+func TestAttachToContainer(t *testing.T) {
+	var called bool
+	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "container not found", http.StatusNotFound)
+	}))
+	defer server1.Close()
+	server2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		w.Write([]byte("something happened"))
+	}))
+	defer server2.Close()
+	cluster, err := New(
+		Node{ID: "handler0", Address: server1.URL},
+		Node{ID: "handler1", Address: server2.URL},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	opts := dclient.AttachToContainerOptions{
+		Container:    "abcdef",
+		OutputStream: &bytes.Buffer{},
+		Logs:         true,
+		Stdout:       true,
+	}
+	err = cluster.AttachToContainer(opts)
+	if err != nil {
+		t.Errorf("AttachToContainer: unexpected error. Want <nil>. Got %#v.", err)
+	}
+	if !called {
+		t.Error("AttachToContainer: Did not call the remote HTTP API")
 	}
 }
