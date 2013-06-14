@@ -7,6 +7,7 @@ package cluster
 import (
 	"github.com/dotcloud/docker"
 	dcli "github.com/fsouza/go-dockerclient"
+	"net/http"
 	"sync"
 )
 
@@ -140,7 +141,9 @@ func (c *Cluster) runOnNodes(fn containerFunc) (interface{}, error) {
 			value, err := fn(n)
 			if err == nil {
 				result <- value
-			} else if _, ok := err.(*dcli.Error); !ok && err != dcli.ErrNoSuchContainer {
+			} else if e, ok := err.(*dcli.Error); ok && e.Status == http.StatusNotFound {
+				result <- nil
+			} else if err != dcli.ErrNoSuchContainer {
 				errChan <- err
 			}
 		}(n)
