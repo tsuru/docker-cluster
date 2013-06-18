@@ -7,7 +7,6 @@ package cluster
 import (
 	"github.com/dotcloud/docker"
 	dcli "github.com/fsouza/go-dockerclient"
-	"net/http"
 	"sync"
 )
 
@@ -27,7 +26,8 @@ func (c *Cluster) CreateContainer(config *docker.Config) (string, *docker.Contai
 func (c *Cluster) InspectContainer(id string) (*docker.Container, error) {
 	container, err := c.runOnNodes(func(n node) (interface{}, error) {
 		return n.InspectContainer(id)
-	})
+	}, dcli.ErrNoSuchContainer)
+
 	if err != nil {
 		return nil, err
 	}
@@ -38,7 +38,8 @@ func (c *Cluster) InspectContainer(id string) (*docker.Container, error) {
 func (c *Cluster) KillContainer(id string) error {
 	_, err := c.runOnNodes(func(n node) (interface{}, error) {
 		return nil, n.KillContainer(id)
-	})
+	}, dcli.ErrNoSuchContainer)
+
 	return err
 }
 
@@ -79,14 +80,16 @@ func (c *Cluster) ListContainers(opts dcli.ListContainersOptions) ([]docker.APIC
 func (c *Cluster) RemoveContainer(id string) error {
 	_, err := c.runOnNodes(func(n node) (interface{}, error) {
 		return nil, n.RemoveContainer(id)
-	})
+	}, dcli.ErrNoSuchContainer)
+
 	return err
 }
 
 func (c *Cluster) StartContainer(id string) error {
 	_, err := c.runOnNodes(func(n node) (interface{}, error) {
 		return nil, n.StartContainer(id)
-	})
+	}, dcli.ErrNoSuchContainer)
+
 	return err
 }
 
@@ -95,7 +98,8 @@ func (c *Cluster) StartContainer(id string) error {
 func (c *Cluster) StopContainer(id string, timeout uint) error {
 	_, err := c.runOnNodes(func(n node) (interface{}, error) {
 		return nil, n.StopContainer(id, timeout)
-	})
+	}, dcli.ErrNoSuchContainer)
+
 	return err
 }
 
@@ -104,7 +108,8 @@ func (c *Cluster) StopContainer(id string, timeout uint) error {
 func (c *Cluster) RestartContainer(id string, timeout uint) error {
 	_, err := c.runOnNodes(func(n node) (interface{}, error) {
 		return nil, n.RestartContainer(id, timeout)
-	})
+	}, dcli.ErrNoSuchContainer)
+
 	return err
 }
 
@@ -113,7 +118,8 @@ func (c *Cluster) RestartContainer(id string, timeout uint) error {
 func (c *Cluster) WaitContainer(id string) (int, error) {
 	exit, err := c.runOnNodes(func(n node) (interface{}, error) {
 		return n.WaitContainer(id)
-	})
+	}, dcli.ErrNoSuchContainer)
+
 	return exit.(int), err
 }
 
@@ -121,7 +127,8 @@ func (c *Cluster) WaitContainer(id string) (int, error) {
 func (c *Cluster) AttachToContainer(opts dcli.AttachToContainerOptions) error {
 	_, err := c.runOnNodes(func(n node) (interface{}, error) {
 		return nil, n.AttachToContainer(opts)
-	})
+	}, dcli.ErrNoSuchContainer)
+
 	return err
 }
 
@@ -129,43 +136,7 @@ func (c *Cluster) AttachToContainer(opts dcli.AttachToContainerOptions) error {
 func (c *Cluster) CommitContainer(opts dcli.CommitContainerOptions) (*docker.Image, error) {
 	image, err := c.runOnNodes(func(n node) (interface{}, error) {
 		return n.CommitContainer(opts)
-	})
+	}, dcli.ErrNoSuchContainer)
+
 	return image.(*docker.Image), err
-}
-
-type containerFunc func(node) (interface{}, error)
-
-func (c *Cluster) runOnNodes(fn containerFunc) (interface{}, error) {
-	c.mut.RLock()
-	defer c.mut.RUnlock()
-	var wg sync.WaitGroup
-	finish := make(chan int8, 1)
-	errChan := make(chan error, len(c.nodes))
-	result := make(chan interface{}, 1)
-	for _, n := range c.nodes {
-		wg.Add(1)
-		go func(n node) {
-			defer wg.Done()
-			value, err := fn(n)
-			if err == nil {
-				result <- value
-			} else if e, ok := err.(*dcli.Error); ok && e.Status == http.StatusNotFound {
-				result <- nil
-			} else if err != dcli.ErrNoSuchContainer {
-				errChan <- err
-			}
-		}(n)
-	}
-	go func() {
-		wg.Wait()
-		close(finish)
-	}()
-	select {
-	case value := <-result:
-		return value, nil
-	case err := <-errChan:
-		return nil, err
-	case <-finish:
-		return nil, dcli.ErrNoSuchContainer
-	}
 }

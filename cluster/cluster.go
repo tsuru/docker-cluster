@@ -9,6 +9,7 @@ package cluster
 
 import (
 	"github.com/fsouza/go-dockerclient"
+	"net/http"
 	"sync"
 	"sync/atomic"
 )
@@ -73,4 +74,41 @@ func (c *Cluster) Register(nodes ...Node) error {
 		c.mut.Unlock()
 	}
 	return nil
+}
+
+type nodeFunc func(node) (interface{}, error)
+
+func (c *Cluster) runOnNodes(fn nodeFunc, errNotFound error) (interface{}, error) {
+	c.mut.RLock()
+	defer c.mut.RUnlock()
+	var wg sync.WaitGroup
+	finish := make(chan int8, 1)
+	errChan := make(chan error, len(c.nodes))
+	result := make(chan interface{}, 1)
+	for _, n := range c.nodes {
+		wg.Add(1)
+		go func(n node) {
+			defer wg.Done()
+			value, err := fn(n)
+			if err == nil {
+				result <- value
+			} else if e, ok := err.(*docker.Error); ok && e.Status == http.StatusNotFound {
+				result <- nil
+			} else if err != errNotFound {
+				errChan <- err
+			}
+		}(n)
+	}
+	go func() {
+		wg.Wait()
+		close(finish)
+	}()
+	select {
+	case value := <-result:
+		return value, nil
+	case err := <-errChan:
+		return nil, err
+	case <-finish:
+		return nil, errNotFound
+	}
 }
