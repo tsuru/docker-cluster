@@ -91,6 +91,29 @@ func TestPullImage(t *testing.T) {
 	}
 }
 
+func TestPullImageNotFound(t *testing.T) {
+	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "No such image", http.StatusNotFound)
+	}))
+	defer server1.Close()
+	server2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "No such image", http.StatusNotFound)
+	}))
+	defer server2.Close()
+	cluster, err := New(
+		Node{ID: "handler0", Address: server1.URL},
+		Node{ID: "handler1", Address: server2.URL},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var buf bytes.Buffer
+	err = cluster.PullImage(docker.PullImageOptions{Repository: "tsuru/python"}, &buf)
+	if err == nil {
+		t.Error("PullImage: got unexpected <nil> error")
+	}
+}
+
 func TestPushImage(t *testing.T) {
 	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("Pushing to server 1!"))
@@ -112,5 +135,28 @@ func TestPushImage(t *testing.T) {
 	re := regexp.MustCompile(`^Pushing to server \d`)
 	if !re.MatchString(buf.String()) {
 		t.Errorf("Wrong output: Want %q. Got %q.", "Pushing to server [12]", buf.String())
+	}
+}
+
+func TestPushImageNotFound(t *testing.T) {
+	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "No such image", http.StatusNotFound)
+	}))
+	defer server1.Close()
+	server2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "No such image", http.StatusNotFound)
+	}))
+	defer server2.Close()
+	cluster, err := New(
+		Node{ID: "handler0", Address: server1.URL},
+		Node{ID: "handler1", Address: server2.URL},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var buf bytes.Buffer
+	err = cluster.PushImage(docker.PushImageOptions{Name: "tsuru/python"}, &buf)
+	if err == nil {
+		t.Error("PushImage: got unexpected <nil> error")
 	}
 }
