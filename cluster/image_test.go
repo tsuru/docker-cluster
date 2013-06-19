@@ -5,9 +5,11 @@
 package cluster
 
 import (
+	"bytes"
 	"github.com/fsouza/go-dockerclient"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"testing"
 )
 
@@ -59,5 +61,32 @@ func TestRemoveImageNotFound(t *testing.T) {
 	err = cluster.RemoveImage(name)
 	if err != docker.ErrNoSuchImage {
 		t.Errorf("RemoveImage(%q): wrong error. Want %#v. Got %#v.", docker.ErrNoSuchImage, err)
+	}
+}
+
+func TestPullImage(t *testing.T) {
+	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("Pulling from 1!"))
+	}))
+	defer server1.Close()
+	server2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("Pulling from 2!"))
+	}))
+	defer server2.Close()
+	var buf bytes.Buffer
+	cluster, err := New(
+		Node{ID: "handler0", Address: server1.URL},
+		Node{ID: "handler1", Address: server2.URL},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = cluster.PullImage(docker.PullImageOptions{Repository: "tsuru/python"}, &buf)
+	if err != nil {
+		t.Error(err)
+	}
+	re := regexp.MustCompile(`^Pulling from \d`)
+	if !re.MatchString(buf.String()) {
+		t.Errorf("Wrong output: Want %q. Got %q.", "Pulling from [12]", buf.String())
 	}
 }
