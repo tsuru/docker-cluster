@@ -26,3 +26,12 @@ func (c *Cluster) PullImage(opts docker.PullImageOptions, w io.Writer) error {
 	}, docker.ErrNoSuchImage)
 	return err
 }
+
+// PushImage pushes an image to a remote registry server, returning an error in
+// case of failure.
+func (c *Cluster) PushImage(opts docker.PushImageOptions, w io.Writer) error {
+	_, err := c.runOnNodes(func(n node) (interface{}, error) {
+		return nil, n.PushImage(opts, w)
+	}, docker.ErrNoSuchImage)
+	return err
+}

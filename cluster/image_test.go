@@ -90,3 +90,27 @@ func TestPullImage(t *testing.T) {
 		t.Errorf("Wrong output: Want %q. Got %q.", "Pulling from [12]", buf.String())
 	}
 }
+
+func TestPushImage(t *testing.T) {
+	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("Pushing to server 1!"))
+	}))
+	defer server1.Close()
+	server2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("Pushing to server 2!"))
+	}))
+	defer server2.Close()
+	var buf bytes.Buffer
+	cluster, err := New(
+		Node{ID: "handler0", Address: server1.URL},
+		Node{ID: "handler1", Address: server2.URL},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = cluster.PushImage(docker.PushImageOptions{Name: "tsuru/ruby"}, &buf)
+	re := regexp.MustCompile(`^Pushing to server \d`)
+	if !re.MatchString(buf.String()) {
+		t.Errorf("Wrong output: Want %q. Got %q.", "Pushing to server [12]", buf.String())
+	}
+}
