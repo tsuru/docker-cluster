@@ -93,7 +93,7 @@ func (c *Cluster) runOnNodes(fn nodeFunc, errNotFound error) (interface{}, error
 			if err == nil {
 				result <- value
 			} else if e, ok := err.(*docker.Error); ok && e.Status == http.StatusNotFound {
-				result <- nil
+				return
 			} else if err != errNotFound {
 				errChan <- err
 			}
