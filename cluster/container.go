@@ -137,6 +137,8 @@ func (c *Cluster) CommitContainer(opts dcli.CommitContainerOptions) (*docker.Ima
 	image, err := c.runOnNodes(func(n node) (interface{}, error) {
 		return n.CommitContainer(opts)
 	}, dcli.ErrNoSuchContainer)
-
-	return image.(*docker.Image), err
+	if err != nil {
+		return nil, err
+	}
+	return image.(*docker.Image), nil
 }
