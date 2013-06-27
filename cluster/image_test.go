@@ -7,6 +7,7 @@ package cluster
 import (
 	"bytes"
 	"github.com/fsouza/go-dockerclient"
+	"github.com/globocom/tsuru/safe"
 	"net/http"
 	"net/http/httptest"
 	"regexp"
@@ -73,7 +74,7 @@ func TestPullImage(t *testing.T) {
 		w.Write([]byte("Pulling from 2!"))
 	}))
 	defer server2.Close()
-	var buf bytes.Buffer
+	var buf safe.Buffer
 	cluster, err := New(
 		Node{ID: "handler0", Address: server1.URL},
 		Node{ID: "handler1", Address: server2.URL},
@@ -123,7 +124,7 @@ func TestPushImage(t *testing.T) {
 		w.Write([]byte("Pushing to server 2!"))
 	}))
 	defer server2.Close()
-	var buf bytes.Buffer
+	var buf safe.Buffer
 	cluster, err := New(
 		Node{ID: "handler0", Address: server1.URL},
 		Node{ID: "handler1", Address: server2.URL},
