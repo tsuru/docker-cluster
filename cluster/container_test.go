@@ -107,8 +107,9 @@ func TestInspectContainerNoSuchContainer(t *testing.T) {
 	if container != nil {
 		t.Errorf("InspectContainer(%q): Expected <nil> container, got %#v.", id, container)
 	}
-	if err != dclient.ErrNoSuchContainer {
-		t.Errorf("InspectContainer(%q): Wrong error. Want %#v. Got %#v.", id, dclient.ErrNoSuchContainer, err)
+	expected := &dclient.NoSuchContainer{ID: id}
+	if !reflect.DeepEqual(err, expected) {
+		t.Errorf("InspectContainer(%q): Wrong error. Want %#v. Got %#v.", id, expected, err)
 	}
 }
 

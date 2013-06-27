@@ -10,6 +10,7 @@ package cluster
 import (
 	"github.com/fsouza/go-dockerclient"
 	"net/http"
+	"reflect"
 	"sync"
 	"sync/atomic"
 )
@@ -94,7 +95,7 @@ func (c *Cluster) runOnNodes(fn nodeFunc, errNotFound error) (interface{}, error
 				result <- value
 			} else if e, ok := err.(*docker.Error); ok && e.Status == http.StatusNotFound {
 				return
-			} else if err != errNotFound {
+			} else if !reflect.DeepEqual(err, errNotFound) {
 				errChan <- err
 			}
 		}(n)
