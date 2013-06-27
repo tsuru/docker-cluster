@@ -27,7 +27,6 @@ func (c *Cluster) InspectContainer(id string) (*docker.Container, error) {
 	container, err := c.runOnNodes(func(n node) (interface{}, error) {
 		return n.InspectContainer(id)
 	}, dcli.ErrNoSuchContainer)
-
 	if err != nil {
 		return nil, err
 	}
@@ -39,7 +38,6 @@ func (c *Cluster) KillContainer(id string) error {
 	_, err := c.runOnNodes(func(n node) (interface{}, error) {
 		return nil, n.KillContainer(id)
 	}, dcli.ErrNoSuchContainer)
-
 	return err
 }
 
@@ -81,7 +79,6 @@ func (c *Cluster) RemoveContainer(id string) error {
 	_, err := c.runOnNodes(func(n node) (interface{}, error) {
 		return nil, n.RemoveContainer(id)
 	}, dcli.ErrNoSuchContainer)
-
 	return err
 }
 
@@ -89,7 +86,6 @@ func (c *Cluster) StartContainer(id string) error {
 	_, err := c.runOnNodes(func(n node) (interface{}, error) {
 		return nil, n.StartContainer(id)
 	}, dcli.ErrNoSuchContainer)
-
 	return err
 }
 
@@ -99,7 +95,6 @@ func (c *Cluster) StopContainer(id string, timeout uint) error {
 	_, err := c.runOnNodes(func(n node) (interface{}, error) {
 		return nil, n.StopContainer(id, timeout)
 	}, dcli.ErrNoSuchContainer)
-
 	return err
 }
 
@@ -109,7 +104,6 @@ func (c *Cluster) RestartContainer(id string, timeout uint) error {
 	_, err := c.runOnNodes(func(n node) (interface{}, error) {
 		return nil, n.RestartContainer(id, timeout)
 	}, dcli.ErrNoSuchContainer)
-
 	return err
 }
 
@@ -119,7 +113,6 @@ func (c *Cluster) WaitContainer(id string) (int, error) {
 	exit, err := c.runOnNodes(func(n node) (interface{}, error) {
 		return n.WaitContainer(id)
 	}, dcli.ErrNoSuchContainer)
-
 	return exit.(int), err
 }
 
@@ -128,7 +121,6 @@ func (c *Cluster) AttachToContainer(opts dcli.AttachToContainerOptions) error {
 	_, err := c.runOnNodes(func(n node) (interface{}, error) {
 		return nil, n.AttachToContainer(opts)
 	}, dcli.ErrNoSuchContainer)
-
 	return err
 }
 
