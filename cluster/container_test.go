@@ -5,9 +5,9 @@
 package cluster
 
 import (
-	"bytes"
 	"github.com/dotcloud/docker"
 	dclient "github.com/fsouza/go-dockerclient"
+	"github.com/globocom/tsuru/safe"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -425,7 +425,7 @@ func TestAttachToContainer(t *testing.T) {
 	}
 	opts := dclient.AttachToContainerOptions{
 		Container:    "abcdef",
-		OutputStream: &bytes.Buffer{},
+		OutputStream: &safe.Buffer{},
 		Logs:         true,
 		Stdout:       true,
 	}
