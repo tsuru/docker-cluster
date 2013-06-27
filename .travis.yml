@@ -3,4 +3,5 @@ go: 1.1.1
 script:
   - cd cluster
   - go get
+  - go get github.com/globocom/tsuru/safe
   - go test -race
