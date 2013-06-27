@@ -110,6 +110,11 @@ func (c *Cluster) runOnNodes(fn nodeFunc, errNotFound error) (interface{}, error
 	case err := <-errChan:
 		return nil, err
 	case <-finish:
-		return nil, errNotFound
+		select {
+		case value := <-result:
+			return value, nil
+		default:
+			return nil, errNotFound
+		}
 	}
 }
