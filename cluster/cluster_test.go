@@ -4,7 +4,13 @@
 
 package cluster
 
-import "testing"
+import (
+	"math/rand"
+	"net/http"
+	"net/http/httptest"
+	"runtime"
+	"testing"
+)
 
 func TestNewCluster(t *testing.T) {
 	var tests = []struct {
@@ -82,5 +88,33 @@ func TestRegisterFailure(t *testing.T) {
 	err = cluster.Register(Node{ID: "abcdef", Address: ""})
 	if err == nil {
 		t.Error("Expected non-nil error, got <nil>.")
+	}
+}
+
+func TestRunOnNodesStress(t *testing.T) {
+	n := 1000
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(16))
+	body := `{"Id":"e90302","Path":"date","Args":[]}`
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(body))
+	}))
+	defer server.Close()
+	cluster, err := New(Node{ID: "server0", Address: server.URL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := "e90302"
+	for i := 0; i < rand.Intn(10)+n; i++ {
+		container, err := cluster.InspectContainer(id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if container.ID != id {
+			t.Errorf("InspectContainer(%q): Wrong ID. Want %q. Got %q.", id, id, container.ID)
+		}
+		if container.Path != "date" {
+			t.Errorf("InspectContainer(%q): Wrong Path. Want %q. Got %q.", id, "date", container.Path)
+		}
 	}
 }
