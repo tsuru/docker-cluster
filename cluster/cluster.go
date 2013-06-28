@@ -59,6 +59,9 @@ func New(nodes ...Node) (*Cluster, error) {
 func (c *Cluster) next() node {
 	c.mut.RLock()
 	defer c.mut.RUnlock()
+	if len(c.nodes) == 0 {
+		panic("No nodes available")
+	}
 	index := atomic.AddInt64(&c.lastUsed, 1) % int64(len(c.nodes))
 	return c.nodes[index]
 }

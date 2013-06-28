@@ -53,6 +53,21 @@ func TestNext(t *testing.T) {
 	}
 }
 
+func TestNextEmpty(t *testing.T) {
+	defer func() {
+		expected := "No nodes available"
+		r := recover().(string)
+		if r != expected {
+			t.Fatalf("next(): wrong panic message. Want %q. Got %q.", expected, r)
+		}
+	}()
+	cluster, err := New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	cluster.next()
+}
+
 func TestRegister(t *testing.T) {
 	cluster, err := New()
 	if err != nil {
