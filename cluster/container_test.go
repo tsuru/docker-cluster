@@ -423,6 +423,50 @@ func TestRemoveContainer(t *testing.T) {
 	}
 }
 
+func TestRemoveContainerWithStorage(t *testing.T) {
+	var called bool
+	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		http.Error(w, "No such container", http.StatusNotFound)
+	}))
+	defer server1.Close()
+	server2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("ok"))
+	}))
+	defer server2.Close()
+	cluster, err := New(nil,
+		Node{ID: "handler0", Address: server1.URL},
+		Node{ID: "handler1", Address: server2.URL},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := "abc123"
+	storage := mapStorage{m: map[string]string{id: "handler1"}}
+	cluster.SetStorage(&storage)
+	err = cluster.RemoveContainer(id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if called {
+		t.Errorf("RemoveContainer(%q): should not call the node server", id)
+	}
+}
+
+func TestRemoveContainerNotFoundWithStorage(t *testing.T) {
+	cluster, err := New(nil, Node{ID: "handler0", Address: "http://localhost:8282"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := "abc123"
+	cluster.SetStorage(&mapStorage{})
+	err = cluster.RemoveContainer(id)
+	expected := &dclient.NoSuchContainer{ID: id}
+	if !reflect.DeepEqual(err, expected) {
+		t.Errorf("RemoveContainer(%q): Wrong error. Want %#v. Got %#v.", id, expected, err)
+	}
+}
+
 func TestStartContainer(t *testing.T) {
 	var called bool
 	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
