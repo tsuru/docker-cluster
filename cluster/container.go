@@ -151,7 +151,10 @@ func (c *Cluster) WaitContainer(id string) (int, error) {
 	exit, err := c.runOnNodes(func(n node) (interface{}, error) {
 		return n.WaitContainer(id)
 	}, &dcli.NoSuchContainer{ID: id})
-	return exit.(int), err
+	if err != nil {
+		return -1, err
+	}
+	return exit.(int), nil
 }
 
 // AttachToContainer attaches to a container, using the given options.
