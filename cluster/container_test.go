@@ -909,6 +909,56 @@ func TestCommitContainerError(t *testing.T) {
 	}
 }
 
+func TestCommitContainerWithStorage(t *testing.T) {
+	var called bool
+	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		http.Error(w, "container not found", http.StatusNotFound)
+	}))
+	defer server1.Close()
+	server2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`{"Id":"596069db4bf5"}`))
+	}))
+	defer server2.Close()
+	defer server2.Close()
+	cluster, err := New(nil,
+		Node{ID: "handler0", Address: server1.URL},
+		Node{ID: "handler1", Address: server2.URL},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := "abc123"
+	storage := mapStorage{m: map[string]string{id: "handler1"}}
+	cluster.SetStorage(&storage)
+	opts := dclient.CommitContainerOptions{Container: id}
+	image, err := cluster.CommitContainer(opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if image.ID != "596069db4bf5" {
+		t.Errorf("CommitContainer: the image container is %s, expected: '596069db4bf5'", image.ID)
+	}
+	if called {
+		t.Errorf("CommitContainer(%q): should not call the all node servers.", id)
+	}
+}
+
+func TestCommitContainerNotFoundWithStorage(t *testing.T) {
+	cluster, err := New(nil, Node{ID: "handler0", Address: "http://localhost:4243"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := "abc123"
+	cluster.SetStorage(&mapStorage{})
+	opts := dclient.CommitContainerOptions{Container: id}
+	_, err = cluster.CommitContainer(opts)
+	expected := &dclient.NoSuchContainer{ID: id}
+	if !reflect.DeepEqual(err, expected) {
+		t.Errorf("CommitContainer(%q): wrong error. Want %#v. Got %#v.", id, expected, err)
+	}
+}
+
 func TestGetNode(t *testing.T) {
 	cluster, err := New(nil,
 		Node{ID: "handler0", Address: "http://localhost:4243"},

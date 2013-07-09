@@ -169,6 +169,11 @@ func (c *Cluster) AttachToContainer(opts dcli.AttachToContainerOptions) error {
 
 // CommitContainer commits a container and returns the image id.
 func (c *Cluster) CommitContainer(opts dcli.CommitContainerOptions) (*docker.Image, error) {
+	if node, err := c.getNode(opts.Container); err == nil {
+		return node.CommitContainer(opts)
+	} else if err != errStorageDisabled {
+		return nil, err
+	}
 	image, err := c.runOnNodes(func(n node) (interface{}, error) {
 		return n.CommitContainer(opts)
 	}, &dcli.NoSuchContainer{ID: opts.Container})
