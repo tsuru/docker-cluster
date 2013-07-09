@@ -30,7 +30,7 @@ func TestCreateContainer(t *testing.T) {
 		w.Write([]byte(body))
 	}))
 	defer server2.Close()
-	cluster, err := New(
+	cluster, err := New(nil,
 		Node{ID: "handler0", Address: server1.URL},
 		Node{ID: "handler1", Address: server2.URL},
 	)
@@ -62,7 +62,7 @@ func TestInspectContainer(t *testing.T) {
 		http.Error(w, "No such container", http.StatusNotFound)
 	}))
 	defer server3.Close()
-	cluster, err := New(
+	cluster, err := New(nil,
 		Node{ID: "handler0", Address: server1.URL},
 		Node{ID: "handler1", Address: server2.URL},
 		Node{ID: "handler2", Address: server3.URL},
@@ -92,7 +92,7 @@ func TestInspectContainerNoSuchContainer(t *testing.T) {
 		http.Error(w, "No such container", http.StatusNotFound)
 	}))
 	defer server2.Close()
-	cluster, err := New(
+	cluster, err := New(nil,
 		Node{ID: "handler0", Address: server1.URL},
 		Node{ID: "handler1", Address: server2.URL},
 	)
@@ -115,7 +115,7 @@ func TestInspectContainerFailure(t *testing.T) {
 		http.Error(w, "No such container", http.StatusInternalServerError)
 	}))
 	defer server.Close()
-	cluster, err := New(Node{ID: "handler0", Address: server.URL})
+	cluster, err := New(nil, Node{ID: "handler0", Address: server.URL})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -140,7 +140,7 @@ func TestKillContainer(t *testing.T) {
 		w.Write([]byte("ok"))
 	}))
 	defer server2.Close()
-	cluster, err := New(
+	cluster, err := New(nil,
 		Node{ID: "handler0", Address: server1.URL},
 		Node{ID: "handler1", Address: server2.URL},
 	)
@@ -199,7 +199,7 @@ func TestListContainers(t *testing.T) {
 		w.Write([]byte(body))
 	}))
 	defer server3.Close()
-	cluster, err := New(
+	cluster, err := New(nil,
 		Node{ID: "handler0", Address: server1.URL},
 		Node{ID: "handler1", Address: server2.URL},
 		Node{ID: "handler2", Address: server3.URL},
@@ -243,7 +243,7 @@ func TestListContainersFailure(t *testing.T) {
 		http.Error(w, "Internal failure", http.StatusInternalServerError)
 	}))
 	defer server2.Close()
-	cluster, err := New(
+	cluster, err := New(nil,
 		Node{ID: "handler0", Address: server1.URL},
 		Node{ID: "handler1", Address: server2.URL},
 	)
@@ -273,7 +273,7 @@ func TestRemoveContainer(t *testing.T) {
 		w.Write([]byte("ok"))
 	}))
 	defer server2.Close()
-	cluster, err := New(
+	cluster, err := New(nil,
 		Node{ID: "handler0", Address: server1.URL},
 		Node{ID: "handler1", Address: server2.URL},
 	)
@@ -301,7 +301,7 @@ func TestStartContainer(t *testing.T) {
 		w.Write([]byte("ok"))
 	}))
 	defer server2.Close()
-	cluster, err := New(
+	cluster, err := New(nil,
 		Node{ID: "handler0", Address: server1.URL},
 		Node{ID: "handler1", Address: server2.URL},
 	)
@@ -329,7 +329,7 @@ func TestStopContainer(t *testing.T) {
 		w.Write([]byte("ok"))
 	}))
 	defer server2.Close()
-	cluster, err := New(
+	cluster, err := New(nil,
 		Node{ID: "handler0", Address: server1.URL},
 		Node{ID: "handler1", Address: server2.URL},
 	)
@@ -357,7 +357,7 @@ func TestRestartContainer(t *testing.T) {
 		w.Write([]byte("ok"))
 	}))
 	defer server2.Close()
-	cluster, err := New(
+	cluster, err := New(nil,
 		Node{ID: "handler0", Address: server1.URL},
 		Node{ID: "handler1", Address: server2.URL},
 	)
@@ -384,7 +384,7 @@ func TestWaitContainer(t *testing.T) {
 		w.Write([]byte(body))
 	}))
 	defer server2.Close()
-	cluster, err := New(
+	cluster, err := New(nil,
 		Node{ID: "handler0", Address: server1.URL},
 		Node{ID: "handler1", Address: server2.URL},
 	)
@@ -413,7 +413,7 @@ func TestAttachToContainer(t *testing.T) {
 		w.Write([]byte("something happened"))
 	}))
 	defer server2.Close()
-	cluster, err := New(
+	cluster, err := New(nil,
 		Node{ID: "handler0", Address: server1.URL},
 		Node{ID: "handler1", Address: server2.URL},
 	)
@@ -446,7 +446,7 @@ func TestCommitContainer(t *testing.T) {
 		w.Write([]byte(`{"Id":"596069db4bf5"}`))
 	}))
 	defer server2.Close()
-	cluster, err := New(
+	cluster, err := New(nil,
 		Node{ID: "handler0", Address: server1.URL},
 		Node{ID: "handler1", Address: server2.URL},
 	)
@@ -473,7 +473,7 @@ func TestCommitContainerError(t *testing.T) {
 		http.Error(w, "container not found", http.StatusNotFound)
 	}))
 	defer server1.Close()
-	cluster, err := New(
+	cluster, err := New(nil,
 		Node{ID: "handler0", Address: server1.URL},
 	)
 	if err != nil {

@@ -12,7 +12,6 @@ import (
 	"net/http"
 	"reflect"
 	"sync"
-	"sync/atomic"
 )
 
 // Node represents a host running Docker. Each node has an ID and an address
@@ -26,65 +25,39 @@ type Node struct {
 // provide methods for interaction with those nodes, like CreateContainer,
 // which creates a container in one node of the cluster.
 type Cluster struct {
-	nodes    []node
-	lastUsed int64
-	mut      sync.RWMutex
+	scheduler Scheduler
 }
 
-// New creates a new Cluster, composed of the given nodes.
-func New(nodes ...Node) (*Cluster, error) {
-	c := Cluster{
-		nodes:    make([]node, len(nodes)),
-		lastUsed: -1,
+// New creates a new Cluster, composed by the given nodes.
+//
+// The parameter Scheduler defines the scheduling strategy, and cannot change.
+// It is optional, when set to nil, the cluster will use a round robin strategy
+// defined internaly.
+func New(scheduler Scheduler, nodes ...Node) (*Cluster, error) {
+	c := Cluster{}
+	c.scheduler = scheduler
+	if scheduler == nil {
+		c.scheduler = &roundRobin{lastUsed: -1}
 	}
-	for i, n := range nodes {
-		client, err := docker.NewClient(n.Address)
-		if err != nil {
-			return nil, err
-		}
-		c.nodes[i] = node{
-			id:     n.ID,
-			Client: client,
-		}
-	}
-	return &c, nil
-}
-
-func (c *Cluster) next() node {
-	c.mut.RLock()
-	defer c.mut.RUnlock()
-	if len(c.nodes) == 0 {
-		panic("No nodes available")
-	}
-	index := atomic.AddInt64(&c.lastUsed, 1) % int64(len(c.nodes))
-	return c.nodes[index]
+	return &c, c.Register(nodes...)
 }
 
 // Register adds new nodes to the cluster.
 func (c *Cluster) Register(nodes ...Node) error {
-	for _, n := range nodes {
-		client, err := docker.NewClient(n.Address)
-		if err != nil {
-			return err
-		}
-		c.mut.Lock()
-		c.nodes = append(c.nodes, node{id: n.ID, Client: client})
-		c.mut.Unlock()
-	}
-	return nil
+	return c.scheduler.Register(nodes...)
 }
 
 type nodeFunc func(node) (interface{}, error)
 
 func (c *Cluster) runOnNodes(fn nodeFunc, errNotFound error) (interface{}, error) {
-	c.mut.RLock()
-	defer c.mut.RUnlock()
+	nodes := c.scheduler.Nodes()
 	var wg sync.WaitGroup
 	finish := make(chan int8, 1)
-	errChan := make(chan error, len(c.nodes))
+	errChan := make(chan error, len(nodes))
 	result := make(chan interface{}, 1)
-	for _, n := range c.nodes {
+	for _, n := range nodes {
 		wg.Add(1)
+		client, _ := docker.NewClient(n.Address)
 		go func(n node) {
 			defer wg.Done()
 			value, err := fn(n)
@@ -95,7 +68,7 @@ func (c *Cluster) runOnNodes(fn nodeFunc, errNotFound error) (interface{}, error
 			} else if !reflect.DeepEqual(err, errNotFound) {
 				errChan <- err
 			}
-		}(n)
+		}(node{id: n.ID, Client: client})
 	}
 	go func() {
 		wg.Wait()

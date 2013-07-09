@@ -14,62 +14,37 @@ import (
 
 func TestNewCluster(t *testing.T) {
 	var tests = []struct {
-		input []Node
-		fail  bool
+		scheduler Scheduler
+		input     []Node
+		fail      bool
 	}{
 		{
+			&roundRobin{},
 			[]Node{{ID: "something", Address: "http://localhost:8083"}},
 			false,
 		},
 		{
+			&roundRobin{},
 			[]Node{{ID: "something", Address: ""}, {ID: "otherthing", Address: "http://localhost:8083"}},
 			true,
 		},
+		{
+			nil,
+			[]Node{{ID: "something", Address: "http://localhost:8083"}},
+			false,
+		},
 	}
 	for _, tt := range tests {
-		_, err := New(tt.input...)
+		_, err := New(&roundRobin{}, tt.input...)
 		if tt.fail && err == nil || !tt.fail && err != nil {
-			t.Errorf("cluster.New(). Expect failure: %v. Got: %v.", tt.fail, err)
+			t.Errorf("cluster.New() for input %#v. Expect failure: %v. Got: %v.", tt.input, tt.fail, err)
 		}
 	}
-}
-
-func TestNext(t *testing.T) {
-	ids := []string{"abcdef", "abcdefg", "abcdefgh"}
-	nodes := make([]Node, len(ids))
-	for i, id := range ids {
-		nodes[i] = Node{ID: id, Address: "http://localhost:4243"}
-	}
-	cluster, err := New(nodes...)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for i := 0; i < len(ids)*2; i++ {
-		expected := ids[i%len(ids)]
-		node := cluster.next()
-		if node.id != expected {
-			t.Errorf("Wrong node from next call. Want %q. Got %q.", expected, node.id)
-		}
-	}
-}
-
-func TestNextEmpty(t *testing.T) {
-	defer func() {
-		expected := "No nodes available"
-		r := recover().(string)
-		if r != expected {
-			t.Fatalf("next(): wrong panic message. Want %q. Got %q.", expected, r)
-		}
-	}()
-	cluster, err := New()
-	if err != nil {
-		t.Fatal(err)
-	}
-	cluster.next()
 }
 
 func TestRegister(t *testing.T) {
-	cluster, err := New()
+	var scheduler roundRobin
+	cluster, err := New(&scheduler)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -77,7 +52,7 @@ func TestRegister(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	node := cluster.next()
+	node := scheduler.next()
 	if node.id != "abcdef" {
 		t.Errorf("Register failed. Got wrong ID. Want %q. Got %q.", "abcdef", node.id)
 	}
@@ -85,18 +60,18 @@ func TestRegister(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	node = cluster.next()
+	node = scheduler.next()
 	if node.id != "abcdefg" {
 		t.Errorf("Register failed. Got wrong ID. Want %q. Got %q.", "abcdefg", node.id)
 	}
-	node = cluster.next()
+	node = scheduler.next()
 	if node.id != "abcdef" {
 		t.Errorf("Register failed. Got wrong ID. Want %q. Got %q.", "abcdef", node.id)
 	}
 }
 
 func TestRegisterFailure(t *testing.T) {
-	cluster, err := New()
+	cluster, err := New(&roundRobin{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -115,7 +90,7 @@ func TestRunOnNodesStress(t *testing.T) {
 		w.Write([]byte(body))
 	}))
 	defer server.Close()
-	cluster, err := New(Node{ID: "server0", Address: server.URL})
+	cluster, err := New(nil, Node{ID: "server0", Address: server.URL})
 	if err != nil {
 		t.Fatal(err)
 	}

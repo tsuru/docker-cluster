@@ -14,7 +14,8 @@ import (
 //
 // It returns the container, or an error, in case of failures.
 func (c *Cluster) CreateContainer(config *docker.Config) (*docker.Container, error) {
-	return c.next().CreateContainer(config)
+	_, container, err := c.scheduler.Schedule(config)
+	return container, err
 }
 
 // InspectContainer returns information about a container by its ID, getting
@@ -40,13 +41,13 @@ func (c *Cluster) KillContainer(id string) error {
 // ListContainers returns a slice of all containers in the cluster matching the
 // given criteria.
 func (c *Cluster) ListContainers(opts dcli.ListContainersOptions) ([]docker.APIContainers, error) {
-	c.mut.RLock()
-	defer c.mut.RUnlock()
+	nodes := c.scheduler.Nodes()
 	var wg sync.WaitGroup
-	result := make(chan []docker.APIContainers, len(c.nodes))
-	errs := make(chan error, len(c.nodes))
-	for _, n := range c.nodes {
+	result := make(chan []docker.APIContainers, len(nodes))
+	errs := make(chan error, len(nodes))
+	for _, n := range nodes {
 		wg.Add(1)
+		client, _ := dcli.NewClient(n.Address)
 		go func(n node) {
 			defer wg.Done()
 			if containers, err := n.ListContainers(opts); err != nil {
@@ -54,7 +55,7 @@ func (c *Cluster) ListContainers(opts dcli.ListContainersOptions) ([]docker.APIC
 			} else {
 				result <- containers
 			}
-		}(n)
+		}(node{id: n.ID, Client: client})
 	}
 	wg.Wait()
 	var group []docker.APIContainers
@@ -109,7 +110,10 @@ func (c *Cluster) WaitContainer(id string) (int, error) {
 	exit, err := c.runOnNodes(func(n node) (interface{}, error) {
 		return n.WaitContainer(id)
 	}, &dcli.NoSuchContainer{ID: id})
-	return exit.(int), err
+	if err != nil {
+		return -1, err
+	}
+	return exit.(int), nil
 }
 
 // AttachToContainer attaches to a container, using the given options.
