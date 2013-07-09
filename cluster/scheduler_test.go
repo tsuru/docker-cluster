@@ -8,6 +8,7 @@ import (
 	"github.com/dotcloud/docker"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"testing"
 )
 
@@ -48,5 +49,30 @@ func TestRoundRobinSchedule(t *testing.T) {
 	id, _, _ = scheduler.Schedule(&docker.Config{Memory: 67108864})
 	if id != "node0" {
 		t.Errorf("roundRobin.Schedule(): wrong node ID. Want %q. Got %q.", "node0", id)
+	}
+}
+
+func TestNextEmpty(t *testing.T) {
+	defer func() {
+		expected := "No nodes available"
+		r := recover().(string)
+		if r != expected {
+			t.Fatalf("next(): wrong panic message. Want %q. Got %q.", expected, r)
+		}
+	}()
+	var scheduler roundRobin
+	scheduler.next()
+}
+
+func TestRoundRobinNodes(t *testing.T) {
+	nodes := []Node{
+		{ID: "server0", Address: "http://localhost:8080"},
+		{ID: "server1", Address: "http://localhost:8081"},
+	}
+	var scheduler roundRobin
+	scheduler.Register(nodes...)
+	got := scheduler.Nodes()
+	if !reflect.DeepEqual(got, nodes) {
+		t.Errorf("roundRobin.Nodes(): wrong result. Want %#v. Got %#v.", nodes, got)
 	}
 }

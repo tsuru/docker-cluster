@@ -20,12 +20,15 @@ type Scheduler interface {
 
 	// Register adds new nodes to the scheduler.
 	Register(nodes ...Node) error
+
+	// Nodes returns a slice of nodes in the scheduler.
+	Nodes() []Node
 }
 
 type node struct {
 	*dcli.Client
 	id   string
-	load int64
+	edp  string
 }
 
 type roundRobin struct {
@@ -62,7 +65,17 @@ func (s *roundRobin) Register(nodes ...Node) error {
 		if err != nil {
 			return err
 		}
-		s.nodes = append(s.nodes, node{Client: client, id: n.ID})
+		s.nodes = append(s.nodes, node{Client: client, edp: n.Address, id: n.ID})
 	}
 	return nil
+}
+
+func (s *roundRobin) Nodes() []Node {
+	s.mut.RLock()
+	defer s.mut.RUnlock()
+	nodes := make([]Node, len(s.nodes))
+	for i, node := range s.nodes {
+		nodes[i] = Node{ID: node.id, Address: node.edp}
+	}
+	return nodes
 }
