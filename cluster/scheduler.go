@@ -27,8 +27,8 @@ type Scheduler interface {
 
 type node struct {
 	*dcli.Client
-	id   string
-	edp  string
+	id  string
+	edp string
 }
 
 type roundRobin struct {
