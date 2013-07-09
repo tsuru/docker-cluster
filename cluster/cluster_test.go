@@ -132,6 +132,9 @@ type mapStorage struct {
 func (s *mapStorage) Store(containerID, hostID string) error {
     s.Lock()
     defer s.Unlock()
+    if s.m == nil {
+	    s.m = make(map[string]string)
+    }
     s.m[containerID] = hostID
     return nil
 }
