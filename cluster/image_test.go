@@ -61,7 +61,7 @@ func TestRemoveImageNotFound(t *testing.T) {
 	name := "tsuru/python"
 	err = cluster.RemoveImage(name)
 	if err != docker.ErrNoSuchImage {
-		t.Errorf("RemoveImage(%q): wrong error. Want %#v. Got %#v.", docker.ErrNoSuchImage, err)
+		t.Errorf("RemoveImage(%q): wrong error. Want %#v. Got %#v.", name, docker.ErrNoSuchImage, err)
 	}
 }
 
