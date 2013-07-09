@@ -8,11 +8,17 @@
 package cluster
 
 import (
+	"errors"
 	"github.com/fsouza/go-dockerclient"
 	"net/http"
 	"reflect"
 	"sync"
 )
+
+// ErrUnknownNode is the error returned when an unknown node is stored in the
+// storage. This error means some kind of inconsistence between the storage and
+// the cluster.
+var ErrUnknownNode = errors.New("Unknown node")
 
 // Storage provides methods to store and retrieve information about the
 // relation between the node and the container. It can be easily represented as

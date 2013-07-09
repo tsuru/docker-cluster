@@ -5,10 +5,13 @@
 package cluster
 
 import (
+	"errors"
 	"github.com/dotcloud/docker"
 	dcli "github.com/fsouza/go-dockerclient"
 	"sync"
 )
+
+var errStorageDisabled = errors.New("Storage is disabled")
 
 // CreateContainer creates a container in one of the nodes.
 //
@@ -24,6 +27,11 @@ func (c *Cluster) CreateContainer(config *docker.Config) (*docker.Container, err
 // InspectContainer returns information about a container by its ID, getting
 // the information from the right node.
 func (c *Cluster) InspectContainer(id string) (*docker.Container, error) {
+	if node, err := c.getNode(id); err == nil {
+		return node.InspectContainer(id)
+	} else if err != errStorageDisabled {
+		return nil, err
+	}
 	container, err := c.runOnNodes(func(n node) (interface{}, error) {
 		return n.InspectContainer(id)
 	}, &dcli.NoSuchContainer{ID: id})
@@ -133,4 +141,31 @@ func (c *Cluster) CommitContainer(opts dcli.CommitContainerOptions) (*docker.Ima
 		return nil, err
 	}
 	return image.(*docker.Image), nil
+}
+
+// getNode returns the node that a container is running on, or an error in case
+// of failure.
+//
+// The error might be:
+//
+//    - errStorageDisabled: storage is nil.
+//    - instance of go-dockerclient.NoSuchContainer: container not found.
+func (c *Cluster) getNode(container string) (node, error) {
+	var n node
+	storage := c.storage()
+	if storage == nil {
+		return n, errStorageDisabled
+	}
+	id, err := storage.Retrieve(container)
+	if err != nil {
+		return n, err
+	}
+	nodes := c.scheduler.Nodes()
+	for _, nd := range nodes {
+		if nd.ID == id {
+			client, _ := dcli.NewClient(nd.Address)
+			return node{id: nd.ID, Client: client, edp: nd.Address}, nil
+		}
+	}
+	return n, ErrUnknownNode
 }

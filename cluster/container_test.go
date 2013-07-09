@@ -118,6 +118,43 @@ func TestInspectContainer(t *testing.T) {
 	}
 }
 
+func TestInspectContainerWithStorage(t *testing.T) {
+	body := `{"Id":"e90302","Path":"date","Args":[]}`
+	var count int
+	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		count++
+	}))
+	defer server1.Close()
+	server2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(body))
+	}))
+	defer server2.Close()
+	cluster, err := New(nil,
+		Node{ID: "handler0", Address: server1.URL},
+		Node{ID: "handler1", Address: server2.URL},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := "e90302"
+	storage := mapStorage{m: map[string]string{id: "handler1"}}
+	cluster.SetStorage(&storage)
+	container, err := cluster.InspectContainer(id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if container.ID != id {
+		t.Errorf("InspectContainer(%q): Wrong ID. Want %q. Got %q.", id, id, container.ID)
+	}
+	if container.Path != "date" {
+		t.Errorf("InspectContainer(%q): Wrong Path. Want %q. Got %q.", id, "date", container.Path)
+	}
+	if count > 0 {
+		t.Error("InspectContainer(%q) with storage: should not send request to all servers, but did.", "e90302")
+	}
+}
+
 func TestInspectContainerNoSuchContainer(t *testing.T) {
 	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "No such container", http.StatusNotFound)
@@ -134,6 +171,23 @@ func TestInspectContainerNoSuchContainer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	id := "e90302"
+	container, err := cluster.InspectContainer(id)
+	if container != nil {
+		t.Errorf("InspectContainer(%q): Expected <nil> container, got %#v.", id, container)
+	}
+	expected := &dclient.NoSuchContainer{ID: id}
+	if !reflect.DeepEqual(err, expected) {
+		t.Errorf("InspectContainer(%q): Wrong error. Want %#v. Got %#v.", id, expected, err)
+	}
+}
+
+func TestInspectContainerNoSuchContainerWithStorage(t *testing.T) {
+	cluster, err := New(nil, Node{ID: "handler0", Address: "http://localhost:4243"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cluster.SetStorage(&mapStorage{})
 	id := "e90302"
 	container, err := cluster.InspectContainer(id)
 	if container != nil {
@@ -523,5 +577,38 @@ func TestCommitContainerError(t *testing.T) {
 	}
 	if image != nil {
 		t.Errorf("CommitContainerError: the image should be nil but it is %s", image.ID)
+	}
+}
+
+func TestGetNode(t *testing.T) {
+	cluster, err := New(nil,
+		Node{ID: "handler0", Address: "http://localhost:4243"},
+		Node{ID: "handler1", Address: "http://localhost:4242"},
+		Node{ID: "handler2", Address: "http://localhost:4241"},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var storage mapStorage
+	storage.Store("e90301", "handler1")
+	storage.Store("e90304", "handler1")
+	storage.Store("e90303", "handler2")
+	storage.Store("e90302", "handler3")
+	cluster.SetStorage(&storage)
+	_, err = cluster.getNode("e90302")
+	if err != ErrUnknownNode {
+		t.Errorf("cluster.getNode(%q): wrong error. Want %#v. Got %#v.", "e90302", ErrUnknownNode, err)
+	}
+	node, err := cluster.getNode("e90301")
+	if err != nil {
+		t.Error(err)
+	}
+	if node.id != "handler1" {
+		t.Errorf("cluster.getNode(%q): wrong node. Want %q. Got %q.", "e90301", "handler1", node.id)
+	}
+	_, err = cluster.getNode("e90305")
+	expected := dclient.NoSuchContainer{ID: "e90305"}
+	if !reflect.DeepEqual(err, &expected) {
+		t.Errorf("cluster.getNode(%q): wrong error. Want %#v. Got %#v.", "e90305", expected, err)
 	}
 }
