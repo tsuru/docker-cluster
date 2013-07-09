@@ -115,6 +115,11 @@ func (c *Cluster) StartContainer(id string) error {
 // StopContainer stops a container, killing it after the given timeout, if it
 // fails to stop nicely.
 func (c *Cluster) StopContainer(id string, timeout uint) error {
+	if node, err := c.getNode(id); err == nil {
+		return node.StopContainer(id, timeout)
+	} else if err != errStorageDisabled {
+		return err
+	}
 	_, err := c.runOnNodes(func(n node) (interface{}, error) {
 		return nil, n.StopContainer(id, timeout)
 	}, &dcli.NoSuchContainer{ID: id})
