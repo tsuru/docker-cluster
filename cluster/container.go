@@ -43,6 +43,11 @@ func (c *Cluster) InspectContainer(id string) (*docker.Container, error) {
 
 // KillContainer kills a container, returning an error in case of failure.
 func (c *Cluster) KillContainer(id string) error {
+	if node, err := c.getNode(id); err == nil {
+		return node.KillContainer(id)
+	} else if err != errStorageDisabled {
+		return err
+	}
 	_, err := c.runOnNodes(func(n node) (interface{}, error) {
 		return nil, n.KillContainer(id)
 	}, &dcli.NoSuchContainer{ID: id})
