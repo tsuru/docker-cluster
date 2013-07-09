@@ -156,6 +156,11 @@ func (c *Cluster) WaitContainer(id string) (int, error) {
 
 // AttachToContainer attaches to a container, using the given options.
 func (c *Cluster) AttachToContainer(opts dcli.AttachToContainerOptions) error {
+	if node, err := c.getNode(opts.Container); err == nil {
+		return node.AttachToContainer(opts)
+	} else if err != errStorageDisabled {
+		return err
+	}
 	_, err := c.runOnNodes(func(n node) (interface{}, error) {
 		return nil, n.AttachToContainer(opts)
 	}, &dcli.NoSuchContainer{ID: opts.Container})

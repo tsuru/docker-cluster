@@ -797,6 +797,62 @@ func TestAttachToContainer(t *testing.T) {
 	}
 }
 
+func TestAttachToContainerWithStorage(t *testing.T) {
+	var called bool
+	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		http.Error(w, "No such container", http.StatusNotFound)
+	}))
+	defer server1.Close()
+	server2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("ok"))
+	}))
+	defer server2.Close()
+	cluster, err := New(nil,
+		Node{ID: "handler0", Address: server1.URL},
+		Node{ID: "handler1", Address: server2.URL},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := "abcdef"
+	storage := mapStorage{m: map[string]string{id: "handler1"}}
+	cluster.SetStorage(&storage)
+	opts := dclient.AttachToContainerOptions{
+		Container:    id,
+		OutputStream: &safe.Buffer{},
+		Logs:         true,
+		Stdout:       true,
+	}
+	err = cluster.AttachToContainer(opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if called {
+		t.Error("AttachToContainer(): should not call the node server")
+	}
+}
+
+func TestAttachToContainerNotFoundWithStorage(t *testing.T) {
+	cluster, err := New(nil, Node{ID: "handler0", Address: "http://localhost:8282"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := "abcdef"
+	cluster.SetStorage(&mapStorage{})
+	opts := dclient.AttachToContainerOptions{
+		Container:    "abcdef",
+		OutputStream: &safe.Buffer{},
+		Logs:         true,
+		Stdout:       true,
+	}
+	err = cluster.AttachToContainer(opts)
+	expected := &dclient.NoSuchContainer{ID: id}
+	if !reflect.DeepEqual(err, expected) {
+		t.Errorf("AttachToContainer(%q): Wrong error. Want %#v. Got %#v.", id, expected, err)
+	}
+}
+
 func TestCommitContainer(t *testing.T) {
 	var called bool
 	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
