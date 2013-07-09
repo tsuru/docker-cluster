@@ -101,6 +101,11 @@ func (c *Cluster) RemoveContainer(id string) error {
 }
 
 func (c *Cluster) StartContainer(id string) error {
+	if node, err := c.getNode(id); err == nil {
+		return node.StartContainer(id)
+	} else if err != errStorageDisabled {
+		return err
+	}
 	_, err := c.runOnNodes(func(n node) (interface{}, error) {
 		return nil, n.StartContainer(id)
 	}, &dcli.NoSuchContainer{ID: id})
