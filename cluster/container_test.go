@@ -38,12 +38,9 @@ func TestCreateContainer(t *testing.T) {
 		t.Fatal(err)
 	}
 	config := docker.Config{Memory: 67108864}
-	id, container, err := cluster.CreateContainer(&config)
+	container, err := cluster.CreateContainer(&config)
 	if err != nil {
 		t.Fatal(err)
-	}
-	if id != "handler0" {
-		t.Errorf("CreateContainer: ran on wrong node. Want %q. Got %q.", "handler0", id)
 	}
 	if container.ID != "e90302" {
 		t.Errorf("CreateContainer: wrong container ID. Want %q. Got %q.", "e90302", container.ID)
