@@ -22,12 +22,6 @@ type Node struct {
 	Address string
 }
 
-type node struct {
-	*docker.Client
-	id   string
-	load int64
-}
-
 // Cluster is the basic type of the package. It manages internal nodes, and
 // provide methods for interaction with those nodes, like CreateContainer,
 // which creates a container in one node of the cluster.
