@@ -5,7 +5,7 @@
 package cluster
 
 import (
-	"errors"
+	"github.com/fsouza/go-dockerclient"
 	"math/rand"
 	"net/http"
 	"net/http/httptest"
@@ -130,21 +130,21 @@ type mapStorage struct {
 }
 
 func (s *mapStorage) Store(containerID, hostID string) error {
-    s.Lock()
-    defer s.Unlock()
-    if s.m == nil {
-	    s.m = make(map[string]string)
-    }
-    s.m[containerID] = hostID
-    return nil
+	s.Lock()
+	defer s.Unlock()
+	if s.m == nil {
+		s.m = make(map[string]string)
+	}
+	s.m[containerID] = hostID
+	return nil
 }
 
 func (s *mapStorage) Retrieve(containerID string) (string, error) {
-    s.Lock()
-    defer s.Unlock()
-    host, ok := s.m[containerID]
-    if !ok {
-        return "", errors.New("No such container")
-    }
-    return host, nil
+	s.Lock()
+	defer s.Unlock()
+	host, ok := s.m[containerID]
+	if !ok {
+		return "", &docker.NoSuchContainer{ID: containerID}
+	}
+	return host, nil
 }
