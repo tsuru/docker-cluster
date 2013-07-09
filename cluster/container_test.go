@@ -47,6 +47,41 @@ func TestCreateContainer(t *testing.T) {
 	}
 }
 
+func TestCreateContainerWithStorage(t *testing.T) {
+	body := `{"Id":"e90302"}`
+	handler := []bool{false, false}
+	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		handler[0] = true
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(body))
+	}))
+	defer server1.Close()
+	server2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		handler[1] = true
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(body))
+	}))
+	defer server2.Close()
+	cluster, err := New(nil,
+		Node{ID: "handler0", Address: server1.URL},
+		Node{ID: "handler1", Address: server2.URL},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var storage mapStorage
+	cluster.SetStorage(&storage)
+	config := docker.Config{Memory: 67108864}
+	_, err = cluster.CreateContainer(&config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	expected := map[string]string{"e90302": "handler0"}
+	if storage.m["e90302"] != "handler0" {
+		t.Errorf("Cluster.CreateContainer() with storage: wrong data. Want %#v. Got %#v.", expected, storage.m)
+	}
+}
+
 func TestInspectContainer(t *testing.T) {
 	body := `{"Id":"e90302","Path":"date","Args":[]}`
 	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -14,7 +14,10 @@ import (
 //
 // It returns the container, or an error, in case of failures.
 func (c *Cluster) CreateContainer(config *docker.Config) (*docker.Container, error) {
-	_, container, err := c.scheduler.Schedule(config)
+	id, container, err := c.scheduler.Schedule(config)
+	if storage := c.storage(); storage != nil {
+		storage.Store(container.ID, id)
+	}
 	return container, err
 }
 
