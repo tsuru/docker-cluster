@@ -711,6 +711,59 @@ func TestWaitContainer(t *testing.T) {
 	}
 }
 
+func TestWaitContainerWithStorage(t *testing.T) {
+	var called bool
+	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		http.Error(w, "No such container", http.StatusNotFound)
+	}))
+	defer server1.Close()
+	server2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body := `{"StatusCode":34}`
+		w.Write([]byte(body))
+	}))
+	defer server2.Close()
+	cluster, err := New(nil,
+		Node{ID: "handler0", Address: server1.URL},
+		Node{ID: "handler1", Address: server2.URL},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := "abc123"
+	storage := mapStorage{m: map[string]string{id: "handler1"}}
+	cluster.SetStorage(&storage)
+	expected := 34
+	status, err := cluster.WaitContainer(id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if status != expected {
+		t.Errorf("WaitContainer(%q): Wrong status. Want %d. Got %d.", id, expected, status)
+	}
+	if called {
+		t.Errorf("WaitContainer(%q): should not call the all node servers.", id)
+	}
+}
+
+func TestWaitContainerNotFoundWithStorage(t *testing.T) {
+	cluster, err := New(nil, Node{ID: "handler0", Address: "http://localhost:4243"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := "abc123"
+	expectedStatus := -1
+	cluster.SetStorage(&mapStorage{})
+	status, err := cluster.WaitContainer(id)
+	if status != expectedStatus {
+		t.Errorf("WaitContainer(%q): wrong status. Want %d. Got %d.", id, expectedStatus, status)
+	}
+	expected := &dclient.NoSuchContainer{ID: id}
+	if !reflect.DeepEqual(err, expected) {
+		t.Errorf("WaitContainer(%q): wrong error. Want %#v. Got %#v.", id, expected, err)
+	}
+}
+
 func TestAttachToContainer(t *testing.T) {
 	var called bool
 	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

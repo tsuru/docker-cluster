@@ -143,6 +143,11 @@ func (c *Cluster) RestartContainer(id string, timeout uint) error {
 // WaitContainer blocks until the given container stops, returning the exit
 // code of the container command.
 func (c *Cluster) WaitContainer(id string) (int, error) {
+	if node, err := c.getNode(id); err == nil {
+		return node.WaitContainer(id)
+	} else if err != errStorageDisabled {
+		return -1, err
+	}
 	exit, err := c.runOnNodes(func(n node) (interface{}, error) {
 		return n.WaitContainer(id)
 	}, &dcli.NoSuchContainer{ID: id})
