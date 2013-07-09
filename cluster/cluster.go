@@ -36,6 +36,9 @@ type Node struct {
 // which creates a container in one node of the cluster.
 type Cluster struct {
 	scheduler Scheduler
+
+	stor  Storage
+	mutex sync.RWMutex
 }
 
 // New creates a new Cluster, composed by the given nodes.
@@ -44,7 +47,7 @@ type Cluster struct {
 // It is optional, when set to nil, the cluster will use a round robin strategy
 // defined internaly.
 func New(scheduler Scheduler, nodes ...Node) (*Cluster, error) {
-	c := Cluster{}
+	var c Cluster
 	c.scheduler = scheduler
 	if scheduler == nil {
 		c.scheduler = &roundRobin{lastUsed: -1}
@@ -55,6 +58,19 @@ func New(scheduler Scheduler, nodes ...Node) (*Cluster, error) {
 // Register adds new nodes to the cluster.
 func (c *Cluster) Register(nodes ...Node) error {
 	return c.scheduler.Register(nodes...)
+}
+
+// SetStorage defines the storage in use the cluster.
+func (c *Cluster) SetStorage(storage Storage) {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	c.stor = storage
+}
+
+func (c *Cluster) storage() Storage {
+	c.mutex.RLock()
+	defer c.mutex.RUnlock()
+	return c.stor
 }
 
 type nodeFunc func(node) (interface{}, error)

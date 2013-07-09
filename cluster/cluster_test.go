@@ -5,10 +5,12 @@
 package cluster
 
 import (
+	"errors"
 	"math/rand"
 	"net/http"
 	"net/http/httptest"
 	"runtime"
+	"sync"
 	"testing"
 )
 
@@ -107,4 +109,39 @@ func TestRunOnNodesStress(t *testing.T) {
 			t.Errorf("InspectContainer(%q): Wrong Path. Want %q. Got %q.", id, "date", container.Path)
 		}
 	}
+}
+
+func TestSetStorage(t *testing.T) {
+	var c Cluster
+	var storage, other mapStorage
+	c.SetStorage(&storage)
+	if c.storage() != &storage {
+		t.Errorf("Cluster.SetStorage(): did not change the storage")
+	}
+	c.SetStorage(&other)
+	if c.storage() != &other {
+		t.Errorf("Cluster.SetStorage(): did not change the storage")
+	}
+}
+
+type mapStorage struct {
+	m map[string]string
+	sync.Mutex
+}
+
+func (s *mapStorage) Store(containerID, hostID string) error {
+    s.Lock()
+    defer s.Unlock()
+    s.m[containerID] = hostID
+    return nil
+}
+
+func (s *mapStorage) Retrieve(containerID string) (string, error) {
+    s.Lock()
+    defer s.Unlock()
+    host, ok := s.m[containerID]
+    if !ok {
+        return "", errors.New("No such container")
+    }
+    return host, nil
 }
