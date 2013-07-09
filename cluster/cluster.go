@@ -14,6 +14,16 @@ import (
 	"sync"
 )
 
+// Storage provides methods to store and retrieve information about the
+// relation between the node and the container. It can be easily represented as
+// a key-value storage.
+//
+// The relevant information is: in which host the given container is running?
+type Storage interface {
+	Store(container, host string) error
+	Retrieve(container string) (host string, err error)
+}
+
 // Node represents a host running Docker. Each node has an ID and an address
 // (in the form <scheme>://<host>:<port>/).
 type Node struct {
