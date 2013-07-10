@@ -20,6 +20,10 @@ import (
 // the cluster.
 var ErrUnknownNode = errors.New("Unknown node")
 
+// ErrImmutableCluster is the error returned by Register when the cluster is
+// immutable, meaning that no new nodes can be registered.
+var ErrImmutableCluster = errors.New("Immutable cluster")
+
 // Storage provides methods to store and retrieve information about the
 // relation between the node and the container. It can be easily represented as
 // a key-value storage.
@@ -53,17 +57,26 @@ type Cluster struct {
 // It is optional, when set to nil, the cluster will use a round robin strategy
 // defined internaly.
 func New(scheduler Scheduler, nodes ...Node) (*Cluster, error) {
-	var c Cluster
+	var (
+		c   Cluster
+		err error
+	)
 	c.scheduler = scheduler
 	if scheduler == nil {
 		c.scheduler = &roundRobin{lastUsed: -1}
 	}
-	return &c, c.Register(nodes...)
+	if len(nodes) > 0 {
+		err = c.Register(nodes...)
+	}
+	return &c, err
 }
 
 // Register adds new nodes to the cluster.
 func (c *Cluster) Register(nodes ...Node) error {
-	return c.scheduler.Register(nodes...)
+	if r, ok := c.scheduler.(Registrable); ok {
+		return r.Register(nodes...)
+	}
+	return ErrImmutableCluster
 }
 
 // SetStorage defines the storage in use the cluster.

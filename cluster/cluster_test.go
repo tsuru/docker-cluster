@@ -5,7 +5,8 @@
 package cluster
 
 import (
-	"github.com/fsouza/go-dockerclient"
+	"github.com/dotcloud/docker"
+	dcli "github.com/fsouza/go-dockerclient"
 	"math/rand"
 	"net/http"
 	"net/http/httptest"
@@ -69,6 +70,18 @@ func TestRegister(t *testing.T) {
 	node = scheduler.next()
 	if node.id != "abcdef" {
 		t.Errorf("Register failed. Got wrong ID. Want %q. Got %q.", "abcdef", node.id)
+	}
+}
+
+func TestRegisterSchedulerUnableToRegister(t *testing.T) {
+	var scheduler fakeScheduler
+	cluster, err := New(scheduler)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = cluster.Register(Node{ID: "abcdef", Address: ""})
+	if err != ErrImmutableCluster {
+		t.Error(err)
 	}
 }
 
@@ -144,7 +157,17 @@ func (s *mapStorage) Retrieve(containerID string) (string, error) {
 	defer s.Unlock()
 	host, ok := s.m[containerID]
 	if !ok {
-		return "", &docker.NoSuchContainer{ID: containerID}
+		return "", &dcli.NoSuchContainer{ID: containerID}
 	}
 	return host, nil
+}
+
+type fakeScheduler struct{}
+
+func (fakeScheduler) Schedule(*docker.Config) (string, *docker.Container, error) {
+	return "", nil, nil
+}
+
+func (fakeScheduler) Nodes() []Node {
+	return nil
 }
