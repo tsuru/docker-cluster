@@ -168,6 +168,6 @@ func (fakeScheduler) Schedule(*docker.Config) (string, *docker.Container, error)
 	return "", nil, nil
 }
 
-func (fakeScheduler) Nodes() []Node {
-	return nil
+func (fakeScheduler) Nodes() ([]Node, error) {
+	return nil, nil
 }

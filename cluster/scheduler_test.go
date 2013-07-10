@@ -71,7 +71,10 @@ func TestRoundRobinNodes(t *testing.T) {
 	}
 	var scheduler roundRobin
 	scheduler.Register(nodes...)
-	got := scheduler.Nodes()
+	got, err := scheduler.Nodes()
+	if err != nil {
+		t.Error(err)
+	}
 	if !reflect.DeepEqual(got, nodes) {
 		t.Errorf("roundRobin.Nodes(): wrong result. Want %#v. Got %#v.", nodes, got)
 	}

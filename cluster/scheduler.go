@@ -19,7 +19,7 @@ type Scheduler interface {
 	Schedule(config *docker.Config) (string, *docker.Container, error)
 
 	// Nodes returns a slice of nodes in the scheduler.
-	Nodes() []Node
+	Nodes() ([]Node, error)
 }
 
 // Registrable represents a scheduler that can get new nodes via the Register
@@ -74,12 +74,12 @@ func (s *roundRobin) Register(nodes ...Node) error {
 	return nil
 }
 
-func (s *roundRobin) Nodes() []Node {
+func (s *roundRobin) Nodes() ([]Node, error) {
 	s.mut.RLock()
 	defer s.mut.RUnlock()
 	nodes := make([]Node, len(s.nodes))
 	for i, node := range s.nodes {
 		nodes[i] = Node{ID: node.id, Address: node.edp}
 	}
-	return nodes
+	return nodes, nil
 }

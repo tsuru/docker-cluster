@@ -95,7 +95,10 @@ func (c *Cluster) storage() Storage {
 type nodeFunc func(node) (interface{}, error)
 
 func (c *Cluster) runOnNodes(fn nodeFunc, errNotFound error) (interface{}, error) {
-	nodes := c.scheduler.Nodes()
+	nodes, err := c.scheduler.Nodes()
+	if err != nil {
+		return nil, err
+	}
 	var wg sync.WaitGroup
 	finish := make(chan int8, 1)
 	errChan := make(chan error, len(nodes))

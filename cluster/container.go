@@ -57,7 +57,10 @@ func (c *Cluster) KillContainer(id string) error {
 // ListContainers returns a slice of all containers in the cluster matching the
 // given criteria.
 func (c *Cluster) ListContainers(opts dcli.ListContainersOptions) ([]docker.APIContainers, error) {
-	nodes := c.scheduler.Nodes()
+	nodes, err := c.scheduler.Nodes()
+	if err != nil {
+		return nil, err
+	}
 	var wg sync.WaitGroup
 	result := make(chan []docker.APIContainers, len(nodes))
 	errs := make(chan error, len(nodes))
@@ -75,7 +78,6 @@ func (c *Cluster) ListContainers(opts dcli.ListContainersOptions) ([]docker.APIC
 	}
 	wg.Wait()
 	var group []docker.APIContainers
-	var err error
 	for {
 		select {
 		case containers := <-result:
@@ -203,7 +205,10 @@ func (c *Cluster) getNode(container string) (node, error) {
 	if err != nil {
 		return n, err
 	}
-	nodes := c.scheduler.Nodes()
+	nodes, err := c.scheduler.Nodes()
+	if err != nil {
+		return n, err
+	}
 	for _, nd := range nodes {
 		if nd.ID == id {
 			client, _ := dcli.NewClient(nd.Address)
