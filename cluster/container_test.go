@@ -1032,4 +1032,14 @@ func TestGetNode(t *testing.T) {
 	if !reflect.DeepEqual(err, &expected) {
 		t.Errorf("cluster.getNode(%q): wrong error. Want %#v. Got %#v.", "e90305", expected, err)
 	}
+	cluster, err = New(failingScheduler{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cluster.SetStorage(&storage)
+	_, err = cluster.getNode("e90301")
+	expectedMsg := "Cannot retrieve list of nodes"
+	if err.Error() != expectedMsg {
+		t.Errorf("cluster.getNode(%q): wrong error. Want %q. Got %q.", "e90301", expectedMsg, err.Error())
+	}
 }
