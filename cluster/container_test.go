@@ -151,7 +151,7 @@ func TestInspectContainerWithStorage(t *testing.T) {
 		t.Errorf("InspectContainer(%q): Wrong Path. Want %q. Got %q.", id, "date", container.Path)
 	}
 	if count > 0 {
-		t.Error("InspectContainer(%q) with storage: should not send request to all servers, but did.", "e90302")
+		t.Errorf("InspectContainer(%q) with storage: should not send request to all servers, but did.", "e90302")
 	}
 }
 
