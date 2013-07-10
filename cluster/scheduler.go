@@ -18,11 +18,15 @@ type Scheduler interface {
 	// the container is running, and the container, or an error.
 	Schedule(config *docker.Config) (string, *docker.Container, error)
 
-	// Register adds new nodes to the scheduler.
-	Register(nodes ...Node) error
-
 	// Nodes returns a slice of nodes in the scheduler.
 	Nodes() []Node
+}
+
+// Registrable represents a scheduler that can get new nodes via the Register
+// method.
+type Registrable interface {
+	// Register adds new nodes to the scheduler.
+	Register(nodes ...Node) error
 }
 
 type node struct {
