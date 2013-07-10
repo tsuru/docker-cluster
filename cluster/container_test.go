@@ -395,6 +395,21 @@ func TestListContainersFailure(t *testing.T) {
 	}
 }
 
+func TestListContainersSchedulerFailure(t *testing.T) {
+	cluster, err := New(failingScheduler{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	containers, err := cluster.ListContainers(dclient.ListContainersOptions{})
+	expected := "Cannot retrieve list of nodes"
+	if err.Error() != expected {
+		t.Errorf("ListContainers(): wrong error. Want %q. Got %q", expected, err.Error())
+	}
+	if containers != nil {
+		t.Errorf("ListContainers(): wrong result. Want <nil>. Got %#v.", containers)
+	}
+}
+
 func TestRemoveContainer(t *testing.T) {
 	var called bool
 	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
