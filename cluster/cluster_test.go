@@ -5,6 +5,7 @@
 package cluster
 
 import (
+	"errors"
 	"github.com/dotcloud/docker"
 	dcli "github.com/fsouza/go-dockerclient"
 	"math/rand"
@@ -170,4 +171,14 @@ func (fakeScheduler) Schedule(*docker.Config) (string, *docker.Container, error)
 
 func (fakeScheduler) Nodes() ([]Node, error) {
 	return nil, nil
+}
+
+type failingScheduler struct{}
+
+func (failingScheduler) Schedule(*docker.Config) (string, *docker.Container, error) {
+	return "", nil, errors.New("Cannot schedule")
+}
+
+func (failingScheduler) Nodes() ([]Node, error) {
+	return nil, errors.New("Cannot retrieve list of nodes")
 }
