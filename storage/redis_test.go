@@ -88,3 +88,75 @@ func TestRedisStorageRetrieveFailure(t *testing.T) {
 		t.Errorf("Retrieve(%q): Got unexpected <nil> error", container)
 	}
 }
+
+func TestRedisNoAuthentication(t *testing.T) {
+	var server redisServer
+	err := server.start()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer server.stop()
+	storage := Redis(server.addr())
+	container := "affe3022"
+	host := "server0"
+	err = storage.Store(container, host)
+	if err != nil {
+		t.Error(err)
+	}
+	gotHost, err := storage.Retrieve(container)
+	if err != nil {
+		t.Error(err)
+	}
+	if gotHost != host {
+		t.Errorf("Store and Retrieve returned wrong value. Want %q. Got %q.", host, gotHost)
+	}
+}
+
+func TestRedisStorageConnectionFailure(t *testing.T) {
+	storage := Redis("something_unknown:39494")
+	err := storage.Store("affe3022", "server0")
+	if err == nil {
+		t.Error("Got unexpected <nil> error")
+	}
+}
+
+func TestRedisStorageAuthentication(t *testing.T) {
+	var server redisServer
+	server.password = "123456"
+	err := server.start()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer server.stop()
+	storage := AuthenticatedRedis(server.addr(), "123456")
+	container := "affe3022"
+	host := "server0"
+	err = storage.Store(container, host)
+	if err != nil {
+		t.Error(err)
+	}
+	gotHost, err := storage.Retrieve(container)
+	if err != nil {
+		t.Error(err)
+	}
+	if gotHost != host {
+		t.Errorf("Store and Retrieve returned wrong value. Want %q. Got %q.", host, gotHost)
+	}
+}
+
+func TestRedisStorageAuthenticationFailure(t *testing.T) {
+	var server redisServer
+	server.password = "123456"
+	err := server.start()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer server.stop()
+	storage := AuthenticatedRedis(server.addr(), "123")
+	container := "affe3022"
+	host := "server0"
+	err = storage.Store(container, host)
+	if err == nil {
+		t.Error("Got unexpected <nil> error")
+	}
+}

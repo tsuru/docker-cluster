@@ -37,11 +37,28 @@ func (s *redisStorage) Retrieve(container string) (string, error) {
 //
 // The addres must be in the format <host>:<port>. For servers that require
 // authentication, use AuthenticatedRedis.
-func Redis(addr string) (cluster.Storage, error) {
-	return nil, nil
+func Redis(addr string) cluster.Storage {
+	return rStorage(addr, "")
 }
 
 // AuthenticatedRedis works like Redis, but supports password authentication.
-func AuthenticatedRedis(addr, password string) (cluster.Storage, error) {
-	return nil, nil
+func AuthenticatedRedis(addr, password string) cluster.Storage {
+	return rStorage(addr, password)
+}
+
+func rStorage(addr, password string) cluster.Storage {
+	pool := redis.NewPool(func() (redis.Conn, error) {
+		conn, err := redis.Dial("tcp", addr)
+		if err != nil {
+			return nil, err
+		}
+		if password != "" {
+			_, err = conn.Do("AUTH", password)
+			if err != nil {
+				return nil, err
+			}
+		}
+		return conn, nil
+	}, 10)
+	return &redisStorage{pool: pool}
 }
