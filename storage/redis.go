@@ -29,7 +29,7 @@ func (s *redisStorage) Retrieve(container string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return result.(string), nil
+	return string(result.([]byte)), nil
 }
 
 // Redis returns a storage instance that uses Redis to store nodes and

@@ -50,7 +50,7 @@ func TestRedisStorageStoreFailure(t *testing.T) {
 func TestRedisStorageRetrieve(t *testing.T) {
 	conn := resultCommandConn{
 		fakeConn: &fakeConn{},
-		reply:    map[string]interface{}{"GET": "server0"},
+		reply:    map[string]interface{}{"GET": []byte("server0")},
 	}
 	var storage redisStorage
 	storage.pool = redis.NewPool(func() (redis.Conn, error) {
