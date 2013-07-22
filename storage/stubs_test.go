@@ -4,7 +4,12 @@
 
 package storage
 
-import "errors"
+import (
+	"errors"
+	"os"
+	"os/exec"
+	"time"
+)
 
 type command struct {
 	cmd  string
@@ -62,4 +67,33 @@ func (c *resultCommandConn) Do(cmd string, args ...interface{}) (interface{}, er
 		return c.defaultReply, nil
 	}
 	return c.reply[cmd], nil
+}
+
+type redisServer struct {
+	cmd      *exec.Cmd
+	password string
+}
+
+func (s *redisServer) start() error {
+	if s.cmd == nil {
+		args := []string{"--port", "37455", "--appendfsync", "no"}
+		if s.password != "" {
+			args = append(args, "--requirepass", s.password)
+		}
+		s.cmd = exec.Command("redis-server", args...)
+	}
+	err := s.cmd.Start()
+	if err != nil {
+		return err
+	}
+	time.Sleep(1e9)
+	return nil
+}
+
+func (s *redisServer) stop() error {
+	return s.cmd.Process.Signal(os.Interrupt)
+}
+
+func (s *redisServer) addr() string {
+	return "127.0.0.1:37455"
 }
