@@ -46,3 +46,45 @@ func TestRedisStorageStoreFailure(t *testing.T) {
 		t.Error("Got unexpected <nil> error")
 	}
 }
+
+func TestRedisStorageRetrieve(t *testing.T) {
+	conn := resultCommandConn{
+		fakeConn: &fakeConn{},
+		reply:    map[string]interface{}{"GET": "server0"},
+	}
+	var storage redisStorage
+	storage.pool = redis.NewPool(func() (redis.Conn, error) {
+		return &conn, nil
+	}, 3)
+	container := "affe3022"
+	host, err := storage.Retrieve(container)
+	if err != nil {
+		t.Error(err)
+	}
+	expectedHost := "server0"
+	if host != expectedHost {
+		t.Errorf("Retrieve(%q): want host %q. Got %q.", container, expectedHost, host)
+	}
+	cmd := conn.cmds[0]
+	expectedCmd := "GET"
+	if cmd.cmd != expectedCmd {
+		t.Errorf("Retrieve(%q): want command %q. Got %q.", container, expectedCmd, cmd.cmd)
+	}
+	expectedArgs := []interface{}{container}
+	if !reflect.DeepEqual(cmd.args, expectedArgs) {
+		t.Errorf("Retrieve(%q): want args %#v. Got %#v.", container, expectedArgs, cmd.args)
+	}
+}
+
+func TestRedisStorageRetrieveFailure(t *testing.T) {
+	conn := failingFakeConn{}
+	var storage redisStorage
+	storage.pool = redis.NewPool(func() (redis.Conn, error) {
+		return &conn, nil
+	}, 3)
+	container := "affe3022"
+	_, err := storage.Retrieve(container)
+	if err == nil {
+		t.Errorf("Retrieve(%q): Got unexpected <nil> error", container)
+	}
+}

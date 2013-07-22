@@ -23,7 +23,13 @@ func (s *redisStorage) Store(container, host string) error {
 }
 
 func (s *redisStorage) Retrieve(container string) (string, error) {
-	return "", nil
+	conn := s.pool.Get()
+	defer conn.Close()
+	result, err := conn.Do("GET", container)
+	if err != nil {
+		return "", err
+	}
+	return result.(string), nil
 }
 
 // Redis returns a storage instance that uses Redis to store nodes and
