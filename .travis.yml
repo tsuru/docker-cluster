@@ -1,7 +1,7 @@
 language: go
 go: 1.1.1
-script:
-  - cd cluster
-  - go get
+install:
+  - go get -d ./...
   - go get github.com/globocom/tsuru/safe
-  - go test -race
+script:
+  - go test -race ./...
