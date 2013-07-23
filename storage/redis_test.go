@@ -130,6 +130,18 @@ func TestRedisStorageRemove(t *testing.T) {
 	}
 }
 
+func TestRedisRemoveFailure(t *testing.T) {
+	var conn failingFakeConn
+	var storage redisStorage
+	storage.pool = redis.NewPool(func() (redis.Conn, error) {
+		return &conn, nil
+	}, 3)
+	err := storage.Remove("affe3022")
+	if err == nil {
+		t.Error("Unexpected <nil> error")
+	}
+}
+
 func TestRedisRemoveNoSuchContainer(t *testing.T) {
 	conn := resultCommandConn{
 		fakeConn: &fakeConn{},
