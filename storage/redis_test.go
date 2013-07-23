@@ -89,6 +89,47 @@ func TestRedisStorageRetrieveFailure(t *testing.T) {
 	}
 }
 
+func TestRedisStorageRemove(t *testing.T) {
+	conn := resultCommandConn{
+		fakeConn: &fakeConn{},
+		reply:    map[string]interface{}{"DEL": int64(1)},
+	}
+	var storage redisStorage
+	storage.pool = redis.NewPool(func() (redis.Conn, error) {
+		return &conn, nil
+	}, 3)
+	container := "affe3022"
+	err := storage.Remove(container)
+	if err != nil {
+		t.Error(err)
+	}
+	cmd := conn.cmds[0]
+	expectedCmd := "DEL"
+	if cmd.cmd != expectedCmd {
+		t.Errorf("Remove(%q): want command %q. Got %q.", container, expectedCmd, cmd.cmd)
+	}
+	expectedArgs := []interface{}{container}
+	if !reflect.DeepEqual(cmd.args, expectedArgs) {
+		t.Errorf("Remove(%q): want args %#v. Got %#v.", container, expectedArgs, cmd.args)
+	}
+}
+
+func TestRedisRemoveNoSuchContainer(t *testing.T) {
+	conn := resultCommandConn{
+		fakeConn: &fakeConn{},
+		reply:    map[string]interface{}{"DEL": int64(0)},
+	}
+	var storage redisStorage
+	storage.pool = redis.NewPool(func() (redis.Conn, error) {
+		return &conn, nil
+	}, 3)
+	container := "affe3022"
+	err := storage.Remove(container)
+	if err != ErrNoSuchContainer {
+		t.Errorf("Remove(%q): wrong error. Want %#v. Got %#v.", container, ErrNoSuchContainer, err)
+	}
+}
+
 func TestRedisNoAuthentication(t *testing.T) {
 	var server redisServer
 	err := server.start()

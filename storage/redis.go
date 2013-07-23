@@ -7,9 +7,12 @@
 package storage
 
 import (
+	"errors"
 	"github.com/garyburd/redigo/redis"
 	"github.com/globocom/docker-cluster/cluster"
 )
+
+var ErrNoSuchContainer = errors.New("No such container")
 
 type redisStorage struct {
 	pool *redis.Pool
@@ -30,6 +33,19 @@ func (s *redisStorage) Retrieve(container string) (string, error) {
 		return "", err
 	}
 	return string(result.([]byte)), nil
+}
+
+func (s *redisStorage) Remove(container string) error {
+	conn := s.pool.Get()
+	defer conn.Close()
+	result, err := conn.Do("DEL", container)
+	if err != nil {
+		return err
+	}
+	if result.(int64) < 1 {
+		return ErrNoSuchContainer
+	}
+	return nil
 }
 
 // Redis returns a storage instance that uses Redis to store nodes and
