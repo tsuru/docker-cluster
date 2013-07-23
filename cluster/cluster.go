@@ -32,6 +32,7 @@ var ErrImmutableCluster = errors.New("Immutable cluster")
 type Storage interface {
 	Store(container, host string) error
 	Retrieve(container string) (host string, err error)
+	Remove(container string) error
 }
 
 // Node represents a host running Docker. Each node has an ID and an address

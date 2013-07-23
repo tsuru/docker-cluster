@@ -163,6 +163,13 @@ func (s *mapStorage) Retrieve(containerID string) (string, error) {
 	return host, nil
 }
 
+func (s *mapStorage) Remove(containerID string) error {
+	s.Lock()
+	defer s.Unlock()
+	delete(s.m, containerID)
+	return nil
+}
+
 type fakeScheduler struct{}
 
 func (fakeScheduler) Schedule(*docker.Config) (string, *docker.Container, error) {
