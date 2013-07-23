@@ -151,6 +151,10 @@ func TestRedisNoAuthentication(t *testing.T) {
 	if gotHost != host {
 		t.Errorf("Store and Retrieve returned wrong value. Want %q. Got %q.", host, gotHost)
 	}
+	err = storage.Remove(container)
+	if err != nil {
+		t.Error(err)
+	}
 }
 
 func TestRedisStorageConnectionFailure(t *testing.T) {
@@ -182,6 +186,10 @@ func TestRedisStorageAuthentication(t *testing.T) {
 	}
 	if gotHost != host {
 		t.Errorf("Store and Retrieve returned wrong value. Want %q. Got %q.", host, gotHost)
+	}
+	err = storage.Remove(container)
+	if err != nil {
+		t.Error(err)
 	}
 }
 
