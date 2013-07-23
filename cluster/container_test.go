@@ -466,6 +466,10 @@ func TestRemoveContainerWithStorage(t *testing.T) {
 	if called {
 		t.Errorf("RemoveContainer(%q): should not call the node server", id)
 	}
+	_, err = storage.Retrieve(id)
+	if err == nil {
+		t.Errorf("RemoveContainer(%q): should remove the container from the storage", id)
+	}
 }
 
 func TestRemoveContainerNotFoundWithStorage(t *testing.T) {

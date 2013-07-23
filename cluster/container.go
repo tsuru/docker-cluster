@@ -91,15 +91,27 @@ func (c *Cluster) ListContainers(opts dcli.ListContainersOptions) ([]docker.APIC
 
 // RemoveContainer removes a container from the cluster.
 func (c *Cluster) RemoveContainer(id string) error {
-	if node, err := c.getNode(id); err == nil {
-		return node.RemoveContainer(id)
-	} else if err != errStorageDisabled {
+	err := c.removeFromStorage(id)
+	if err != errStorageDisabled {
 		return err
 	}
-	_, err := c.runOnNodes(func(n node) (interface{}, error) {
+	_, err = c.runOnNodes(func(n node) (interface{}, error) {
 		return nil, n.RemoveContainer(id)
 	}, &dcli.NoSuchContainer{ID: id})
 	return err
+}
+
+func (c *Cluster) removeFromStorage(id string) error {
+	if node, err := c.getNode(id); err == nil {
+		err = node.RemoveContainer(id)
+		if err == nil {
+			c.storage().Remove(id)
+		}
+		return err
+	} else if err != errStorageDisabled {
+		return err
+	}
+	return errStorageDisabled
 }
 
 func (c *Cluster) StartContainer(id string) error {
