@@ -89,6 +89,22 @@ func TestRedisStorageRetrieveFailure(t *testing.T) {
 	}
 }
 
+func TestRedisStorageRetrieveNoSuchContainer(t *testing.T) {
+	conn := resultCommandConn{
+		fakeConn: &fakeConn{},
+		reply:    map[string]interface{}{"GET": nil},
+	}
+	var storage redisStorage
+	storage.pool = redis.NewPool(func() (redis.Conn, error) {
+		return &conn, nil
+	}, 3)
+	container := "affe3022"
+	_, err := storage.Retrieve(container)
+	if err != ErrNoSuchContainer {
+		t.Errorf("Retrieve(%q): wrong error. Want %#v. Got %#v.", container, ErrNoSuchContainer, err)
+	}
+}
+
 func TestRedisStorageRemove(t *testing.T) {
 	conn := resultCommandConn{
 		fakeConn: &fakeConn{},
@@ -140,6 +156,14 @@ func TestRedisNoAuthentication(t *testing.T) {
 	storage := Redis(server.addr())
 	container := "affe3022"
 	host := "server0"
+	_, err = storage.Retrieve(container)
+	if err != ErrNoSuchContainer {
+		t.Errorf("Retrieve(%q): wrong error. Want %#v. Got %#v", container, ErrNoSuchContainer, err)
+	}
+	err = storage.Remove(container)
+	if err != ErrNoSuchContainer {
+		t.Errorf("Remove(%q): wrong error. Want %#v. Got %#v", container, ErrNoSuchContainer, err)
+	}
 	err = storage.Store(container, host)
 	if err != nil {
 		t.Error(err)
@@ -176,6 +200,14 @@ func TestRedisStorageAuthentication(t *testing.T) {
 	storage := AuthenticatedRedis(server.addr(), "123456")
 	container := "affe3022"
 	host := "server0"
+	_, err = storage.Retrieve(container)
+	if err != ErrNoSuchContainer {
+		t.Errorf("Retrieve(%q): wrong error. Want %#v. Got %#v", container, ErrNoSuchContainer, err)
+	}
+	err = storage.Remove(container)
+	if err != ErrNoSuchContainer {
+		t.Errorf("Remove(%q): wrong error. Want %#v. Got %#v", container, ErrNoSuchContainer, err)
+	}
 	err = storage.Store(container, host)
 	if err != nil {
 		t.Error(err)

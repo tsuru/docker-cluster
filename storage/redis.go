@@ -32,6 +32,9 @@ func (s *redisStorage) Retrieve(container string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	if result == nil {
+		return "", ErrNoSuchContainer
+	}
 	return string(result.([]byte)), nil
 }
 
