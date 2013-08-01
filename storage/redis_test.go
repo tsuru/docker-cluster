@@ -236,7 +236,7 @@ func TestRedisNoAuthentication(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer server.stop()
-	storage := Redis(server.addr())
+	storage := Redis(server.addr(), "cluster")
 	container := "affe3022"
 	host := "server0"
 	_, err = storage.Retrieve(container)
@@ -265,7 +265,7 @@ func TestRedisNoAuthentication(t *testing.T) {
 }
 
 func TestRedisStorageConnectionFailure(t *testing.T) {
-	storage := Redis("something_unknown:39494")
+	storage := Redis("something_unknown:39494", "")
 	err := storage.Store("affe3022", "server0")
 	if err == nil {
 		t.Error("Got unexpected <nil> error")
@@ -280,7 +280,7 @@ func TestRedisStorageAuthentication(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer server.stop()
-	storage := AuthenticatedRedis(server.addr(), "123456")
+	storage := AuthenticatedRedis(server.addr(), "123456", "docker")
 	container := "affe3022"
 	host := "server0"
 	_, err = storage.Retrieve(container)
@@ -316,7 +316,7 @@ func TestRedisStorageAuthenticationFailure(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer server.stop()
-	storage := AuthenticatedRedis(server.addr(), "123")
+	storage := AuthenticatedRedis(server.addr(), "123", "docker")
 	container := "affe3022"
 	host := "server0"
 	err = storage.Store(container, host)

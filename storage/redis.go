@@ -64,16 +64,16 @@ func (s *redisStorage) Remove(container string) error {
 //
 // The addres must be in the format <host>:<port>. For servers that require
 // authentication, use AuthenticatedRedis.
-func Redis(addr string) cluster.Storage {
-	return rStorage(addr, "")
+func Redis(addr, prefix string) cluster.Storage {
+	return rStorage(addr, "", prefix)
 }
 
 // AuthenticatedRedis works like Redis, but supports password authentication.
-func AuthenticatedRedis(addr, password string) cluster.Storage {
-	return rStorage(addr, password)
+func AuthenticatedRedis(addr, password, prefix string) cluster.Storage {
+	return rStorage(addr, password, prefix)
 }
 
-func rStorage(addr, password string) cluster.Storage {
+func rStorage(addr, password, prefix string) cluster.Storage {
 	pool := redis.NewPool(func() (redis.Conn, error) {
 		conn, err := redis.Dial("tcp", addr)
 		if err != nil {
@@ -87,5 +87,5 @@ func rStorage(addr, password string) cluster.Storage {
 		}
 		return conn, nil
 	}, 10)
-	return &redisStorage{pool: pool}
+	return &redisStorage{pool: pool, prefix: prefix}
 }
