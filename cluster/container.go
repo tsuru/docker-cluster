@@ -16,12 +16,12 @@ var errStorageDisabled = errors.New("Storage is disabled")
 // CreateContainer creates a container in one of the nodes.
 //
 // It returns the container, or an error, in case of failures.
-func (c *Cluster) CreateContainer(config *docker.Config) (*docker.Container, error) {
+func (c *Cluster) CreateContainer(config *docker.Config) (string, *docker.Container, error) {
 	id, container, err := c.scheduler.Schedule(config)
 	if storage := c.storage(); storage != nil {
 		storage.Store(container.ID, id)
 	}
-	return container, err
+	return id, container, err
 }
 
 // InspectContainer returns information about a container by its ID, getting

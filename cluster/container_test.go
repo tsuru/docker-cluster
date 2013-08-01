@@ -38,9 +38,12 @@ func TestCreateContainer(t *testing.T) {
 		t.Fatal(err)
 	}
 	config := docker.Config{Memory: 67108864}
-	container, err := cluster.CreateContainer(&config)
+	nodeID, container, err := cluster.CreateContainer(&config)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if nodeID != "handler0" {
+		t.Errorf("CreateContainer: wrong node  ID. Want %q. Got %q.", "handler0", nodeID)
 	}
 	if container.ID != "e90302" {
 		t.Errorf("CreateContainer: wrong container ID. Want %q. Got %q.", "e90302", container.ID)
@@ -72,7 +75,7 @@ func TestCreateContainerWithStorage(t *testing.T) {
 	var storage mapStorage
 	cluster.SetStorage(&storage)
 	config := docker.Config{Memory: 67108864}
-	_, err = cluster.CreateContainer(&config)
+	_, _, err = cluster.CreateContainer(&config)
 	if err != nil {
 		t.Fatal(err)
 	}
