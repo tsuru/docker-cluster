@@ -15,20 +15,28 @@ import (
 var ErrNoSuchContainer = errors.New("No such container")
 
 type redisStorage struct {
-	pool *redis.Pool
+	pool   *redis.Pool
+	prefix string
+}
+
+func (s *redisStorage) key(container string) string {
+	if s.prefix == "" {
+		return container
+	}
+	return s.prefix + ":" + container
 }
 
 func (s *redisStorage) Store(container, host string) error {
 	conn := s.pool.Get()
 	defer conn.Close()
-	_, err := conn.Do("SET", container, host)
+	_, err := conn.Do("SET", s.key(container), host)
 	return err
 }
 
 func (s *redisStorage) Retrieve(container string) (string, error) {
 	conn := s.pool.Get()
 	defer conn.Close()
-	result, err := conn.Do("GET", container)
+	result, err := conn.Do("GET", s.key(container))
 	if err != nil {
 		return "", err
 	}
@@ -41,7 +49,7 @@ func (s *redisStorage) Retrieve(container string) (string, error) {
 func (s *redisStorage) Remove(container string) error {
 	conn := s.pool.Get()
 	defer conn.Close()
-	result, err := conn.Do("DEL", container)
+	result, err := conn.Do("DEL", s.key(container))
 	if err != nil {
 		return err
 	}

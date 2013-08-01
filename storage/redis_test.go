@@ -33,6 +33,31 @@ func TestRedisStorageStore(t *testing.T) {
 	}
 }
 
+func TestRedisStorageStorePrefixed(t *testing.T) {
+	conn := fakeConn{}
+	storage := redisStorage{
+		prefix: "docker",
+		pool: redis.NewPool(func() (redis.Conn, error) {
+			return &conn, nil
+		}, 3),
+	}
+	container := "affe3022"
+	host := "server0"
+	err := storage.Store(container, host)
+	if err != nil {
+		t.Error(err)
+	}
+	cmd := conn.cmds[0]
+	expectedCmd := "SET"
+	if cmd.cmd != expectedCmd {
+		t.Errorf("Store(%q, %q): want command %q. Got %q.", container, host, expectedCmd, cmd.cmd)
+	}
+	expectedArgs := []interface{}{"docker:" + container, host}
+	if !reflect.DeepEqual(cmd.args, expectedArgs) {
+		t.Errorf("Store(%q, %q): want args %#v. Got %#v.", container, host, expectedArgs, cmd.args)
+	}
+}
+
 func TestRedisStorageStoreFailure(t *testing.T) {
 	conn := failingFakeConn{}
 	var storage redisStorage
@@ -71,6 +96,29 @@ func TestRedisStorageRetrieve(t *testing.T) {
 		t.Errorf("Retrieve(%q): want command %q. Got %q.", container, expectedCmd, cmd.cmd)
 	}
 	expectedArgs := []interface{}{container}
+	if !reflect.DeepEqual(cmd.args, expectedArgs) {
+		t.Errorf("Retrieve(%q): want args %#v. Got %#v.", container, expectedArgs, cmd.args)
+	}
+}
+
+func TestRedisStorageRetrievePrefixed(t *testing.T) {
+	conn := resultCommandConn{
+		fakeConn: &fakeConn{},
+		reply:    map[string]interface{}{"GET": []byte("server0")},
+	}
+	storage := redisStorage{
+		pool: redis.NewPool(func() (redis.Conn, error) {
+			return &conn, nil
+		}, 3),
+		prefix: "cluster",
+	}
+	container := "affe3022"
+	_, err := storage.Retrieve(container)
+	if err != nil {
+		t.Error(err)
+	}
+	cmd := conn.cmds[0]
+	expectedArgs := []interface{}{"cluster:" + container}
 	if !reflect.DeepEqual(cmd.args, expectedArgs) {
 		t.Errorf("Retrieve(%q): want args %#v. Got %#v.", container, expectedArgs, cmd.args)
 	}
@@ -125,6 +173,29 @@ func TestRedisStorageRemove(t *testing.T) {
 		t.Errorf("Remove(%q): want command %q. Got %q.", container, expectedCmd, cmd.cmd)
 	}
 	expectedArgs := []interface{}{container}
+	if !reflect.DeepEqual(cmd.args, expectedArgs) {
+		t.Errorf("Remove(%q): want args %#v. Got %#v.", container, expectedArgs, cmd.args)
+	}
+}
+
+func TestRedisStorageRemovePrefixed(t *testing.T) {
+	conn := resultCommandConn{
+		fakeConn: &fakeConn{},
+		reply:    map[string]interface{}{"DEL": int64(1)},
+	}
+	storage := redisStorage{
+		pool: redis.NewPool(func() (redis.Conn, error) {
+			return &conn, nil
+		}, 3),
+		prefix: "leave",
+	}
+	container := "affe3022"
+	err := storage.Remove(container)
+	if err != nil {
+		t.Error(err)
+	}
+	cmd := conn.cmds[0]
+	expectedArgs := []interface{}{"leave:" + container}
 	if !reflect.DeepEqual(cmd.args, expectedArgs) {
 		t.Errorf("Remove(%q): want args %#v. Got %#v.", container, expectedArgs, cmd.args)
 	}
