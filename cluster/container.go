@@ -18,6 +18,9 @@ var errStorageDisabled = errors.New("Storage is disabled")
 // It returns the container, or an error, in case of failures.
 func (c *Cluster) CreateContainer(config *docker.Config) (string, *docker.Container, error) {
 	id, container, err := c.scheduler.Schedule(config)
+	if err != nil {
+		return id, container, err
+	}
 	if storage := c.storage(); storage != nil {
 		storage.Store(container.ID, id)
 	}

@@ -50,6 +50,22 @@ func TestCreateContainer(t *testing.T) {
 	}
 }
 
+func TestCreateContainerFailure(t *testing.T) {
+	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "NoSuchImage", http.StatusNotFound)
+	}))
+	defer server1.Close()
+	cluster, err := New(nil, Node{ID: "handler0", Address: server1.URL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	config := docker.Config{Memory: 67108864}
+	_, _, err = cluster.CreateContainer(&config)
+	if err == nil {
+		t.Error("Got unexpected <nil> error")
+	}
+}
+
 func TestCreateContainerWithStorage(t *testing.T) {
 	body := `{"Id":"e90302"}`
 	handler := []bool{false, false}
