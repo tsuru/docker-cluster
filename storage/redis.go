@@ -26,14 +26,14 @@ func (s *redisStorage) key(container string) string {
 	return s.prefix + ":" + container
 }
 
-func (s *redisStorage) Store(container, host string) error {
+func (s *redisStorage) StoreContainer(container, host string) error {
 	conn := s.pool.Get()
 	defer conn.Close()
 	_, err := conn.Do("SET", s.key(container), host)
 	return err
 }
 
-func (s *redisStorage) Retrieve(container string) (string, error) {
+func (s *redisStorage) RetrieveContainer(container string) (string, error) {
 	conn := s.pool.Get()
 	defer conn.Close()
 	result, err := conn.Do("GET", s.key(container))
@@ -46,7 +46,7 @@ func (s *redisStorage) Retrieve(container string) (string, error) {
 	return string(result.([]byte)), nil
 }
 
-func (s *redisStorage) Remove(container string) error {
+func (s *redisStorage) RemoveContainer(container string) error {
 	conn := s.pool.Get()
 	defer conn.Close()
 	result, err := conn.Do("DEL", s.key(container))
@@ -56,6 +56,18 @@ func (s *redisStorage) Remove(container string) error {
 	if result.(int64) < 1 {
 		return ErrNoSuchContainer
 	}
+	return nil
+}
+
+func (s *redisStorage) StoreImage(image, host string) error {
+	return nil
+}
+
+func (s *redisStorage) RetrieveImage(id string) (string, error) {
+	return "", nil
+}
+
+func (s *redisStorage) RemoveImage(id string) error {
 	return nil
 }
 

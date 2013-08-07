@@ -18,7 +18,7 @@ func TestRedisStorageStore(t *testing.T) {
 	}, 3)
 	container := "affe3022"
 	host := "server0"
-	err := storage.Store(container, host)
+	err := storage.StoreContainer(container, host)
 	if err != nil {
 		t.Error(err)
 	}
@@ -43,7 +43,7 @@ func TestRedisStorageStorePrefixed(t *testing.T) {
 	}
 	container := "affe3022"
 	host := "server0"
-	err := storage.Store(container, host)
+	err := storage.StoreContainer(container, host)
 	if err != nil {
 		t.Error(err)
 	}
@@ -66,7 +66,7 @@ func TestRedisStorageStoreFailure(t *testing.T) {
 	}, 3)
 	container := "affe3022"
 	host := "server0"
-	err := storage.Store(container, host)
+	err := storage.StoreContainer(container, host)
 	if err == nil {
 		t.Error("Got unexpected <nil> error")
 	}
@@ -82,7 +82,7 @@ func TestRedisStorageRetrieve(t *testing.T) {
 		return &conn, nil
 	}, 3)
 	container := "affe3022"
-	host, err := storage.Retrieve(container)
+	host, err := storage.RetrieveContainer(container)
 	if err != nil {
 		t.Error(err)
 	}
@@ -113,7 +113,7 @@ func TestRedisStorageRetrievePrefixed(t *testing.T) {
 		prefix: "cluster",
 	}
 	container := "affe3022"
-	_, err := storage.Retrieve(container)
+	_, err := storage.RetrieveContainer(container)
 	if err != nil {
 		t.Error(err)
 	}
@@ -131,7 +131,7 @@ func TestRedisStorageRetrieveFailure(t *testing.T) {
 		return &conn, nil
 	}, 3)
 	container := "affe3022"
-	_, err := storage.Retrieve(container)
+	_, err := storage.RetrieveContainer(container)
 	if err == nil {
 		t.Errorf("Retrieve(%q): Got unexpected <nil> error", container)
 	}
@@ -147,7 +147,7 @@ func TestRedisStorageRetrieveNoSuchContainer(t *testing.T) {
 		return &conn, nil
 	}, 3)
 	container := "affe3022"
-	_, err := storage.Retrieve(container)
+	_, err := storage.RetrieveContainer(container)
 	if err != ErrNoSuchContainer {
 		t.Errorf("Retrieve(%q): wrong error. Want %#v. Got %#v.", container, ErrNoSuchContainer, err)
 	}
@@ -163,7 +163,7 @@ func TestRedisStorageRemove(t *testing.T) {
 		return &conn, nil
 	}, 3)
 	container := "affe3022"
-	err := storage.Remove(container)
+	err := storage.RemoveContainer(container)
 	if err != nil {
 		t.Error(err)
 	}
@@ -190,7 +190,7 @@ func TestRedisStorageRemovePrefixed(t *testing.T) {
 		prefix: "leave",
 	}
 	container := "affe3022"
-	err := storage.Remove(container)
+	err := storage.RemoveContainer(container)
 	if err != nil {
 		t.Error(err)
 	}
@@ -207,7 +207,7 @@ func TestRedisRemoveFailure(t *testing.T) {
 	storage.pool = redis.NewPool(func() (redis.Conn, error) {
 		return &conn, nil
 	}, 3)
-	err := storage.Remove("affe3022")
+	err := storage.RemoveContainer("affe3022")
 	if err == nil {
 		t.Error("Unexpected <nil> error")
 	}
@@ -223,7 +223,7 @@ func TestRedisRemoveNoSuchContainer(t *testing.T) {
 		return &conn, nil
 	}, 3)
 	container := "affe3022"
-	err := storage.Remove(container)
+	err := storage.RemoveContainer(container)
 	if err != ErrNoSuchContainer {
 		t.Errorf("Remove(%q): wrong error. Want %#v. Got %#v.", container, ErrNoSuchContainer, err)
 	}
@@ -239,26 +239,26 @@ func TestRedisNoAuthentication(t *testing.T) {
 	storage := Redis(server.addr(), "cluster")
 	container := "affe3022"
 	host := "server0"
-	_, err = storage.Retrieve(container)
+	_, err = storage.RetrieveContainer(container)
 	if err != ErrNoSuchContainer {
 		t.Errorf("Retrieve(%q): wrong error. Want %#v. Got %#v", container, ErrNoSuchContainer, err)
 	}
-	err = storage.Remove(container)
+	err = storage.RemoveContainer(container)
 	if err != ErrNoSuchContainer {
 		t.Errorf("Remove(%q): wrong error. Want %#v. Got %#v", container, ErrNoSuchContainer, err)
 	}
-	err = storage.Store(container, host)
+	err = storage.StoreContainer(container, host)
 	if err != nil {
 		t.Error(err)
 	}
-	gotHost, err := storage.Retrieve(container)
+	gotHost, err := storage.RetrieveContainer(container)
 	if err != nil {
 		t.Error(err)
 	}
 	if gotHost != host {
 		t.Errorf("Store and Retrieve returned wrong value. Want %q. Got %q.", host, gotHost)
 	}
-	err = storage.Remove(container)
+	err = storage.RemoveContainer(container)
 	if err != nil {
 		t.Error(err)
 	}
@@ -266,7 +266,7 @@ func TestRedisNoAuthentication(t *testing.T) {
 
 func TestRedisStorageConnectionFailure(t *testing.T) {
 	storage := Redis("something_unknown:39494", "")
-	err := storage.Store("affe3022", "server0")
+	err := storage.StoreContainer("affe3022", "server0")
 	if err == nil {
 		t.Error("Got unexpected <nil> error")
 	}
@@ -283,26 +283,26 @@ func TestRedisStorageAuthentication(t *testing.T) {
 	storage := AuthenticatedRedis(server.addr(), "123456", "docker")
 	container := "affe3022"
 	host := "server0"
-	_, err = storage.Retrieve(container)
+	_, err = storage.RetrieveContainer(container)
 	if err != ErrNoSuchContainer {
 		t.Errorf("Retrieve(%q): wrong error. Want %#v. Got %#v", container, ErrNoSuchContainer, err)
 	}
-	err = storage.Remove(container)
+	err = storage.RemoveContainer(container)
 	if err != ErrNoSuchContainer {
 		t.Errorf("Remove(%q): wrong error. Want %#v. Got %#v", container, ErrNoSuchContainer, err)
 	}
-	err = storage.Store(container, host)
+	err = storage.StoreContainer(container, host)
 	if err != nil {
 		t.Error(err)
 	}
-	gotHost, err := storage.Retrieve(container)
+	gotHost, err := storage.RetrieveContainer(container)
 	if err != nil {
 		t.Error(err)
 	}
 	if gotHost != host {
 		t.Errorf("Store and Retrieve returned wrong value. Want %q. Got %q.", host, gotHost)
 	}
-	err = storage.Remove(container)
+	err = storage.RemoveContainer(container)
 	if err != nil {
 		t.Error(err)
 	}
@@ -319,7 +319,7 @@ func TestRedisStorageAuthenticationFailure(t *testing.T) {
 	storage := AuthenticatedRedis(server.addr(), "123", "docker")
 	container := "affe3022"
 	host := "server0"
-	err = storage.Store(container, host)
+	err = storage.StoreContainer(container, host)
 	if err == nil {
 		t.Error("Got unexpected <nil> error")
 	}
