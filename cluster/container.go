@@ -22,7 +22,7 @@ func (c *Cluster) CreateContainer(config *docker.Config) (string, *docker.Contai
 		return id, container, err
 	}
 	if storage := c.storage(); storage != nil {
-		storage.Store(container.ID, id)
+		storage.StoreContainer(container.ID, id)
 	}
 	return id, container, err
 }
@@ -108,7 +108,7 @@ func (c *Cluster) removeFromStorage(id string) error {
 	if node, err := c.getNode(id); err == nil {
 		err = node.RemoveContainer(id)
 		if err == nil {
-			c.storage().Remove(id)
+			c.storage().RemoveContainer(id)
 		}
 		return err
 	} else if err != errStorageDisabled {
@@ -216,7 +216,7 @@ func (c *Cluster) getNode(container string) (node, error) {
 	if storage == nil {
 		return n, errStorageDisabled
 	}
-	id, err := storage.Retrieve(container)
+	id, err := storage.RetrieveContainer(container)
 	if err != nil {
 		return n, err
 	}

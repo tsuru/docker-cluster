@@ -96,8 +96,8 @@ func TestCreateContainerWithStorage(t *testing.T) {
 		t.Fatal(err)
 	}
 	expected := map[string]string{"e90302": "handler0"}
-	if storage.m["e90302"] != "handler0" {
-		t.Errorf("Cluster.CreateContainer() with storage: wrong data. Want %#v. Got %#v.", expected, storage.m)
+	if storage.cMap["e90302"] != "handler0" {
+		t.Errorf("Cluster.CreateContainer() with storage: wrong data. Want %#v. Got %#v.", expected, storage.cMap)
 	}
 }
 
@@ -157,7 +157,7 @@ func TestInspectContainerWithStorage(t *testing.T) {
 		t.Fatal(err)
 	}
 	id := "e90302"
-	storage := mapStorage{m: map[string]string{id: "handler1"}}
+	storage := mapStorage{cMap: map[string]string{id: "handler1"}}
 	cluster.SetStorage(&storage)
 	container, err := cluster.InspectContainer(id)
 	if err != nil {
@@ -284,7 +284,7 @@ func TestKillContainerWithStorage(t *testing.T) {
 		t.Fatal(err)
 	}
 	id := "abc123"
-	storage := mapStorage{m: map[string]string{id: "handler1"}}
+	storage := mapStorage{cMap: map[string]string{id: "handler1"}}
 	cluster.SetStorage(&storage)
 	err = cluster.KillContainer(id)
 	if err != nil {
@@ -476,7 +476,7 @@ func TestRemoveContainerWithStorage(t *testing.T) {
 		t.Fatal(err)
 	}
 	id := "abc123"
-	storage := mapStorage{m: map[string]string{id: "handler1"}}
+	storage := mapStorage{cMap: map[string]string{id: "handler1"}}
 	cluster.SetStorage(&storage)
 	err = cluster.RemoveContainer(id)
 	if err != nil {
@@ -485,7 +485,7 @@ func TestRemoveContainerWithStorage(t *testing.T) {
 	if called {
 		t.Errorf("RemoveContainer(%q): should not call the node server", id)
 	}
-	_, err = storage.Retrieve(id)
+	_, err = storage.RetrieveContainer(id)
 	if err == nil {
 		t.Errorf("RemoveContainer(%q): should remove the container from the storage", id)
 	}
@@ -552,7 +552,7 @@ func TestStartContainerWithStorage(t *testing.T) {
 		t.Fatal(err)
 	}
 	id := "abc123"
-	storage := mapStorage{m: map[string]string{id: "handler1"}}
+	storage := mapStorage{cMap: map[string]string{id: "handler1"}}
 	cluster.SetStorage(&storage)
 	err = cluster.StartContainer(id)
 	if err != nil {
@@ -624,7 +624,7 @@ func TestStopContainerWithStorage(t *testing.T) {
 		t.Fatal(err)
 	}
 	id := "abc123"
-	storage := mapStorage{m: map[string]string{id: "handler1"}}
+	storage := mapStorage{cMap: map[string]string{id: "handler1"}}
 	cluster.SetStorage(&storage)
 	err = cluster.StopContainer(id, 10)
 	if err != nil {
@@ -696,7 +696,7 @@ func TestRestartContainerWithStorage(t *testing.T) {
 		t.Fatal(err)
 	}
 	id := "abc123"
-	storage := mapStorage{m: map[string]string{id: "handler1"}}
+	storage := mapStorage{cMap: map[string]string{id: "handler1"}}
 	cluster.SetStorage(&storage)
 	err = cluster.RestartContainer(id, 10)
 	if err != nil {
@@ -796,7 +796,7 @@ func TestWaitContainerWithStorage(t *testing.T) {
 		t.Fatal(err)
 	}
 	id := "abc123"
-	storage := mapStorage{m: map[string]string{id: "handler1"}}
+	storage := mapStorage{cMap: map[string]string{id: "handler1"}}
 	cluster.SetStorage(&storage)
 	expected := 34
 	status, err := cluster.WaitContainer(id)
@@ -881,7 +881,7 @@ func TestAttachToContainerWithStorage(t *testing.T) {
 		t.Fatal(err)
 	}
 	id := "abcdef"
-	storage := mapStorage{m: map[string]string{id: "handler1"}}
+	storage := mapStorage{cMap: map[string]string{id: "handler1"}}
 	cluster.SetStorage(&storage)
 	opts := dclient.AttachToContainerOptions{
 		Container:    id,
@@ -994,7 +994,7 @@ func TestCommitContainerWithStorage(t *testing.T) {
 		t.Fatal(err)
 	}
 	id := "abc123"
-	storage := mapStorage{m: map[string]string{id: "handler1"}}
+	storage := mapStorage{cMap: map[string]string{id: "handler1"}}
 	cluster.SetStorage(&storage)
 	opts := dclient.CommitContainerOptions{Container: id}
 	image, err := cluster.CommitContainer(opts)
@@ -1034,10 +1034,10 @@ func TestGetNode(t *testing.T) {
 		t.Fatal(err)
 	}
 	var storage mapStorage
-	storage.Store("e90301", "handler1")
-	storage.Store("e90304", "handler1")
-	storage.Store("e90303", "handler2")
-	storage.Store("e90302", "handler3")
+	storage.StoreContainer("e90301", "handler1")
+	storage.StoreContainer("e90304", "handler1")
+	storage.StoreContainer("e90303", "handler2")
+	storage.StoreContainer("e90302", "handler3")
 	cluster.SetStorage(&storage)
 	_, err = cluster.getNode("e90302")
 	if err != ErrUnknownNode {

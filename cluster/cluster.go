@@ -24,15 +24,28 @@ var ErrUnknownNode = errors.New("Unknown node")
 // immutable, meaning that no new nodes can be registered.
 var ErrImmutableCluster = errors.New("Immutable cluster")
 
-// Storage provides methods to store and retrieve information about the
-// relation between the node and the container. It can be easily represented as
-// a key-value storage.
+// ContainerStorage provides methods to store and retrieve information about
+// the relation between the node and the container. It can be easily
+// represented as a key-value storage.
 //
 // The relevant information is: in which host the given container is running?
+type ContainerStorage interface {
+	StoreContainer(container, host string) error
+	RetrieveContainer(container string) (host string, err error)
+	RemoveContainer(container string) error
+}
+
+// ImageStorage works like ContainerStorage, but stores information about
+// images and hosts.
+type ImageStorage interface {
+	StoreImage(image, host string) error
+	RetrieveImage(image string) (host string, err error)
+	RemoveImage(image string) error
+}
+
 type Storage interface {
-	Store(container, host string) error
-	Retrieve(container string) (host string, err error)
-	Remove(container string) error
+	ContainerStorage
+	ImageStorage
 }
 
 // Node represents a host running Docker. Each node has an ID and an address

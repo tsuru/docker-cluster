@@ -5,18 +5,14 @@
 package cluster
 
 import (
-	"errors"
-	"github.com/dotcloud/docker"
-	dcli "github.com/fsouza/go-dockerclient"
 	"math/rand"
 	"net/http"
 	"net/http/httptest"
 	"runtime"
-	"sync"
 	"testing"
 )
 
-func TestNewCluster(t *testing.T) {
+func TestcewCluster(t *testing.T) {
 	var tests = []struct {
 		scheduler Scheduler
 		input     []Node
@@ -136,56 +132,4 @@ func TestSetStorage(t *testing.T) {
 	if c.storage() != &other {
 		t.Errorf("Cluster.SetStorage(): did not change the storage")
 	}
-}
-
-type mapStorage struct {
-	m map[string]string
-	sync.Mutex
-}
-
-func (s *mapStorage) Store(containerID, hostID string) error {
-	s.Lock()
-	defer s.Unlock()
-	if s.m == nil {
-		s.m = make(map[string]string)
-	}
-	s.m[containerID] = hostID
-	return nil
-}
-
-func (s *mapStorage) Retrieve(containerID string) (string, error) {
-	s.Lock()
-	defer s.Unlock()
-	host, ok := s.m[containerID]
-	if !ok {
-		return "", &dcli.NoSuchContainer{ID: containerID}
-	}
-	return host, nil
-}
-
-func (s *mapStorage) Remove(containerID string) error {
-	s.Lock()
-	defer s.Unlock()
-	delete(s.m, containerID)
-	return nil
-}
-
-type fakeScheduler struct{}
-
-func (fakeScheduler) Schedule(*docker.Config) (string, *docker.Container, error) {
-	return "", nil, nil
-}
-
-func (fakeScheduler) Nodes() ([]Node, error) {
-	return nil, nil
-}
-
-type failingScheduler struct{}
-
-func (failingScheduler) Schedule(*docker.Config) (string, *docker.Container, error) {
-	return "", nil, errors.New("Cannot schedule")
-}
-
-func (failingScheduler) Nodes() ([]Node, error) {
-	return nil, errors.New("Cannot retrieve list of nodes")
 }
