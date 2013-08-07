@@ -192,7 +192,11 @@ func (c *Cluster) CommitContainer(opts dcli.CommitContainerOptions) (*docker.Ima
 	if node, err := c.getNode(opts.Container); err == nil {
 		image, err := node.CommitContainer(opts)
 		if err == nil {
-			c.storage().StoreImage(image.ID, node.id)
+			key := opts.Repository
+			if key == "" {
+				key = image.ID
+			}
+			c.storage().StoreImage(key, node.id)
 		}
 		return image, err
 	} else if err != errStorageDisabled {

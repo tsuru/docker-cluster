@@ -985,7 +985,6 @@ func TestCommitContainerWithStorage(t *testing.T) {
 		w.Write([]byte(`{"Id":"596069db4bf5"}`))
 	}))
 	defer server2.Close()
-	defer server2.Close()
 	cluster, err := New(nil,
 		Node{ID: "handler0", Address: server1.URL},
 		Node{ID: "handler1", Address: server2.URL},
@@ -999,7 +998,7 @@ func TestCommitContainerWithStorage(t *testing.T) {
 		iMap: map[string]string{},
 	}
 	cluster.SetStorage(&storage)
-	opts := dclient.CommitContainerOptions{Container: id}
+	opts := dclient.CommitContainerOptions{Container: id, Repository: "tsuru/python"}
 	image, err := cluster.CommitContainer(opts)
 	if err != nil {
 		t.Fatal(err)
@@ -1010,8 +1009,33 @@ func TestCommitContainerWithStorage(t *testing.T) {
 	if called {
 		t.Errorf("CommitContainer(%q): should not call the all node servers.", id)
 	}
-	if node := storage.iMap[image.ID]; node != "handler1" {
+	if node := storage.iMap["tsuru/python"]; node != "handler1" {
 		t.Errorf("CommitContainer(%q): wrong image ID in the storage. Want %q. Got %q", id, "handler1", node)
+	}
+}
+
+func TestCommitContainerWithStorageAndImageID(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`{"Id":"596069db4bf5"}`))
+	}))
+	defer server.Close()
+	cluster, err := New(nil, Node{ID: "handler0", Address: server.URL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := "abc123"
+	storage := mapStorage{
+		cMap: map[string]string{id: "handler0"},
+		iMap: map[string]string{},
+	}
+	cluster.SetStorage(&storage)
+	opts := dclient.CommitContainerOptions{Container: id}
+	image, err := cluster.CommitContainer(opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if node := storage.iMap[image.ID]; node != "handler0" {
+		t.Errorf("CommitContainer(%q): wrong image ID in the storage. Want %q. Got %q", id, "handler0", node)
 	}
 }
 
