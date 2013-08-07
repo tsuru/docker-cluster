@@ -994,7 +994,10 @@ func TestCommitContainerWithStorage(t *testing.T) {
 		t.Fatal(err)
 	}
 	id := "abc123"
-	storage := mapStorage{cMap: map[string]string{id: "handler1"}}
+	storage := mapStorage{
+		cMap: map[string]string{id: "handler1"},
+		iMap: map[string]string{},
+	}
 	cluster.SetStorage(&storage)
 	opts := dclient.CommitContainerOptions{Container: id}
 	image, err := cluster.CommitContainer(opts)
@@ -1006,6 +1009,9 @@ func TestCommitContainerWithStorage(t *testing.T) {
 	}
 	if called {
 		t.Errorf("CommitContainer(%q): should not call the all node servers.", id)
+	}
+	if node := storage.iMap[image.ID]; node != "handler1" {
+		t.Errorf("CommitContainer(%q): wrong image ID in the storage. Want %q. Got %q", id, "handler1", node)
 	}
 }
 
