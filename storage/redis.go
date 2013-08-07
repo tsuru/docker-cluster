@@ -12,18 +12,21 @@ import (
 	"github.com/globocom/docker-cluster/cluster"
 )
 
-var ErrNoSuchContainer = errors.New("No such container")
+var (
+	ErrNoSuchContainer = errors.New("No such container")
+	ErrNoSuchImage     = errors.New("No such image")
+)
 
 type redisStorage struct {
 	pool   *redis.Pool
 	prefix string
 }
 
-func (s *redisStorage) key(container string) string {
+func (s *redisStorage) key(value string) string {
 	if s.prefix == "" {
-		return container
+		return value
 	}
-	return s.prefix + ":" + container
+	return s.prefix + ":" + value
 }
 
 func (s *redisStorage) StoreContainer(container, host string) error {
@@ -60,14 +63,35 @@ func (s *redisStorage) RemoveContainer(container string) error {
 }
 
 func (s *redisStorage) StoreImage(image, host string) error {
-	return nil
+	conn := s.pool.Get()
+	defer conn.Close()
+	_, err := conn.Do("SET", s.key("image:"+image), host)
+	return err
 }
 
 func (s *redisStorage) RetrieveImage(id string) (string, error) {
-	return "", nil
+	conn := s.pool.Get()
+	defer conn.Close()
+	result, err := conn.Do("GET", s.key("image:"+id))
+	if err != nil {
+		return "", err
+	}
+	if result == nil {
+		return "", ErrNoSuchImage
+	}
+	return string(result.([]byte)), nil
 }
 
 func (s *redisStorage) RemoveImage(id string) error {
+	conn := s.pool.Get()
+	defer conn.Close()
+	result, err := conn.Do("DEL", s.key("image:"+id))
+	if err != nil {
+		return err
+	}
+	if result.(int64) < 1 {
+		return ErrNoSuchImage
+	}
 	return nil
 }
 
