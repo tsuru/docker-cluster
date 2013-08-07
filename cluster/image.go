@@ -30,8 +30,19 @@ func (c *Cluster) PullImage(opts docker.PullImageOptions, w io.Writer) error {
 // PushImage pushes an image to a remote registry server, returning an error in
 // case of failure.
 func (c *Cluster) PushImage(opts docker.PushImageOptions, w io.Writer) error {
+	if node, err := c.getNodeForImage(opts.Name); err == nil {
+		return node.PushImage(opts, w)
+	} else if err != errStorageDisabled {
+		return err
+	}
 	_, err := c.runOnNodes(func(n node) (interface{}, error) {
 		return nil, n.PushImage(opts, w)
 	}, docker.ErrNoSuchImage)
 	return err
+}
+
+func (c *Cluster) getNodeForImage(image string) (node, error) {
+	return c.getNode(func(s Storage) (string, error) {
+		return s.RetrieveImage(image)
+	})
 }

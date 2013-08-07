@@ -161,3 +161,32 @@ func TestPushImageNotFound(t *testing.T) {
 		t.Error("PushImage: got unexpected <nil> error")
 	}
 }
+
+func TestPushImageWithStorage(t *testing.T) {
+	var count int
+	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		count++
+	}))
+	defer server1.Close()
+	server2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("pushed"))
+	}))
+	defer server2.Close()
+	cluster, err := New(nil,
+		Node{ID: "handler0", Address: server1.URL},
+		Node{ID: "handler1", Address: server2.URL},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	storage := mapStorage{iMap: map[string]string{"tsuru/python": "handler1"}}
+	cluster.SetStorage(&storage)
+	var buf bytes.Buffer
+	err = cluster.PushImage(docker.PushImageOptions{Name: "tsuru/python"}, &buf)
+	if err != nil {
+		t.Error(err)
+	}
+	if count > 0 {
+		t.Error("PushImage with storage: should not send request to all servers, but did.")
+	}
+}

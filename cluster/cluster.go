@@ -24,6 +24,8 @@ var ErrUnknownNode = errors.New("Unknown node")
 // immutable, meaning that no new nodes can be registered.
 var ErrImmutableCluster = errors.New("Immutable cluster")
 
+var errStorageDisabled = errors.New("Storage is disabled")
+
 // ContainerStorage provides methods to store and retrieve information about
 // the relation between the node and the container. It can be easily
 // represented as a key-value storage.
@@ -149,4 +151,27 @@ func (c *Cluster) runOnNodes(fn nodeFunc, errNotFound error) (interface{}, error
 			return nil, errNotFound
 		}
 	}
+}
+
+func (c *Cluster) getNode(retrieveFn func(Storage) (string, error)) (node, error) {
+	var n node
+	storage := c.storage()
+	if storage == nil {
+		return n, errStorageDisabled
+	}
+	id, err := retrieveFn(storage)
+	if err != nil {
+		return n, err
+	}
+	nodes, err := c.scheduler.Nodes()
+	if err != nil {
+		return n, err
+	}
+	for _, nd := range nodes {
+		if nd.ID == id {
+			client, _ := docker.NewClient(nd.Address)
+			return node{id: nd.ID, Client: client, edp: nd.Address}, nil
+		}
+	}
+	return n, ErrUnknownNode
 }

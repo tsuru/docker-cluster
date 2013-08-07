@@ -1069,18 +1069,18 @@ func TestGetNode(t *testing.T) {
 	storage.StoreContainer("e90303", "handler2")
 	storage.StoreContainer("e90302", "handler3")
 	cluster.SetStorage(&storage)
-	_, err = cluster.getNode("e90302")
+	_, err = cluster.getNodeForContainer("e90302")
 	if err != ErrUnknownNode {
 		t.Errorf("cluster.getNode(%q): wrong error. Want %#v. Got %#v.", "e90302", ErrUnknownNode, err)
 	}
-	node, err := cluster.getNode("e90301")
+	node, err := cluster.getNodeForContainer("e90301")
 	if err != nil {
 		t.Error(err)
 	}
 	if node.id != "handler1" {
 		t.Errorf("cluster.getNode(%q): wrong node. Want %q. Got %q.", "e90301", "handler1", node.id)
 	}
-	_, err = cluster.getNode("e90305")
+	_, err = cluster.getNodeForContainer("e90305")
 	expected := dclient.NoSuchContainer{ID: "e90305"}
 	if !reflect.DeepEqual(err, &expected) {
 		t.Errorf("cluster.getNode(%q): wrong error. Want %#v. Got %#v.", "e90305", expected, err)
@@ -1090,7 +1090,7 @@ func TestGetNode(t *testing.T) {
 		t.Fatal(err)
 	}
 	cluster.SetStorage(&storage)
-	_, err = cluster.getNode("e90301")
+	_, err = cluster.getNodeForContainer("e90301")
 	expectedMsg := "Cannot retrieve list of nodes"
 	if err.Error() != expectedMsg {
 		t.Errorf("cluster.getNode(%q): wrong error. Want %q. Got %q.", "e90301", expectedMsg, err.Error())
