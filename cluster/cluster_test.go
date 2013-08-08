@@ -12,7 +12,7 @@ import (
 	"testing"
 )
 
-func TestcewCluster(t *testing.T) {
+func TestNewCluster(t *testing.T) {
 	var tests = []struct {
 		scheduler Scheduler
 		input     []Node
