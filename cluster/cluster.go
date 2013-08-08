@@ -15,16 +15,18 @@ import (
 	"sync"
 )
 
-// ErrUnknownNode is the error returned when an unknown node is stored in the
-// storage. This error means some kind of inconsistence between the storage and
-// the cluster.
-var ErrUnknownNode = errors.New("Unknown node")
+var (
+	// ErrUnknownNode is the error returned when an unknown node is stored in the
+	// storage. This error means some kind of inconsistence between the storage and
+	// the cluster.
+	ErrUnknownNode = errors.New("Unknown node")
 
-// ErrImmutableCluster is the error returned by Register when the cluster is
-// immutable, meaning that no new nodes can be registered.
-var ErrImmutableCluster = errors.New("Immutable cluster")
+	// ErrImmutableCluster is the error returned by Register when the cluster is
+	// immutable, meaning that no new nodes can be registered.
+	ErrImmutableCluster = errors.New("Immutable cluster")
 
-var errStorageDisabled = errors.New("Storage is disabled")
+	errStorageDisabled = errors.New("Storage is disabled")
+)
 
 // ContainerStorage provides methods to store and retrieve information about
 // the relation between the node and the container. It can be easily
