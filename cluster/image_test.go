@@ -42,6 +42,34 @@ func TestRemoveImage(t *testing.T) {
 	}
 }
 
+func TestRemoveImageWithStorage(t *testing.T) {
+	var count int
+	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		count++
+	}))
+	defer server1.Close()
+	server2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer server2.Close()
+	cluster, err := New(nil,
+		Node{ID: "handler0", Address: server1.URL},
+		Node{ID: "handler1", Address: server2.URL},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	storage := mapStorage{iMap: map[string]string{"tsuru/python": "handler1"}}
+	cluster.SetStorage(&storage)
+	err = cluster.RemoveImage("tsuru/python")
+	if err != nil {
+		t.Error(err)
+	}
+	if count > 0 {
+		t.Error("RemoveImage with storage: should not send request to all servers, but did.")
+	}
+}
+
 func TestRemoveImageNotFound(t *testing.T) {
 	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "No such image", http.StatusNotFound)
