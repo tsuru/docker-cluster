@@ -160,7 +160,8 @@ func TestPushImage(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = cluster.PushImage(docker.PushImageOptions{Name: "tsuru/ruby"}, &buf)
+	var auth docker.AuthConfiguration
+	err = cluster.PushImage(docker.PushImageOptions{Name: "tsuru/ruby"}, auth, &buf)
 	re := regexp.MustCompile(`^Pushing to server \d`)
 	if !re.MatchString(buf.String()) {
 		t.Errorf("Wrong output: Want %q. Got %q.", "Pushing to server [12]", buf.String())
@@ -184,7 +185,8 @@ func TestPushImageNotFound(t *testing.T) {
 		t.Fatal(err)
 	}
 	var buf bytes.Buffer
-	err = cluster.PushImage(docker.PushImageOptions{Name: "tsuru/python"}, &buf)
+	var auth docker.AuthConfiguration
+	err = cluster.PushImage(docker.PushImageOptions{Name: "tsuru/python"}, auth, &buf)
 	if err == nil {
 		t.Error("PushImage: got unexpected <nil> error")
 	}
@@ -210,7 +212,8 @@ func TestPushImageWithStorage(t *testing.T) {
 	storage := mapStorage{iMap: map[string]string{"tsuru/python": "handler1"}}
 	cluster.SetStorage(&storage)
 	var buf bytes.Buffer
-	err = cluster.PushImage(docker.PushImageOptions{Name: "tsuru/python"}, &buf)
+	var auth docker.AuthConfiguration
+	err = cluster.PushImage(docker.PushImageOptions{Name: "tsuru/python"}, auth, &buf)
 	if err != nil {
 		t.Error(err)
 	}
