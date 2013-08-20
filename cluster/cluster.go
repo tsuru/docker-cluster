@@ -112,15 +112,15 @@ func (c *Cluster) storage() Storage {
 
 type nodeFunc func(node) (interface{}, error)
 
-func (c *Cluster) runOnNodes(fn nodeFunc, errNotFound error) (interface{}, error) {
+func (c *Cluster) runOnNodes(fn nodeFunc, errNotFound error, wait bool) (interface{}, error) {
 	nodes, err := c.scheduler.Nodes()
 	if err != nil {
 		return nil, err
 	}
 	var wg sync.WaitGroup
-	finish := make(chan int8, 1)
+	finish := make(chan int8, len(nodes))
 	errChan := make(chan error, len(nodes))
-	result := make(chan interface{}, 1)
+	result := make(chan interface{}, len(nodes))
 	for _, n := range nodes {
 		wg.Add(1)
 		client, _ := docker.NewClient(n.Address)
@@ -135,6 +135,17 @@ func (c *Cluster) runOnNodes(fn nodeFunc, errNotFound error) (interface{}, error
 				errChan <- err
 			}
 		}(node{id: n.ID, Client: client})
+	}
+	if wait {
+		wg.Wait()
+		select {
+		case value := <-result:
+			return value, nil
+		case err := <-errChan:
+			return nil, err
+		default:
+			return nil, errNotFound
+		}
 	}
 	go func() {
 		wg.Wait()

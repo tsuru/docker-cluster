@@ -34,7 +34,8 @@ func (c *Cluster) InspectContainer(id string) (*docker.Container, error) {
 	}
 	container, err := c.runOnNodes(func(n node) (interface{}, error) {
 		return n.InspectContainer(id)
-	}, &dcli.NoSuchContainer{ID: id})
+	}, &dcli.NoSuchContainer{ID: id}, false)
+
 	if err != nil {
 		return nil, err
 	}
@@ -50,7 +51,8 @@ func (c *Cluster) KillContainer(id string) error {
 	}
 	_, err := c.runOnNodes(func(n node) (interface{}, error) {
 		return nil, n.KillContainer(id)
-	}, &dcli.NoSuchContainer{ID: id})
+	}, &dcli.NoSuchContainer{ID: id}, false)
+
 	return err
 }
 
@@ -97,7 +99,8 @@ func (c *Cluster) RemoveContainer(id string) error {
 	}
 	_, err = c.runOnNodes(func(n node) (interface{}, error) {
 		return nil, n.RemoveContainer(id)
-	}, &dcli.NoSuchContainer{ID: id})
+	}, &dcli.NoSuchContainer{ID: id}, false)
+
 	return err
 }
 
@@ -122,7 +125,8 @@ func (c *Cluster) StartContainer(id string) error {
 	}
 	_, err := c.runOnNodes(func(n node) (interface{}, error) {
 		return nil, n.StartContainer(id)
-	}, &dcli.NoSuchContainer{ID: id})
+	}, &dcli.NoSuchContainer{ID: id}, false)
+
 	return err
 }
 
@@ -136,7 +140,8 @@ func (c *Cluster) StopContainer(id string, timeout uint) error {
 	}
 	_, err := c.runOnNodes(func(n node) (interface{}, error) {
 		return nil, n.StopContainer(id, timeout)
-	}, &dcli.NoSuchContainer{ID: id})
+	}, &dcli.NoSuchContainer{ID: id}, false)
+
 	return err
 }
 
@@ -150,7 +155,8 @@ func (c *Cluster) RestartContainer(id string, timeout uint) error {
 	}
 	_, err := c.runOnNodes(func(n node) (interface{}, error) {
 		return nil, n.RestartContainer(id, timeout)
-	}, &dcli.NoSuchContainer{ID: id})
+	}, &dcli.NoSuchContainer{ID: id}, false)
+
 	return err
 }
 
@@ -164,7 +170,8 @@ func (c *Cluster) WaitContainer(id string) (int, error) {
 	}
 	exit, err := c.runOnNodes(func(n node) (interface{}, error) {
 		return n.WaitContainer(id)
-	}, &dcli.NoSuchContainer{ID: id})
+	}, &dcli.NoSuchContainer{ID: id}, false)
+
 	if err != nil {
 		return -1, err
 	}
@@ -180,7 +187,8 @@ func (c *Cluster) AttachToContainer(opts dcli.AttachToContainerOptions) error {
 	}
 	_, err := c.runOnNodes(func(n node) (interface{}, error) {
 		return nil, n.AttachToContainer(opts)
-	}, &dcli.NoSuchContainer{ID: opts.Container})
+	}, &dcli.NoSuchContainer{ID: opts.Container}, false)
+
 	return err
 }
 
@@ -201,7 +209,8 @@ func (c *Cluster) CommitContainer(opts dcli.CommitContainerOptions) (*docker.Ima
 	}
 	image, err := c.runOnNodes(func(n node) (interface{}, error) {
 		return n.CommitContainer(opts)
-	}, &dcli.NoSuchContainer{ID: opts.Container})
+	}, &dcli.NoSuchContainer{ID: opts.Container}, false)
+
 	if err != nil {
 		return nil, err
 	}
