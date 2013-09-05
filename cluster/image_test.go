@@ -223,3 +223,26 @@ func TestImportImage(t *testing.T) {
 		t.Errorf("Wrong output: Want %q. Got %q.", "importing from [12]", buf.String())
 	}
 }
+
+func TestImportImageWithAbsentFile(t *testing.T) {
+	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "file not found", http.StatusNotFound)
+	}))
+	defer server1.Close()
+	server2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "file not found", http.StatusNotFound)
+	}))
+	defer server2.Close()
+	cluster, err := New(nil,
+		Node{ID: "handler0", Address: server1.URL},
+		Node{ID: "handler1", Address: server2.URL},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var buf safe.Buffer
+	err = cluster.ImportImage(docker.ImportImageOptions{Repository: "tsuru/python", Source: "/path/to/tar"}, &buf)
+	if err == nil {
+		t.Error("ImportImage: got unexpected <nil> error")
+	}
+}
