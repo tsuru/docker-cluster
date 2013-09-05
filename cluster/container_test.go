@@ -5,6 +5,7 @@
 package cluster
 
 import (
+	"bytes"
 	"github.com/dotcloud/docker"
 	dclient "github.com/fsouza/go-dockerclient"
 	"github.com/globocom/tsuru/safe"
@@ -1051,6 +1052,65 @@ func TestCommitContainerNotFoundWithStorage(t *testing.T) {
 	expected := &dclient.NoSuchContainer{ID: id}
 	if !reflect.DeepEqual(err, expected) {
 		t.Errorf("CommitContainer(%q): wrong error. Want %#v. Got %#v.", id, expected, err)
+	}
+}
+
+func TestExportContainer(t *testing.T) {
+	content := "tar content of container"
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(content))
+	}))
+	defer server.Close()
+	cluster, err := New(nil, Node{ID: "handler0", Address: server.URL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	containerID := "3e2f21a89f"
+	out := &bytes.Buffer{}
+	storage := &mapStorage{cMap: map[string]string{containerID: "handler0"}}
+	cluster.SetStorage(storage)
+	err = cluster.ExportContainer(containerID, out)
+	if err != nil {
+		t.Errorf("ExportContainer: unexpected error: %#v", err.Error())
+	}
+	if out.String() != content {
+		t.Errorf("ExportContainer: wrong out. Want %#v. Got %#v.", content, out.String())
+	}
+}
+
+func TestExportContainerNotFoundWithStorage(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(""))
+	}))
+	defer server.Close()
+	cluster, err := New(nil, Node{ID: "handler0", Address: server.URL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	containerID := "3e2f21a89f"
+	out := &bytes.Buffer{}
+	cluster.SetStorage(&mapStorage{})
+	err = cluster.ExportContainer(containerID, out)
+	if err == nil {
+		t.Errorf("ExportContainer: expected error not to be <nil>", err.Error())
+	}
+}
+
+func TestExportContainerNoStorage(t *testing.T) {
+	content := "tar content of container"
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(content))
+	}))
+	defer server.Close()
+	cluster, err := New(nil, Node{ID: "handler0", Address: server.URL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	containerID := "3e2f21a89f"
+	out := &bytes.Buffer{}
+	err = cluster.ExportContainer(containerID, out)
+	if err == nil {
+		t.Errorf("ExportContainer: expected error not to be <nil>", err.Error())
 	}
 }
 

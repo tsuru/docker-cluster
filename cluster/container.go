@@ -7,6 +7,7 @@ package cluster
 import (
 	"github.com/dotcloud/docker"
 	dcli "github.com/fsouza/go-dockerclient"
+	"io"
 	"sync"
 )
 
@@ -215,6 +216,16 @@ func (c *Cluster) CommitContainer(opts dcli.CommitContainerOptions) (*docker.Ima
 		return nil, err
 	}
 	return image.(*docker.Image), nil
+}
+
+// ExportContainer exports a container as a tar and writes
+// the result in out.
+func (c *Cluster) ExportContainer(containerID string, out io.Writer) error {
+	node, err := c.getNodeForContainer(containerID)
+	if err != nil {
+		return err
+	}
+	return node.ExportContainer(containerID, out)
 }
 
 func (c *Cluster) getNodeForContainer(container string) (node, error) {
