@@ -51,6 +51,6 @@ func (c *Cluster) getNodeForImage(image string) (node, error) {
 func (c *Cluster) ImportImage(opts docker.ImportImageOptions, w io.Writer) error {
 	_, err := c.runOnNodes(func(n node) (interface{}, error) {
 		return nil, n.ImportImage(opts, w)
-	}, docker.ErrNoSuchImage)
+	}, docker.ErrNoSuchImage, false)
 	return err
 }
