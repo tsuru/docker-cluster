@@ -46,3 +46,11 @@ func (c *Cluster) getNodeForImage(image string) (node, error) {
 		return s.RetrieveImage(image)
 	})
 }
+
+// ImportImage imports an image from a url or stdin
+func (c *Cluster) ImportImage(opts docker.ImportImageOptions, w io.Writer) error {
+	_, err := c.runOnNodes(func(n node) (interface{}, error) {
+		return nil, n.ImportImage(opts, w)
+	}, docker.ErrNoSuchImage)
+	return err
+}

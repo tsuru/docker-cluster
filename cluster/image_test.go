@@ -196,3 +196,30 @@ func TestPushImageWithStorage(t *testing.T) {
 		t.Error("PushImage with storage: should not send request to all servers, but did.")
 	}
 }
+
+func TestImportImage(t *testing.T) {
+	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("importing from 1"))
+	}))
+	defer server1.Close()
+	server2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("importing from 2"))
+	}))
+	defer server2.Close()
+	cluster, err := New(nil,
+		Node{ID: "handler0", Address: server1.URL},
+		Node{ID: "handler1", Address: server2.URL},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var buf safe.Buffer
+	err = cluster.ImportImage(docker.ImportImageOptions{Repository: "tsuru/python", Source: "http://url.to/tar"}, &buf)
+	if err != nil {
+		t.Error(err)
+	}
+	re := regexp.MustCompile(`^importing from \d`)
+	if !re.MatchString(buf.String()) {
+		t.Errorf("Wrong output: Want %q. Got %q.", "importing from [12]", buf.String())
+	}
+}
