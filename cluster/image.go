@@ -5,7 +5,7 @@
 package cluster
 
 import (
-	"github.com/fsouza/go-dockerclient"
+	dcli "github.com/fsouza/go-dockerclient"
 	"io"
 )
 
@@ -14,22 +14,22 @@ import (
 func (c *Cluster) RemoveImage(name string) error {
 	_, err := c.runOnNodes(func(n node) (interface{}, error) {
 		return nil, n.RemoveImage(name)
-	}, docker.ErrNoSuchImage, false)
+	}, dcli.ErrNoSuchImage, false)
 	return err
 }
 
 // PullImage pulls an image from a remote registry server, returning an error
 // in case of failure.
-func (c *Cluster) PullImage(opts docker.PullImageOptions, w io.Writer) error {
+func (c *Cluster) PullImage(opts dcli.PullImageOptions, w io.Writer) error {
 	_, err := c.runOnNodes(func(n node) (interface{}, error) {
 		return nil, n.PullImage(opts, w)
-	}, docker.ErrNoSuchImage, true)
+	}, dcli.ErrNoSuchImage, true)
 	return err
 }
 
 // PushImage pushes an image to a remote registry server, returning an error in
 // case of failure.
-func (c *Cluster) PushImage(opts docker.PushImageOptions, auth docker.AuthConfiguration, w io.Writer) error {
+func (c *Cluster) PushImage(opts dcli.PushImageOptions, auth dcli.AuthConfiguration, w io.Writer) error {
 	if node, err := c.getNodeForImage(opts.Name); err == nil {
 		return node.PushImage(opts, auth, w)
 	} else if err != errStorageDisabled {
@@ -37,7 +37,7 @@ func (c *Cluster) PushImage(opts docker.PushImageOptions, auth docker.AuthConfig
 	}
 	_, err := c.runOnNodes(func(n node) (interface{}, error) {
 		return nil, n.PushImage(opts, auth, w)
-	}, docker.ErrNoSuchImage, false)
+	}, dcli.ErrNoSuchImage, false)
 	return err
 }
 
@@ -48,9 +48,9 @@ func (c *Cluster) getNodeForImage(image string) (node, error) {
 }
 
 // ImportImage imports an image from a url or stdin
-func (c *Cluster) ImportImage(opts docker.ImportImageOptions, w io.Writer) error {
+func (c *Cluster) ImportImage(opts dcli.ImportImageOptions, w io.Writer) error {
 	_, err := c.runOnNodes(func(n node) (interface{}, error) {
 		return nil, n.ImportImage(opts, w)
-	}, docker.ErrNoSuchImage, false)
+	}, dcli.ErrNoSuchImage, false)
 	return err
 }
