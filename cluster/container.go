@@ -118,14 +118,14 @@ func (c *Cluster) removeFromStorage(id string) error {
 	return errStorageDisabled
 }
 
-func (c *Cluster) StartContainer(id string) error {
+func (c *Cluster) StartContainer(id string, hostConfig *docker.HostConfig) error {
 	if node, err := c.getNodeForContainer(id); err == nil {
-		return node.StartContainer(id)
+		return node.StartContainer(id, hostConfig)
 	} else if err != errStorageDisabled {
 		return err
 	}
 	_, err := c.runOnNodes(func(n node) (interface{}, error) {
-		return nil, n.StartContainer(id)
+		return nil, n.StartContainer(id, hostConfig)
 	}, &dcli.NoSuchContainer{ID: id}, false)
 
 	return err

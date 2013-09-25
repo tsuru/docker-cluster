@@ -525,7 +525,7 @@ func TestStartContainer(t *testing.T) {
 		t.Fatal(err)
 	}
 	id := "abc123"
-	err = cluster.StartContainer(id)
+	err = cluster.StartContainer(id, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -555,7 +555,7 @@ func TestStartContainerWithStorage(t *testing.T) {
 	id := "abc123"
 	storage := mapStorage{cMap: map[string]string{id: "handler1"}}
 	cluster.SetStorage(&storage)
-	err = cluster.StartContainer(id)
+	err = cluster.StartContainer(id, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -571,7 +571,7 @@ func TestStartContainerNotFoundWithStorage(t *testing.T) {
 	}
 	id := "abc123"
 	cluster.SetStorage(&mapStorage{})
-	err = cluster.StartContainer(id)
+	err = cluster.StartContainer(id, nil)
 	expected := &dclient.NoSuchContainer{ID: id}
 	if !reflect.DeepEqual(err, expected) {
 		t.Errorf("StartContainer(%q): Wrong error. Want %#v. Got %#v.", id, expected, err)
