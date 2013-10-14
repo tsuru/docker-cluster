@@ -214,7 +214,7 @@ func TestImportImage(t *testing.T) {
 		t.Fatal(err)
 	}
 	var buf safe.Buffer
-	err = cluster.ImportImage(docker.ImportImageOptions{Repository: "tsuru/python", Source: "http://url.to/tar"}, &buf)
+	err = cluster.ImportImage(docker.ImportImageOptions{Repository: "tsuru/python", Source: "http://url.to/tar"}, nil, &buf)
 	if err != nil {
 		t.Error(err)
 	}
@@ -241,7 +241,7 @@ func TestImportImageWithAbsentFile(t *testing.T) {
 		t.Fatal(err)
 	}
 	var buf safe.Buffer
-	err = cluster.ImportImage(docker.ImportImageOptions{Repository: "tsuru/python", Source: "/path/to/tar"}, &buf)
+	err = cluster.ImportImage(docker.ImportImageOptions{Repository: "tsuru/python", Source: "/path/to/tar"}, nil, &buf)
 	if err == nil {
 		t.Error("ImportImage: got unexpected <nil> error")
 	}

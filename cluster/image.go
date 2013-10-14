@@ -48,9 +48,9 @@ func (c *Cluster) getNodeForImage(image string) (node, error) {
 }
 
 // ImportImage imports an image from a url or stdin
-func (c *Cluster) ImportImage(opts dcli.ImportImageOptions, w io.Writer) error {
+func (c *Cluster) ImportImage(opts dcli.ImportImageOptions, in io.Reader, out io.Writer) error {
 	_, err := c.runOnNodes(func(n node) (interface{}, error) {
-		return nil, n.ImportImage(opts, w)
+		return nil, n.ImportImage(opts, in, out)
 	}, dcli.ErrNoSuchImage, false)
 	return err
 }
