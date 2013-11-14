@@ -1,0 +1,49 @@
+{
+	"ImportPath": "github.com/globocom/docker-cluster",
+	"GoVersion": "devel +2a5e92c6efc9 Wed Nov 13 15:32:40 2013 +1100",
+	"Packages": [
+		"./..."
+	],
+	"Deps": [
+		{
+			"ImportPath": "code.google.com/p/go.net/websocket",
+			"Comment": "null-88",
+			"Rev": "55437409069bb181ad562b1ad1e5f361c44aff17"
+		},
+		{
+			"ImportPath": "github.com/dotcloud/docker",
+			"Comment": "v0.6.3",
+			"Rev": "b0a49a30c78e8cafecac455aa0a306ac1792a644"
+		},
+		{
+			"ImportPath": "github.com/dotcloud/tar",
+			"Rev": "e5ea6bb21a3294bbbb8019a6cdcb1360f1c0a797"
+		},
+		{
+			"ImportPath": "github.com/fsouza/go-dockerclient",
+			"Rev": "958d3afe3bd4a27498b2d84adfd3ca379cd591d9"
+		},
+		{
+			"ImportPath": "github.com/garyburd/redigo/redis",
+			"Rev": "8736767bf9f75f2374aac103059362a5c322d211"
+		},
+		{
+			"ImportPath": "github.com/globocom/tsuru/safe",
+			"Comment": "0.2.9-3-g3447a19",
+			"Rev": "3447a195ff4b31d5ecf3645f0b5307babea0b031"
+		},
+		{
+			"ImportPath": "github.com/gorilla/context",
+			"Rev": "708054d61e5a2918b9f4e9700000ee611dcf03f5"
+		},
+		{
+			"ImportPath": "github.com/gorilla/mux",
+			"Rev": "b08c5fcf14d01cb0c20ddf70157f54d4a2c3a38a"
+		},
+		{
+			"ImportPath": "github.com/kr/pty",
+			"Comment": "release.r56-14-g3b1f648",
+			"Rev": "3b1f6487b7fc649d5f146df04e623bd55ba1bf7f"
+		}
+	]
+}

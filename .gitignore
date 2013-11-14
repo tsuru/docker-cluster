@@ -1,2 +1,1 @@
-# vim swap files
-*.sw[a-z]
+Godeps/_workspace
