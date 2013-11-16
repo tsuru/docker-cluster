@@ -43,7 +43,7 @@ type roundRobin struct {
 
 func (s *roundRobin) Schedule(config *docker.Config) (string, *docker.Container, error) {
 	node := s.next()
-	container, err := node.CreateContainer(config)
+	container, err := node.CreateContainer(dcli.CreateContainerOptions{}, config)
 	return node.id, container, err
 }
 
