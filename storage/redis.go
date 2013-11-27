@@ -122,6 +122,8 @@ func rStorage(addr, password, prefix string) cluster.Storage {
 			}
 		}
 		return conn, nil
-	}, 10)
+	}, 5)
+	pool.IdleTimeout = 180e9
+	pool.MaxActive = 10
 	return &redisStorage{pool: pool, prefix: prefix}
 }
