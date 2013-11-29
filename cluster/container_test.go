@@ -853,6 +853,7 @@ func TestAttachToContainer(t *testing.T) {
 		OutputStream: &safe.Buffer{},
 		Logs:         true,
 		Stdout:       true,
+		RawTerminal:  true,
 	}
 	err = cluster.AttachToContainer(opts)
 	if err != nil {
