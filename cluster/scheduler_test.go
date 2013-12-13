@@ -28,10 +28,8 @@ func TestRoundRobinSchedule(t *testing.T) {
 	}))
 	defer server2.Close()
 	var scheduler roundRobin
-	scheduler.Register(
-		Node{ID: "node0", Address: server1.URL},
-		Node{ID: "node1", Address: server2.URL},
-	)
+	scheduler.Register(map[string]string{"ID": "node0", "address": server1.URL})
+	scheduler.Register(map[string]string{"ID": "node1", "address": server2.URL})
 	id, container, err := scheduler.Schedule(&docker.Config{Memory: 67108864})
 	if err != nil {
 		t.Error(err)
@@ -70,7 +68,9 @@ func TestRoundRobinNodes(t *testing.T) {
 		{ID: "server1", Address: "http://localhost:8081"},
 	}
 	var scheduler roundRobin
-	scheduler.Register(nodes...)
+	for _, n := range nodes {
+		scheduler.Register(map[string]string{"address": n.Address, "ID": n.ID})
+	}
 	got, err := scheduler.Nodes()
 	if err != nil {
 		t.Error(err)

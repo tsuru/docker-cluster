@@ -84,15 +84,20 @@ func New(scheduler Scheduler, nodes ...Node) (*Cluster, error) {
 		c.scheduler = &roundRobin{lastUsed: -1}
 	}
 	if len(nodes) > 0 {
-		err = c.Register(nodes...)
+		for _, n := range nodes {
+			err = c.Register(map[string]string{"address": n.Address, "ID": n.ID})
+			if err != nil {
+				return &c, err
+			}
+		}
 	}
 	return &c, err
 }
 
 // Register adds new nodes to the cluster.
-func (c *Cluster) Register(nodes ...Node) error {
+func (c *Cluster) Register(params map[string]string) error {
 	if r, ok := c.scheduler.(Registrable); ok {
-		return r.Register(nodes...)
+		return r.Register(params)
 	}
 	return ErrImmutableCluster
 }

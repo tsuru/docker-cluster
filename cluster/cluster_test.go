@@ -48,7 +48,7 @@ func TestRegister(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = cluster.Register(Node{ID: "abcdef", Address: "http://localhost:4243"})
+	err = cluster.Register(map[string]string{"ID": "abcdef", "address": "http://localhost:4243"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -56,7 +56,7 @@ func TestRegister(t *testing.T) {
 	if node.id != "abcdef" {
 		t.Errorf("Register failed. Got wrong ID. Want %q. Got %q.", "abcdef", node.id)
 	}
-	err = cluster.Register(Node{ID: "abcdefg", Address: "http://localhost:4243"})
+	err = cluster.Register(map[string]string{"ID": "abcdefg", "address": "http://localhost:4243"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -76,7 +76,7 @@ func TestRegisterSchedulerUnableToRegister(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = cluster.Register(Node{ID: "abcdef", Address: ""})
+	err = cluster.Register(map[string]string{"ID": "abcdef", "address": ""})
 	if err != ErrImmutableCluster {
 		t.Error(err)
 	}
@@ -87,7 +87,7 @@ func TestRegisterFailure(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = cluster.Register(Node{ID: "abcdef", Address: ""})
+	err = cluster.Register(map[string]string{"ID": "abcdef", "address": ""})
 	if err == nil {
 		t.Error("Expected non-nil error, got <nil>.")
 	}

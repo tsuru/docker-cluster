@@ -26,7 +26,7 @@ type Scheduler interface {
 // method.
 type Registrable interface {
 	// Register adds new nodes to the scheduler.
-	Register(nodes ...Node) error
+	Register(params map[string]string) error
 }
 
 type node struct {
@@ -57,20 +57,18 @@ func (s *roundRobin) next() node {
 	return s.nodes[index]
 }
 
-func (s *roundRobin) Register(nodes ...Node) error {
+func (s *roundRobin) Register(params map[string]string) error {
 	s.mut.Lock()
 	defer s.mut.Unlock()
 	if len(s.nodes) == 0 {
 		s.lastUsed = -1
-		s.nodes = make([]node, 0, len(nodes))
+		s.nodes = make([]node, 0)
 	}
-	for _, n := range nodes {
-		client, err := dcli.NewClient(n.Address)
-		if err != nil {
-			return err
-		}
-		s.nodes = append(s.nodes, node{Client: client, edp: n.Address, id: n.ID})
+	client, err := dcli.NewClient(params["address"])
+	if err != nil {
+		return err
 	}
+	s.nodes = append(s.nodes, node{Client: client, edp: params["address"], id: params["ID"]})
 	return nil
 }
 
