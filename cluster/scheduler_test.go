@@ -79,3 +79,23 @@ func TestRoundRobinNodes(t *testing.T) {
 		t.Errorf("roundRobin.Nodes(): wrong result. Want %#v. Got %#v.", nodes, got)
 	}
 }
+
+func TestRoundRobinNodesUnregister(t *testing.T) {
+	nodes := []Node{
+		{ID: "server0", Address: "http://localhost:8080"},
+		{ID: "server1", Address: "http://localhost:8081"},
+	}
+	var scheduler roundRobin
+	for _, n := range nodes {
+		scheduler.Register(map[string]string{"address": n.Address, "ID": n.ID})
+	}
+    scheduler.Unregister(map[string]string{"address": nodes[0].Address, "ID": nodes[0].ID})
+	got, err := scheduler.Nodes()
+    if err != nil {
+        t.Error(err)
+    }
+    expected := []Node{{ID: "server1", Address: "http://localhost:8081"}}
+	if !reflect.DeepEqual(got, expected) {
+		t.Errorf("roundRobin.Nodes(): wrong result. Want %#v. Got %#v.", nodes, got)
+	}
+}

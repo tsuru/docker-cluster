@@ -27,6 +27,8 @@ type Scheduler interface {
 type Registrable interface {
 	// Register adds new nodes to the scheduler.
 	Register(params map[string]string) error
+    // Unregister removes a node from the scheduler.
+    Unregister(params map[string]string) error
 }
 
 type node struct {
@@ -70,6 +72,22 @@ func (s *roundRobin) Register(params map[string]string) error {
 	}
 	s.nodes = append(s.nodes, node{Client: client, edp: params["address"], id: params["ID"]})
 	return nil
+}
+
+func (s *roundRobin) Unregister(params map[string]string) error {
+    nodes, err := s.Nodes()
+    if err != nil {
+        return err
+    }
+	s.mut.Lock()
+	defer s.mut.Unlock()
+    for i, n := range nodes {
+        if n.ID == params["ID"] && n.Address == params["address"] {
+            s.nodes = append(s.nodes[:i], s.nodes[i+1:]...)
+            break
+        }
+    }
+    return nil
 }
 
 func (s *roundRobin) Nodes() ([]Node, error) {
