@@ -550,3 +550,82 @@ func TestRedisStorageAuthenticationFailure(t *testing.T) {
 		t.Error("Got unexpected <nil> error")
 	}
 }
+
+func TestRedisStorageStoreNode(t *testing.T) {
+	conn := fakeConn{}
+	var storage redisStorage
+	storage.pool = redis.NewPool(func() (redis.Conn, error) {
+		return &conn, nil
+	}, 3)
+	id := "server01"
+	address := "http://docker-node01.com:4243"
+	err := storage.StoreNode(id, address)
+	if err != nil {
+		t.Errorf("Got unexpected %s error", err.Error)
+	}
+	cmd := conn.cmds[0]
+	expectedCmd := "SET"
+	if cmd.cmd != expectedCmd {
+		t.Errorf("StoreNode(%q, %q): want command %q. Got %q.", id, address, expectedCmd, cmd.cmd)
+	}
+	expectedArgs := []interface{}{"node:" + id, address}
+	if !reflect.DeepEqual(cmd.args, expectedArgs) {
+		t.Errorf("StoreNode(%q, %q): want args %#v. Got %#v.", id, address, expectedArgs, cmd.args)
+	}
+}
+
+func TestRedisStorageRemoveNode(t *testing.T) {
+	conn := resultCommandConn{
+		fakeConn: &fakeConn{},
+		reply:    map[string]interface{}{"DEL": int64(1)},
+	}
+	var storage redisStorage
+	storage.pool = redis.NewPool(func() (redis.Conn, error) {
+		return &conn, nil
+	}, 3)
+	id := "server01"
+	err := storage.RemoveNode(id)
+	if err != nil {
+		t.Errorf("Got unexpected %s error", err.Error)
+	}
+	cmd := conn.cmds[0]
+	expectedCmd := "DEL"
+	if cmd.cmd != expectedCmd {
+		t.Errorf("RemoveNode(%q): want command %q. Got %q.", id, expectedCmd, cmd.cmd)
+	}
+	expectedArgs := []interface{}{"node:" + id}
+	if !reflect.DeepEqual(cmd.args, expectedArgs) {
+		t.Errorf("RemoveNode(%q): want args %#v. Got %#v.", id, expectedArgs, cmd.args)
+	}
+}
+
+func TestRedisStorageRemoveNodeFailure(t *testing.T) {
+	var conn failingFakeConn
+	var storage redisStorage
+	storage.pool = redis.NewPool(func() (redis.Conn, error) {
+		return &conn, nil
+	}, 3)
+	err := storage.RemoveNode("server01")
+	if err == nil {
+		t.Error("Unexpected <nil> error")
+	}
+}
+
+func TestRedisStorageRemoveNodeNoSuchNode(t *testing.T) {
+	conn := resultCommandConn{
+		fakeConn: &fakeConn{},
+		reply:    map[string]interface{}{"DEL": int64(0)},
+	}
+	var storage redisStorage
+	storage.pool = redis.NewPool(func() (redis.Conn, error) {
+		return &conn, nil
+	}, 3)
+	id := "server01"
+	err := storage.RemoveNode(id)
+	if err == nil {
+		t.Errorf("Got unexpected <nil> error")
+	}
+	if err != ErrNoSuchNode {
+		t.Errorf("RemoveNode(%q): wrong error. Want %#v. Got %#v.", id, ErrNoSuchNode, err)
+	}
+}

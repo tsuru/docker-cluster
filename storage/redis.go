@@ -13,6 +13,7 @@ import (
 )
 
 var (
+	ErrNoSuchNode      = errors.New("No such container")
 	ErrNoSuchContainer = errors.New("No such container")
 	ErrNoSuchImage     = errors.New("No such image")
 )
@@ -91,6 +92,27 @@ func (s *redisStorage) RemoveImage(id string) error {
 	}
 	if result.(int64) < 1 {
 		return ErrNoSuchImage
+	}
+	return nil
+}
+
+func (s *redisStorage) StoreNode(id, address string) error {
+	conn := s.pool.Get()
+	defer conn.Close()
+	_, err := conn.Do("SET", s.key("node:"+id), address)
+	return err
+
+}
+
+func (s *redisStorage) RemoveNode(id string) error {
+	conn := s.pool.Get()
+	defer conn.Close()
+	result, err := conn.Do("DEL", s.key("node:"+id))
+	if err != nil {
+		return err
+	}
+	if result.(int64) < 1 {
+		return ErrNoSuchNode
 	}
 	return nil
 }
