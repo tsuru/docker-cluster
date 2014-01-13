@@ -93,6 +93,37 @@ func TestRegisterFailure(t *testing.T) {
 	}
 }
 
+func TestUnregister(t *testing.T) {
+	var scheduler RoundRobin
+	cluster, err := New(&scheduler)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = cluster.Register(map[string]string{"ID": "abcdef", "address": "http://localhost:4243"})
+	if err != nil {
+		t.Fatal(err)
+	}
+    err = cluster.Unregister(map[string]string{"ID": "abcdef", "address": "http://localhost:4243"})
+    defer func() {
+        if r := recover(); r == nil {
+            t.Fatal("Should have recovered scheduler.next() panic.")
+        }
+    }()
+	scheduler.next()
+}
+
+func TestUnregisterUnableToRegister(t *testing.T) {
+	var scheduler fakeScheduler
+	cluster, err := New(scheduler)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = cluster.Unregister(map[string]string{"ID": "abcdef", "address": ""})
+	if err != ErrImmutableCluster {
+		t.Error(err)
+	}
+}
+
 func TestRunOnNodesStress(t *testing.T) {
 	n := 1000
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(16))

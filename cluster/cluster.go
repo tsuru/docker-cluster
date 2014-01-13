@@ -102,6 +102,14 @@ func (c *Cluster) Register(params map[string]string) error {
 	return ErrImmutableCluster
 }
 
+// Unregister removes nodes from the cluster.
+func (c *Cluster) Unregister(params map[string]string) error {
+	if r, ok := c.scheduler.(Registrable); ok {
+		return r.Unregister(params)
+	}
+	return ErrImmutableCluster
+}
+
 // SetStorage defines the storage in use the cluster.
 func (c *Cluster) SetStorage(storage Storage) {
 	c.mutex.Lock()
