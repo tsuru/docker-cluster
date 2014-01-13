@@ -110,6 +110,10 @@ func (c *Cluster) Unregister(params map[string]string) error {
 	return ErrImmutableCluster
 }
 
+func (c *Cluster) Nodes() ([]Node, error) {
+	return c.scheduler.Nodes()
+}
+
 // SetStorage defines the storage in use the cluster.
 func (c *Cluster) SetStorage(storage Storage) {
 	c.mutex.Lock()

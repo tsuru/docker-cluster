@@ -8,6 +8,7 @@ import (
 	"math/rand"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"runtime"
 	"testing"
 )
@@ -103,12 +104,12 @@ func TestUnregister(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-    err = cluster.Unregister(map[string]string{"ID": "abcdef", "address": "http://localhost:4243"})
-    defer func() {
-        if r := recover(); r == nil {
-            t.Fatal("Should have recovered scheduler.next() panic.")
-        }
-    }()
+	err = cluster.Unregister(map[string]string{"ID": "abcdef", "address": "http://localhost:4243"})
+	defer func() {
+		if r := recover(); r == nil {
+			t.Fatal("Should have recovered scheduler.next() panic.")
+		}
+	}()
 	scheduler.next()
 }
 
@@ -121,6 +122,28 @@ func TestUnregisterUnableToRegister(t *testing.T) {
 	err = cluster.Unregister(map[string]string{"ID": "abcdef", "address": ""})
 	if err != ErrImmutableCluster {
 		t.Error(err)
+	}
+}
+
+func TestNodesShouldGetSchedulerNodes(t *testing.T) {
+	var scheduler RoundRobin
+	cluster, err := New(&scheduler)
+	if err != nil {
+		t.Fatal(err)
+	}
+	params := map[string]string{"ID": "abcdef", "address": "http://localhost:4243"}
+	err = cluster.Register(params)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cluster.Unregister(params)
+	nodes, err := cluster.Nodes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	expected := []Node{{ID: "abcdef", Address: "http://localhost:4243"}}
+	if !reflect.DeepEqual(nodes, expected) {
+		t.Errorf("Expected nodes to be equal %q, got %q", expected, nodes)
 	}
 }
 
