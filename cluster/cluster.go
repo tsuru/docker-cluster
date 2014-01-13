@@ -81,7 +81,7 @@ func New(scheduler Scheduler, nodes ...Node) (*Cluster, error) {
 	)
 	c.scheduler = scheduler
 	if scheduler == nil {
-		c.scheduler = &roundRobin{lastUsed: -1}
+		c.scheduler = &RoundRobin{lastUsed: -1}
 	}
 	if len(nodes) > 0 {
 		for _, n := range nodes {

@@ -19,12 +19,12 @@ func TestNewCluster(t *testing.T) {
 		fail      bool
 	}{
 		{
-			&roundRobin{},
+			&RoundRobin{},
 			[]Node{{ID: "something", Address: "http://localhost:8083"}},
 			false,
 		},
 		{
-			&roundRobin{},
+			&RoundRobin{},
 			[]Node{{ID: "something", Address: ""}, {ID: "otherthing", Address: "http://localhost:8083"}},
 			true,
 		},
@@ -35,7 +35,7 @@ func TestNewCluster(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		_, err := New(&roundRobin{}, tt.input...)
+		_, err := New(&RoundRobin{}, tt.input...)
 		if tt.fail && err == nil || !tt.fail && err != nil {
 			t.Errorf("cluster.New() for input %#v. Expect failure: %v. Got: %v.", tt.input, tt.fail, err)
 		}
@@ -43,7 +43,7 @@ func TestNewCluster(t *testing.T) {
 }
 
 func TestRegister(t *testing.T) {
-	var scheduler roundRobin
+	var scheduler RoundRobin
 	cluster, err := New(&scheduler)
 	if err != nil {
 		t.Fatal(err)
@@ -83,7 +83,7 @@ func TestRegisterSchedulerUnableToRegister(t *testing.T) {
 }
 
 func TestRegisterFailure(t *testing.T) {
-	cluster, err := New(&roundRobin{})
+	cluster, err := New(&RoundRobin{})
 	if err != nil {
 		t.Fatal(err)
 	}

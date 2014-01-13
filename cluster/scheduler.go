@@ -27,8 +27,8 @@ type Scheduler interface {
 type Registrable interface {
 	// Register adds new nodes to the scheduler.
 	Register(params map[string]string) error
-    // Unregister removes a node from the scheduler.
-    Unregister(params map[string]string) error
+	// Unregister removes a node from the scheduler.
+	Unregister(params map[string]string) error
 }
 
 type node struct {
@@ -37,19 +37,19 @@ type node struct {
 	edp string
 }
 
-type roundRobin struct {
+type RoundRobin struct {
 	nodes    []node
 	lastUsed int64
 	mut      sync.RWMutex
 }
 
-func (s *roundRobin) Schedule(config *docker.Config) (string, *docker.Container, error) {
+func (s *RoundRobin) Schedule(config *docker.Config) (string, *docker.Container, error) {
 	node := s.next()
 	container, err := node.CreateContainer(dcli.CreateContainerOptions{}, config)
 	return node.id, container, err
 }
 
-func (s *roundRobin) next() node {
+func (s *RoundRobin) next() node {
 	s.mut.RLock()
 	defer s.mut.RUnlock()
 	if len(s.nodes) == 0 {
@@ -59,7 +59,7 @@ func (s *roundRobin) next() node {
 	return s.nodes[index]
 }
 
-func (s *roundRobin) Register(params map[string]string) error {
+func (s *RoundRobin) Register(params map[string]string) error {
 	s.mut.Lock()
 	defer s.mut.Unlock()
 	if len(s.nodes) == 0 {
@@ -74,23 +74,23 @@ func (s *roundRobin) Register(params map[string]string) error {
 	return nil
 }
 
-func (s *roundRobin) Unregister(params map[string]string) error {
-    nodes, err := s.Nodes()
-    if err != nil {
-        return err
-    }
+func (s *RoundRobin) Unregister(params map[string]string) error {
+	nodes, err := s.Nodes()
+	if err != nil {
+		return err
+	}
 	s.mut.Lock()
 	defer s.mut.Unlock()
-    for i, n := range nodes {
-        if n.ID == params["ID"] && n.Address == params["address"] {
-            s.nodes = append(s.nodes[:i], s.nodes[i+1:]...)
-            break
-        }
-    }
-    return nil
+	for i, n := range nodes {
+		if n.ID == params["ID"] && n.Address == params["address"] {
+			s.nodes = append(s.nodes[:i], s.nodes[i+1:]...)
+			break
+		}
+	}
+	return nil
 }
 
-func (s *roundRobin) Nodes() ([]Node, error) {
+func (s *RoundRobin) Nodes() ([]Node, error) {
 	s.mut.RLock()
 	defer s.mut.RUnlock()
 	nodes := make([]Node, len(s.nodes))
