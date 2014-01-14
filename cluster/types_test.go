@@ -28,8 +28,10 @@ func (l containerList) Swap(i, j int) {
 type mapStorage struct {
 	cMap map[string]string
 	iMap map[string]string
+	nMap map[string]string
 	cMut sync.Mutex
 	iMut sync.Mutex
+	nMut sync.Mutex
 }
 
 func (s *mapStorage) StoreContainer(containerID, hostID string) error {
@@ -83,6 +85,23 @@ func (s *mapStorage) RemoveImage(imageID string) error {
 	s.iMut.Lock()
 	defer s.iMut.Unlock()
 	delete(s.iMap, imageID)
+	return nil
+}
+
+func (s *mapStorage) StoreNode(id, address string) error {
+	s.nMut.Lock()
+	defer s.nMut.Unlock()
+	if s.nMap == nil {
+		s.nMap = make(map[string]string)
+	}
+	s.nMap[id] = address
+	return nil
+}
+
+func (s *mapStorage) RemoveNode(id string) error {
+	s.nMut.Lock()
+	defer s.nMut.Unlock()
+	delete(s.nMap, id)
 	return nil
 }
 
