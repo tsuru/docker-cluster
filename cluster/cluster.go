@@ -121,13 +121,6 @@ func (c *Cluster) Nodes() ([]Node, error) {
 	return c.scheduler.Nodes()
 }
 
-// SetStorage defines the storage in use the cluster.
-func (c *Cluster) SetStorage(storage Storage) {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
-	c.stor = storage
-}
-
 func (c *Cluster) storage() Storage {
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()

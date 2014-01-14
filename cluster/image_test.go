@@ -177,15 +177,14 @@ func TestPushImageWithStorage(t *testing.T) {
 		w.Write([]byte("pushed"))
 	}))
 	defer server2.Close()
-	cluster, err := New(nil, nil,
+	storage := mapStorage{iMap: map[string]string{"tsuru/python": "handler1"}}
+	cluster, err := New(nil, &storage,
 		Node{ID: "handler0", Address: server1.URL},
 		Node{ID: "handler1", Address: server2.URL},
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
-	storage := mapStorage{iMap: map[string]string{"tsuru/python": "handler1"}}
-	cluster.SetStorage(&storage)
 	var buf bytes.Buffer
 	var auth docker.AuthConfiguration
 	err = cluster.PushImage(docker.PushImageOptions{Name: "tsuru/python"}, auth, &buf)

@@ -82,15 +82,14 @@ func TestCreateContainerWithStorage(t *testing.T) {
 		w.Write([]byte(body))
 	}))
 	defer server2.Close()
-	cluster, err := New(nil, nil,
+	var storage mapStorage
+	cluster, err := New(nil, &storage,
 		Node{ID: "handler0", Address: server1.URL},
 		Node{ID: "handler1", Address: server2.URL},
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
-	var storage mapStorage
-	cluster.SetStorage(&storage)
 	config := docker.Config{Memory: 67108864}
 	_, _, err = cluster.CreateContainer(&config)
 	if err != nil {
@@ -150,16 +149,15 @@ func TestInspectContainerWithStorage(t *testing.T) {
 		w.Write([]byte(body))
 	}))
 	defer server2.Close()
-	cluster, err := New(nil, nil,
+	id := "e90302"
+	storage := mapStorage{cMap: map[string]string{id: "handler1"}}
+	cluster, err := New(nil, &storage,
 		Node{ID: "handler0", Address: server1.URL},
 		Node{ID: "handler1", Address: server2.URL},
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
-	id := "e90302"
-	storage := mapStorage{cMap: map[string]string{id: "handler1"}}
-	cluster.SetStorage(&storage)
 	container, err := cluster.InspectContainer(id)
 	if err != nil {
 		t.Fatal(err)
@@ -203,11 +201,10 @@ func TestInspectContainerNoSuchContainer(t *testing.T) {
 }
 
 func TestInspectContainerNoSuchContainerWithStorage(t *testing.T) {
-	cluster, err := New(nil, nil, Node{ID: "handler0", Address: "http://localhost:4243"})
+	cluster, err := New(nil, &mapStorage{}, Node{ID: "handler0", Address: "http://localhost:4243"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	cluster.SetStorage(&mapStorage{})
 	id := "e90302"
 	container, err := cluster.InspectContainer(id)
 	if container != nil {
@@ -277,16 +274,15 @@ func TestKillContainerWithStorage(t *testing.T) {
 		w.Write([]byte("ok"))
 	}))
 	defer server2.Close()
-	cluster, err := New(nil, nil,
+	id := "abc123"
+	storage := mapStorage{cMap: map[string]string{id: "handler1"}}
+	cluster, err := New(nil, &storage,
 		Node{ID: "handler0", Address: server1.URL},
 		Node{ID: "handler1", Address: server2.URL},
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
-	id := "abc123"
-	storage := mapStorage{cMap: map[string]string{id: "handler1"}}
-	cluster.SetStorage(&storage)
 	err = cluster.KillContainer(id)
 	if err != nil {
 		t.Fatal(err)
@@ -297,12 +293,11 @@ func TestKillContainerWithStorage(t *testing.T) {
 }
 
 func TestKillContainerNotFoundWithStorage(t *testing.T) {
-	cluster, err := New(nil, nil, Node{ID: "handler0", Address: "http://localhost:8282"})
+	cluster, err := New(nil, &mapStorage{}, Node{ID: "handler0", Address: "http://localhost:8282"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	id := "abc123"
-	cluster.SetStorage(&mapStorage{})
 	err = cluster.KillContainer(id)
 	expected := &dclient.NoSuchContainer{ID: id}
 	if !reflect.DeepEqual(err, expected) {
@@ -469,16 +464,15 @@ func TestRemoveContainerWithStorage(t *testing.T) {
 		w.Write([]byte("ok"))
 	}))
 	defer server2.Close()
-	cluster, err := New(nil, nil,
+	id := "abc123"
+	storage := mapStorage{cMap: map[string]string{id: "handler1"}}
+	cluster, err := New(nil, &storage,
 		Node{ID: "handler0", Address: server1.URL},
 		Node{ID: "handler1", Address: server2.URL},
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
-	id := "abc123"
-	storage := mapStorage{cMap: map[string]string{id: "handler1"}}
-	cluster.SetStorage(&storage)
 	err = cluster.RemoveContainer(id)
 	if err != nil {
 		t.Fatal(err)
@@ -493,12 +487,11 @@ func TestRemoveContainerWithStorage(t *testing.T) {
 }
 
 func TestRemoveContainerNotFoundWithStorage(t *testing.T) {
-	cluster, err := New(nil, nil, Node{ID: "handler0", Address: "http://localhost:8282"})
+	cluster, err := New(nil, &mapStorage{}, Node{ID: "handler0", Address: "http://localhost:8282"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	id := "abc123"
-	cluster.SetStorage(&mapStorage{})
 	err = cluster.RemoveContainer(id)
 	expected := &dclient.NoSuchContainer{ID: id}
 	if !reflect.DeepEqual(err, expected) {
@@ -545,16 +538,15 @@ func TestStartContainerWithStorage(t *testing.T) {
 		w.Write([]byte("ok"))
 	}))
 	defer server2.Close()
-	cluster, err := New(nil, nil,
+	id := "abc123"
+	storage := mapStorage{cMap: map[string]string{id: "handler1"}}
+	cluster, err := New(nil, &storage,
 		Node{ID: "handler0", Address: server1.URL},
 		Node{ID: "handler1", Address: server2.URL},
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
-	id := "abc123"
-	storage := mapStorage{cMap: map[string]string{id: "handler1"}}
-	cluster.SetStorage(&storage)
 	err = cluster.StartContainer(id, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -565,12 +557,11 @@ func TestStartContainerWithStorage(t *testing.T) {
 }
 
 func TestStartContainerNotFoundWithStorage(t *testing.T) {
-	cluster, err := New(nil, nil, Node{ID: "handler0", Address: "http://localhost:8282"})
+	cluster, err := New(nil, &mapStorage{}, Node{ID: "handler0", Address: "http://localhost:8282"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	id := "abc123"
-	cluster.SetStorage(&mapStorage{})
 	err = cluster.StartContainer(id, nil)
 	expected := &dclient.NoSuchContainer{ID: id}
 	if !reflect.DeepEqual(err, expected) {
@@ -617,16 +608,15 @@ func TestStopContainerWithStorage(t *testing.T) {
 		w.Write([]byte("ok"))
 	}))
 	defer server2.Close()
-	cluster, err := New(nil, nil,
+	id := "abc123"
+	storage := mapStorage{cMap: map[string]string{id: "handler1"}}
+	cluster, err := New(nil, &storage,
 		Node{ID: "handler0", Address: server1.URL},
 		Node{ID: "handler1", Address: server2.URL},
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
-	id := "abc123"
-	storage := mapStorage{cMap: map[string]string{id: "handler1"}}
-	cluster.SetStorage(&storage)
 	err = cluster.StopContainer(id, 10)
 	if err != nil {
 		t.Fatal(err)
@@ -637,12 +627,11 @@ func TestStopContainerWithStorage(t *testing.T) {
 }
 
 func TestStopContainerNotFoundWithStorage(t *testing.T) {
-	cluster, err := New(nil, nil, Node{ID: "handler0", Address: "http://localhost:8282"})
+	cluster, err := New(nil, &mapStorage{}, Node{ID: "handler0", Address: "http://localhost:8282"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	id := "abc123"
-	cluster.SetStorage(&mapStorage{})
 	err = cluster.StopContainer(id, 10)
 	expected := &dclient.NoSuchContainer{ID: id}
 	if !reflect.DeepEqual(err, expected) {
@@ -689,16 +678,15 @@ func TestRestartContainerWithStorage(t *testing.T) {
 		w.Write([]byte("ok"))
 	}))
 	defer server2.Close()
-	cluster, err := New(nil, nil,
+	id := "abc123"
+	storage := mapStorage{cMap: map[string]string{id: "handler1"}}
+	cluster, err := New(nil, &storage,
 		Node{ID: "handler0", Address: server1.URL},
 		Node{ID: "handler1", Address: server2.URL},
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
-	id := "abc123"
-	storage := mapStorage{cMap: map[string]string{id: "handler1"}}
-	cluster.SetStorage(&storage)
 	err = cluster.RestartContainer(id, 10)
 	if err != nil {
 		t.Fatal(err)
@@ -709,12 +697,11 @@ func TestRestartContainerWithStorage(t *testing.T) {
 }
 
 func TestRestartContainerNotFoundWithStorage(t *testing.T) {
-	cluster, err := New(nil, nil, Node{ID: "handler0", Address: "http://localhost:8282"})
+	cluster, err := New(nil, &mapStorage{}, Node{ID: "handler0", Address: "http://localhost:8282"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	id := "abc123"
-	cluster.SetStorage(&mapStorage{})
 	err = cluster.RestartContainer(id, 10)
 	expected := &dclient.NoSuchContainer{ID: id}
 	if !reflect.DeepEqual(err, expected) {
@@ -789,16 +776,15 @@ func TestWaitContainerWithStorage(t *testing.T) {
 		w.Write([]byte(body))
 	}))
 	defer server2.Close()
-	cluster, err := New(nil, nil,
+	id := "abc123"
+	storage := mapStorage{cMap: map[string]string{id: "handler1"}}
+	cluster, err := New(nil, &storage,
 		Node{ID: "handler0", Address: server1.URL},
 		Node{ID: "handler1", Address: server2.URL},
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
-	id := "abc123"
-	storage := mapStorage{cMap: map[string]string{id: "handler1"}}
-	cluster.SetStorage(&storage)
 	expected := 34
 	status, err := cluster.WaitContainer(id)
 	if err != nil {
@@ -813,13 +799,12 @@ func TestWaitContainerWithStorage(t *testing.T) {
 }
 
 func TestWaitContainerNotFoundWithStorage(t *testing.T) {
-	cluster, err := New(nil, nil, Node{ID: "handler0", Address: "http://localhost:4243"})
+	cluster, err := New(nil, &mapStorage{}, Node{ID: "handler0", Address: "http://localhost:4243"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	id := "abc123"
 	expectedStatus := -1
-	cluster.SetStorage(&mapStorage{})
 	status, err := cluster.WaitContainer(id)
 	if status != expectedStatus {
 		t.Errorf("WaitContainer(%q): wrong status. Want %d. Got %d.", id, expectedStatus, status)
@@ -875,16 +860,15 @@ func TestAttachToContainerWithStorage(t *testing.T) {
 		w.Write([]byte("ok"))
 	}))
 	defer server2.Close()
-	cluster, err := New(nil, nil,
+	id := "abcdef"
+	storage := mapStorage{cMap: map[string]string{id: "handler1"}}
+	cluster, err := New(nil, &storage,
 		Node{ID: "handler0", Address: server1.URL},
 		Node{ID: "handler1", Address: server2.URL},
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
-	id := "abcdef"
-	storage := mapStorage{cMap: map[string]string{id: "handler1"}}
-	cluster.SetStorage(&storage)
 	opts := dclient.AttachToContainerOptions{
 		Container:    id,
 		OutputStream: &safe.Buffer{},
@@ -901,12 +885,11 @@ func TestAttachToContainerWithStorage(t *testing.T) {
 }
 
 func TestAttachToContainerNotFoundWithStorage(t *testing.T) {
-	cluster, err := New(nil, nil, Node{ID: "handler0", Address: "http://localhost:8282"})
+	cluster, err := New(nil, &mapStorage{}, Node{ID: "handler0", Address: "http://localhost:8282"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	id := "abcdef"
-	cluster.SetStorage(&mapStorage{})
 	opts := dclient.AttachToContainerOptions{
 		Container:    "abcdef",
 		OutputStream: &safe.Buffer{},
@@ -987,19 +970,18 @@ func TestCommitContainerWithStorage(t *testing.T) {
 		w.Write([]byte(`{"Id":"596069db4bf5"}`))
 	}))
 	defer server2.Close()
-	cluster, err := New(nil, nil,
+	id := "abc123"
+	storage := mapStorage{
+		cMap: map[string]string{id: "handler1"},
+		iMap: map[string]string{},
+	}
+	cluster, err := New(nil, &storage,
 		Node{ID: "handler0", Address: server1.URL},
 		Node{ID: "handler1", Address: server2.URL},
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
-	id := "abc123"
-	storage := mapStorage{
-		cMap: map[string]string{id: "handler1"},
-		iMap: map[string]string{},
-	}
-	cluster.SetStorage(&storage)
 	opts := dclient.CommitContainerOptions{Container: id, Repository: "tsuru/python"}
 	image, err := cluster.CommitContainer(opts)
 	if err != nil {
@@ -1021,16 +1003,15 @@ func TestCommitContainerWithStorageAndImageID(t *testing.T) {
 		w.Write([]byte(`{"Id":"596069db4bf5"}`))
 	}))
 	defer server.Close()
-	cluster, err := New(nil, nil, Node{ID: "handler0", Address: server.URL})
-	if err != nil {
-		t.Fatal(err)
-	}
 	id := "abc123"
 	storage := mapStorage{
 		cMap: map[string]string{id: "handler0"},
 		iMap: map[string]string{},
 	}
-	cluster.SetStorage(&storage)
+	cluster, err := New(nil, &storage, Node{ID: "handler0", Address: server.URL})
+	if err != nil {
+		t.Fatal(err)
+	}
 	opts := dclient.CommitContainerOptions{Container: id}
 	image, err := cluster.CommitContainer(opts)
 	if err != nil {
@@ -1042,12 +1023,11 @@ func TestCommitContainerWithStorageAndImageID(t *testing.T) {
 }
 
 func TestCommitContainerNotFoundWithStorage(t *testing.T) {
-	cluster, err := New(nil, nil, Node{ID: "handler0", Address: "http://localhost:4243"})
+	cluster, err := New(nil, &mapStorage{}, Node{ID: "handler0", Address: "http://localhost:4243"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	id := "abc123"
-	cluster.SetStorage(&mapStorage{})
 	opts := dclient.CommitContainerOptions{Container: id}
 	_, err = cluster.CommitContainer(opts)
 	expected := &dclient.NoSuchContainer{ID: id}
@@ -1062,14 +1042,13 @@ func TestExportContainer(t *testing.T) {
 		w.Write([]byte(content))
 	}))
 	defer server.Close()
-	cluster, err := New(nil, nil, Node{ID: "handler0", Address: server.URL})
+	containerID := "3e2f21a89f"
+	storage := &mapStorage{cMap: map[string]string{containerID: "handler0"}}
+	cluster, err := New(nil, storage, Node{ID: "handler0", Address: server.URL})
 	if err != nil {
 		t.Fatal(err)
 	}
-	containerID := "3e2f21a89f"
 	out := &bytes.Buffer{}
-	storage := &mapStorage{cMap: map[string]string{containerID: "handler0"}}
-	cluster.SetStorage(storage)
 	err = cluster.ExportContainer(containerID, out)
 	if err != nil {
 		t.Errorf("ExportContainer: unexpected error: %#v", err.Error())
@@ -1084,13 +1063,12 @@ func TestExportContainerNotFoundWithStorage(t *testing.T) {
 		w.Write([]byte(""))
 	}))
 	defer server.Close()
-	cluster, err := New(nil, nil, Node{ID: "handler0", Address: server.URL})
+	cluster, err := New(nil, &mapStorage{}, Node{ID: "handler0", Address: server.URL})
 	if err != nil {
 		t.Fatal(err)
 	}
 	containerID := "3e2f21a89f"
 	out := &bytes.Buffer{}
-	cluster.SetStorage(&mapStorage{})
 	err = cluster.ExportContainer(containerID, out)
 	if err == nil {
 		t.Errorf("ExportContainer: expected error not to be <nil>", err.Error())
@@ -1116,7 +1094,12 @@ func TestExportContainerNoStorage(t *testing.T) {
 }
 
 func TestGetNode(t *testing.T) {
-	cluster, err := New(nil, nil,
+	var storage mapStorage
+	storage.StoreContainer("e90301", "handler1")
+	storage.StoreContainer("e90304", "handler1")
+	storage.StoreContainer("e90303", "handler2")
+	storage.StoreContainer("e90302", "handler3")
+	cluster, err := New(nil, &storage,
 		Node{ID: "handler0", Address: "http://localhost:4243"},
 		Node{ID: "handler1", Address: "http://localhost:4242"},
 		Node{ID: "handler2", Address: "http://localhost:4241"},
@@ -1124,12 +1107,6 @@ func TestGetNode(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var storage mapStorage
-	storage.StoreContainer("e90301", "handler1")
-	storage.StoreContainer("e90304", "handler1")
-	storage.StoreContainer("e90303", "handler2")
-	storage.StoreContainer("e90302", "handler3")
-	cluster.SetStorage(&storage)
 	_, err = cluster.getNodeForContainer("e90302")
 	if err != ErrUnknownNode {
 		t.Errorf("cluster.getNode(%q): wrong error. Want %#v. Got %#v.", "e90302", ErrUnknownNode, err)
@@ -1146,11 +1123,10 @@ func TestGetNode(t *testing.T) {
 	if !reflect.DeepEqual(err, &expected) {
 		t.Errorf("cluster.getNode(%q): wrong error. Want %#v. Got %#v.", "e90305", expected, err)
 	}
-	cluster, err = New(failingScheduler{}, nil)
+	cluster, err = New(failingScheduler{}, &storage)
 	if err != nil {
 		t.Fatal(err)
 	}
-	cluster.SetStorage(&storage)
 	_, err = cluster.getNodeForContainer("e90301")
 	expectedMsg := "Cannot retrieve list of nodes"
 	if err.Error() != expectedMsg {

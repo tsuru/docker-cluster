@@ -189,16 +189,3 @@ func TestRunOnNodesStress(t *testing.T) {
 		}
 	}
 }
-
-func TestSetStorage(t *testing.T) {
-	var c Cluster
-	var storage, other mapStorage
-	c.SetStorage(&storage)
-	if c.storage() != &storage {
-		t.Errorf("Cluster.SetStorage(): did not change the storage")
-	}
-	c.SetStorage(&other)
-	if c.storage() != &other {
-		t.Errorf("Cluster.SetStorage(): did not change the storage")
-	}
-}

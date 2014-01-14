@@ -80,6 +80,15 @@ func TestRoundRobinNodes(t *testing.T) {
 	}
 }
 
+func TestRoundRobinNodesRegister(t *testing.T) {
+	//params := map[string]string{"ID": "server0", "address": "http://localhost:8080"}
+	//scheduler := &roundRobin{stor: storage.Redis("localhost:6379", "")}
+	//err := scheduler.Register(params)
+	//if err != nil {
+	//t.Error(err)
+	//}
+}
+
 func TestRoundRobinNodesUnregister(t *testing.T) {
 	nodes := []Node{
 		{ID: "server0", Address: "http://localhost:8080"},

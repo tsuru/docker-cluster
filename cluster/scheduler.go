@@ -41,6 +41,7 @@ type roundRobin struct {
 	nodes    []node
 	lastUsed int64
 	mut      sync.RWMutex
+	stor     Storage
 }
 
 func (s *roundRobin) Schedule(config *docker.Config) (string, *docker.Container, error) {
