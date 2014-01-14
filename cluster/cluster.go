@@ -80,6 +80,7 @@ type Cluster struct {
 // The parameter Scheduler defines the scheduling strategy, and cannot change.
 // It is optional, when set to nil, the cluster will use a round robin strategy
 // defined internaly.
+// The parameter storage is the storage the cluster instance will use.
 func New(scheduler Scheduler, storage Storage, nodes ...Node) (*Cluster, error) {
 	var (
 		c   Cluster
@@ -88,7 +89,7 @@ func New(scheduler Scheduler, storage Storage, nodes ...Node) (*Cluster, error) 
 	c.stor = storage
 	c.scheduler = scheduler
 	if scheduler == nil {
-		c.scheduler = &roundRobin{lastUsed: -1}
+		c.scheduler = &roundRobin{lastUsed: -1, stor: storage}
 	}
 	if len(nodes) > 0 {
 		for _, n := range nodes {
