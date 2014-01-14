@@ -20,12 +20,12 @@ func TestNewCluster(t *testing.T) {
 		fail      bool
 	}{
 		{
-			&RoundRobin{},
+			&roundRobin{},
 			[]Node{{ID: "something", Address: "http://localhost:8083"}},
 			false,
 		},
 		{
-			&RoundRobin{},
+			&roundRobin{},
 			[]Node{{ID: "something", Address: ""}, {ID: "otherthing", Address: "http://localhost:8083"}},
 			true,
 		},
@@ -36,7 +36,7 @@ func TestNewCluster(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		_, err := New(&RoundRobin{}, tt.input...)
+		_, err := New(&roundRobin{}, tt.input...)
 		if tt.fail && err == nil || !tt.fail && err != nil {
 			t.Errorf("cluster.New() for input %#v. Expect failure: %v. Got: %v.", tt.input, tt.fail, err)
 		}
@@ -44,7 +44,7 @@ func TestNewCluster(t *testing.T) {
 }
 
 func TestRegister(t *testing.T) {
-	var scheduler RoundRobin
+	var scheduler roundRobin
 	cluster, err := New(&scheduler)
 	if err != nil {
 		t.Fatal(err)
@@ -84,7 +84,7 @@ func TestRegisterSchedulerUnableToRegister(t *testing.T) {
 }
 
 func TestRegisterFailure(t *testing.T) {
-	cluster, err := New(&RoundRobin{})
+	cluster, err := New(&roundRobin{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -95,7 +95,7 @@ func TestRegisterFailure(t *testing.T) {
 }
 
 func TestUnregister(t *testing.T) {
-	var scheduler RoundRobin
+	var scheduler roundRobin
 	cluster, err := New(&scheduler)
 	if err != nil {
 		t.Fatal(err)
@@ -126,7 +126,7 @@ func TestUnregisterUnableToRegister(t *testing.T) {
 }
 
 func TestNodesShouldGetSchedulerNodes(t *testing.T) {
-	var scheduler RoundRobin
+	var scheduler roundRobin
 	cluster, err := New(&scheduler)
 	if err != nil {
 		t.Fatal(err)
@@ -148,7 +148,7 @@ func TestNodesShouldGetSchedulerNodes(t *testing.T) {
 }
 
 func TestNodesShouldReturnEmptyListWhenNoNodeIsFound(t *testing.T) {
-	var scheduler RoundRobin
+	var scheduler roundRobin
 	cluster, err := New(&scheduler)
 	if err != nil {
 		t.Fatal(err)
@@ -157,9 +157,9 @@ func TestNodesShouldReturnEmptyListWhenNoNodeIsFound(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-    if !reflect.DeepEqual(nodes, []Node{}) {
-        t.Errorf("Expected nodes to be empty, got %q", nodes)
-    }
+	if !reflect.DeepEqual(nodes, []Node{}) {
+		t.Errorf("Expected nodes to be empty, got %q", nodes)
+	}
 }
 
 func TestRunOnNodesStress(t *testing.T) {

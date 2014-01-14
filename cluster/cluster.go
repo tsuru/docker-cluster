@@ -47,9 +47,15 @@ type ImageStorage interface {
 	RemoveImage(image string) error
 }
 
+type NodeStorage interface {
+	StoreNode(id, address string) error
+	RemoveNode(id string) error
+}
+
 type Storage interface {
 	ContainerStorage
 	ImageStorage
+	NodeStorage
 }
 
 // Node represents a host running Docker. Each node has an ID and an address
@@ -81,7 +87,7 @@ func New(scheduler Scheduler, nodes ...Node) (*Cluster, error) {
 	)
 	c.scheduler = scheduler
 	if scheduler == nil {
-		c.scheduler = &RoundRobin{lastUsed: -1}
+		c.scheduler = &roundRobin{lastUsed: -1}
 	}
 	if len(nodes) > 0 {
 		for _, n := range nodes {

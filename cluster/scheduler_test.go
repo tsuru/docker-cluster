@@ -27,7 +27,7 @@ func TestRoundRobinSchedule(t *testing.T) {
 		w.Write([]byte(body))
 	}))
 	defer server2.Close()
-	var scheduler RoundRobin
+	var scheduler roundRobin
 	scheduler.Register(map[string]string{"ID": "node0", "address": server1.URL})
 	scheduler.Register(map[string]string{"ID": "node1", "address": server2.URL})
 	id, container, err := scheduler.Schedule(&docker.Config{Memory: 67108864})
@@ -35,18 +35,18 @@ func TestRoundRobinSchedule(t *testing.T) {
 		t.Error(err)
 	}
 	if id != "node0" {
-		t.Errorf("RoundRobin.Schedule(): wrong node ID. Want %q. Got %q.", "node0", id)
+		t.Errorf("roundRobin.Schedule(): wrong node ID. Want %q. Got %q.", "node0", id)
 	}
 	if container.ID != "e90302" {
-		t.Errorf("RoundRobin.Schedule(): wrong container ID. Want %q. Got %q.", "e90302", container.ID)
+		t.Errorf("roundRobin.Schedule(): wrong container ID. Want %q. Got %q.", "e90302", container.ID)
 	}
 	id, _, _ = scheduler.Schedule(&docker.Config{Memory: 67108864})
 	if id != "node1" {
-		t.Errorf("RoundRobin.Schedule(): wrong node ID. Want %q. Got %q.", "node1", id)
+		t.Errorf("roundRobin.Schedule(): wrong node ID. Want %q. Got %q.", "node1", id)
 	}
 	id, _, _ = scheduler.Schedule(&docker.Config{Memory: 67108864})
 	if id != "node0" {
-		t.Errorf("RoundRobin.Schedule(): wrong node ID. Want %q. Got %q.", "node0", id)
+		t.Errorf("roundRobin.Schedule(): wrong node ID. Want %q. Got %q.", "node0", id)
 	}
 }
 
@@ -58,7 +58,7 @@ func TestNextEmpty(t *testing.T) {
 			t.Fatalf("next(): wrong panic message. Want %q. Got %q.", expected, r)
 		}
 	}()
-	var scheduler RoundRobin
+	var scheduler roundRobin
 	scheduler.next()
 }
 
@@ -67,7 +67,7 @@ func TestRoundRobinNodes(t *testing.T) {
 		{ID: "server0", Address: "http://localhost:8080"},
 		{ID: "server1", Address: "http://localhost:8081"},
 	}
-	var scheduler RoundRobin
+	var scheduler roundRobin
 	for _, n := range nodes {
 		scheduler.Register(map[string]string{"address": n.Address, "ID": n.ID})
 	}
@@ -76,7 +76,7 @@ func TestRoundRobinNodes(t *testing.T) {
 		t.Error(err)
 	}
 	if !reflect.DeepEqual(got, nodes) {
-		t.Errorf("RoundRobin.Nodes(): wrong result. Want %#v. Got %#v.", nodes, got)
+		t.Errorf("roundRobin.Nodes(): wrong result. Want %#v. Got %#v.", nodes, got)
 	}
 }
 
@@ -85,7 +85,7 @@ func TestRoundRobinNodesUnregister(t *testing.T) {
 		{ID: "server0", Address: "http://localhost:8080"},
 		{ID: "server1", Address: "http://localhost:8081"},
 	}
-	var scheduler RoundRobin
+	var scheduler roundRobin
 	for _, n := range nodes {
 		scheduler.Register(map[string]string{"address": n.Address, "ID": n.ID})
 	}
@@ -96,6 +96,6 @@ func TestRoundRobinNodesUnregister(t *testing.T) {
 	}
 	expected := []Node{{ID: "server1", Address: "http://localhost:8081"}}
 	if !reflect.DeepEqual(got, expected) {
-		t.Errorf("RoundRobin.Nodes(): wrong result. Want %#v. Got %#v.", nodes, got)
+		t.Errorf("roundRobin.Nodes(): wrong result. Want %#v. Got %#v.", nodes, got)
 	}
 }
