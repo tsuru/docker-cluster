@@ -147,6 +147,21 @@ func TestNodesShouldGetSchedulerNodes(t *testing.T) {
 	}
 }
 
+func TestNodesShouldReturnEmptyListWhenNoNodeIsFound(t *testing.T) {
+	var scheduler RoundRobin
+	cluster, err := New(&scheduler)
+	if err != nil {
+		t.Fatal(err)
+	}
+	nodes, err := cluster.Nodes()
+	if err != nil {
+		t.Fatal(err)
+	}
+    if !reflect.DeepEqual(nodes, []Node{}) {
+        t.Errorf("Expected nodes to be empty, got %q", nodes)
+    }
+}
+
 func TestRunOnNodesStress(t *testing.T) {
 	n := 1000
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(16))
