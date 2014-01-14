@@ -14,8 +14,8 @@ import (
 // CreateContainer creates a container in one of the nodes.
 //
 // It returns the container, or an error, in case of failures.
-func (c *Cluster) CreateContainer(config *docker.Config) (string, *docker.Container, error) {
-	id, container, err := c.scheduler.Schedule(config)
+func (c *Cluster) CreateContainer(opts dcli.CreateContainerOptions, config *docker.Config) (string, *docker.Container, error) {
+	id, container, err := c.scheduler.Schedule(opts, config)
 	if err != nil {
 		return id, container, err
 	}

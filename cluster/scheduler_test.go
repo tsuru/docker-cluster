@@ -6,6 +6,7 @@ package cluster
 
 import (
 	"github.com/dotcloud/docker"
+	dcli "github.com/fsouza/go-dockerclient"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -30,7 +31,8 @@ func TestRoundRobinSchedule(t *testing.T) {
 	var scheduler roundRobin
 	scheduler.Register(map[string]string{"ID": "node0", "address": server1.URL})
 	scheduler.Register(map[string]string{"ID": "node1", "address": server2.URL})
-	id, container, err := scheduler.Schedule(&docker.Config{Memory: 67108864})
+	opts := dcli.CreateContainerOptions{}
+	id, container, err := scheduler.Schedule(opts, &docker.Config{Memory: 67108864})
 	if err != nil {
 		t.Error(err)
 	}
@@ -40,11 +42,11 @@ func TestRoundRobinSchedule(t *testing.T) {
 	if container.ID != "e90302" {
 		t.Errorf("roundRobin.Schedule(): wrong container ID. Want %q. Got %q.", "e90302", container.ID)
 	}
-	id, _, _ = scheduler.Schedule(&docker.Config{Memory: 67108864})
+	id, _, _ = scheduler.Schedule(opts, &docker.Config{Memory: 67108864})
 	if id != "node1" {
 		t.Errorf("roundRobin.Schedule(): wrong node ID. Want %q. Got %q.", "node1", id)
 	}
-	id, _, _ = scheduler.Schedule(&docker.Config{Memory: 67108864})
+	id, _, _ = scheduler.Schedule(opts, &docker.Config{Memory: 67108864})
 	if id != "node0" {
 		t.Errorf("roundRobin.Schedule(): wrong node ID. Want %q. Got %q.", "node0", id)
 	}
