@@ -31,7 +31,7 @@ func TestCreateContainer(t *testing.T) {
 		w.Write([]byte(body))
 	}))
 	defer server2.Close()
-	cluster, err := New(nil,
+	cluster, err := New(nil, nil,
 		Node{ID: "handler0", Address: server1.URL},
 		Node{ID: "handler1", Address: server2.URL},
 	)
@@ -56,7 +56,7 @@ func TestCreateContainerFailure(t *testing.T) {
 		http.Error(w, "NoSuchImage", http.StatusNotFound)
 	}))
 	defer server1.Close()
-	cluster, err := New(nil, Node{ID: "handler0", Address: server1.URL})
+	cluster, err := New(nil, nil, Node{ID: "handler0", Address: server1.URL})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -82,7 +82,7 @@ func TestCreateContainerWithStorage(t *testing.T) {
 		w.Write([]byte(body))
 	}))
 	defer server2.Close()
-	cluster, err := New(nil,
+	cluster, err := New(nil, nil,
 		Node{ID: "handler0", Address: server1.URL},
 		Node{ID: "handler1", Address: server2.URL},
 	)
@@ -117,7 +117,7 @@ func TestInspectContainer(t *testing.T) {
 		http.Error(w, "No such container", http.StatusNotFound)
 	}))
 	defer server3.Close()
-	cluster, err := New(nil,
+	cluster, err := New(nil, nil,
 		Node{ID: "handler0", Address: server1.URL},
 		Node{ID: "handler1", Address: server2.URL},
 		Node{ID: "handler2", Address: server3.URL},
@@ -150,7 +150,7 @@ func TestInspectContainerWithStorage(t *testing.T) {
 		w.Write([]byte(body))
 	}))
 	defer server2.Close()
-	cluster, err := New(nil,
+	cluster, err := New(nil, nil,
 		Node{ID: "handler0", Address: server1.URL},
 		Node{ID: "handler1", Address: server2.URL},
 	)
@@ -184,7 +184,7 @@ func TestInspectContainerNoSuchContainer(t *testing.T) {
 		http.Error(w, "No such container", http.StatusNotFound)
 	}))
 	defer server2.Close()
-	cluster, err := New(nil,
+	cluster, err := New(nil, nil,
 		Node{ID: "handler0", Address: server1.URL},
 		Node{ID: "handler1", Address: server2.URL},
 	)
@@ -203,7 +203,7 @@ func TestInspectContainerNoSuchContainer(t *testing.T) {
 }
 
 func TestInspectContainerNoSuchContainerWithStorage(t *testing.T) {
-	cluster, err := New(nil, Node{ID: "handler0", Address: "http://localhost:4243"})
+	cluster, err := New(nil, nil, Node{ID: "handler0", Address: "http://localhost:4243"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -224,7 +224,7 @@ func TestInspectContainerFailure(t *testing.T) {
 		http.Error(w, "No such container", http.StatusInternalServerError)
 	}))
 	defer server.Close()
-	cluster, err := New(nil, Node{ID: "handler0", Address: server.URL})
+	cluster, err := New(nil, nil, Node{ID: "handler0", Address: server.URL})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -249,7 +249,7 @@ func TestKillContainer(t *testing.T) {
 		w.Write([]byte("ok"))
 	}))
 	defer server2.Close()
-	cluster, err := New(nil,
+	cluster, err := New(nil, nil,
 		Node{ID: "handler0", Address: server1.URL},
 		Node{ID: "handler1", Address: server2.URL},
 	)
@@ -277,7 +277,7 @@ func TestKillContainerWithStorage(t *testing.T) {
 		w.Write([]byte("ok"))
 	}))
 	defer server2.Close()
-	cluster, err := New(nil,
+	cluster, err := New(nil, nil,
 		Node{ID: "handler0", Address: server1.URL},
 		Node{ID: "handler1", Address: server2.URL},
 	)
@@ -297,7 +297,7 @@ func TestKillContainerWithStorage(t *testing.T) {
 }
 
 func TestKillContainerNotFoundWithStorage(t *testing.T) {
-	cluster, err := New(nil, Node{ID: "handler0", Address: "http://localhost:8282"})
+	cluster, err := New(nil, nil, Node{ID: "handler0", Address: "http://localhost:8282"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -352,7 +352,7 @@ func TestListContainers(t *testing.T) {
 		w.Write([]byte(body))
 	}))
 	defer server3.Close()
-	cluster, err := New(nil,
+	cluster, err := New(nil, nil,
 		Node{ID: "handler0", Address: server1.URL},
 		Node{ID: "handler1", Address: server2.URL},
 		Node{ID: "handler2", Address: server3.URL},
@@ -396,7 +396,7 @@ func TestListContainersFailure(t *testing.T) {
 		http.Error(w, "Internal failure", http.StatusInternalServerError)
 	}))
 	defer server2.Close()
-	cluster, err := New(nil,
+	cluster, err := New(nil, nil,
 		Node{ID: "handler0", Address: server1.URL},
 		Node{ID: "handler1", Address: server2.URL},
 	)
@@ -416,7 +416,7 @@ func TestListContainersFailure(t *testing.T) {
 }
 
 func TestListContainersSchedulerFailure(t *testing.T) {
-	cluster, err := New(failingScheduler{})
+	cluster, err := New(failingScheduler{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -441,7 +441,7 @@ func TestRemoveContainer(t *testing.T) {
 		w.Write([]byte("ok"))
 	}))
 	defer server2.Close()
-	cluster, err := New(nil,
+	cluster, err := New(nil, nil,
 		Node{ID: "handler0", Address: server1.URL},
 		Node{ID: "handler1", Address: server2.URL},
 	)
@@ -469,7 +469,7 @@ func TestRemoveContainerWithStorage(t *testing.T) {
 		w.Write([]byte("ok"))
 	}))
 	defer server2.Close()
-	cluster, err := New(nil,
+	cluster, err := New(nil, nil,
 		Node{ID: "handler0", Address: server1.URL},
 		Node{ID: "handler1", Address: server2.URL},
 	)
@@ -493,7 +493,7 @@ func TestRemoveContainerWithStorage(t *testing.T) {
 }
 
 func TestRemoveContainerNotFoundWithStorage(t *testing.T) {
-	cluster, err := New(nil, Node{ID: "handler0", Address: "http://localhost:8282"})
+	cluster, err := New(nil, nil, Node{ID: "handler0", Address: "http://localhost:8282"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -517,7 +517,7 @@ func TestStartContainer(t *testing.T) {
 		w.Write([]byte("ok"))
 	}))
 	defer server2.Close()
-	cluster, err := New(nil,
+	cluster, err := New(nil, nil,
 		Node{ID: "handler0", Address: server1.URL},
 		Node{ID: "handler1", Address: server2.URL},
 	)
@@ -545,7 +545,7 @@ func TestStartContainerWithStorage(t *testing.T) {
 		w.Write([]byte("ok"))
 	}))
 	defer server2.Close()
-	cluster, err := New(nil,
+	cluster, err := New(nil, nil,
 		Node{ID: "handler0", Address: server1.URL},
 		Node{ID: "handler1", Address: server2.URL},
 	)
@@ -565,7 +565,7 @@ func TestStartContainerWithStorage(t *testing.T) {
 }
 
 func TestStartContainerNotFoundWithStorage(t *testing.T) {
-	cluster, err := New(nil, Node{ID: "handler0", Address: "http://localhost:8282"})
+	cluster, err := New(nil, nil, Node{ID: "handler0", Address: "http://localhost:8282"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -589,7 +589,7 @@ func TestStopContainer(t *testing.T) {
 		w.Write([]byte("ok"))
 	}))
 	defer server2.Close()
-	cluster, err := New(nil,
+	cluster, err := New(nil, nil,
 		Node{ID: "handler0", Address: server1.URL},
 		Node{ID: "handler1", Address: server2.URL},
 	)
@@ -617,7 +617,7 @@ func TestStopContainerWithStorage(t *testing.T) {
 		w.Write([]byte("ok"))
 	}))
 	defer server2.Close()
-	cluster, err := New(nil,
+	cluster, err := New(nil, nil,
 		Node{ID: "handler0", Address: server1.URL},
 		Node{ID: "handler1", Address: server2.URL},
 	)
@@ -637,7 +637,7 @@ func TestStopContainerWithStorage(t *testing.T) {
 }
 
 func TestStopContainerNotFoundWithStorage(t *testing.T) {
-	cluster, err := New(nil, Node{ID: "handler0", Address: "http://localhost:8282"})
+	cluster, err := New(nil, nil, Node{ID: "handler0", Address: "http://localhost:8282"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -661,7 +661,7 @@ func TestRestartContainer(t *testing.T) {
 		w.Write([]byte("ok"))
 	}))
 	defer server2.Close()
-	cluster, err := New(nil,
+	cluster, err := New(nil, nil,
 		Node{ID: "handler0", Address: server1.URL},
 		Node{ID: "handler1", Address: server2.URL},
 	)
@@ -689,7 +689,7 @@ func TestRestartContainerWithStorage(t *testing.T) {
 		w.Write([]byte("ok"))
 	}))
 	defer server2.Close()
-	cluster, err := New(nil,
+	cluster, err := New(nil, nil,
 		Node{ID: "handler0", Address: server1.URL},
 		Node{ID: "handler1", Address: server2.URL},
 	)
@@ -709,7 +709,7 @@ func TestRestartContainerWithStorage(t *testing.T) {
 }
 
 func TestRestartContainerNotFoundWithStorage(t *testing.T) {
-	cluster, err := New(nil, Node{ID: "handler0", Address: "http://localhost:8282"})
+	cluster, err := New(nil, nil, Node{ID: "handler0", Address: "http://localhost:8282"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -732,7 +732,7 @@ func TestWaitContainer(t *testing.T) {
 		w.Write([]byte(body))
 	}))
 	defer server2.Close()
-	cluster, err := New(nil,
+	cluster, err := New(nil, nil,
 		Node{ID: "handler0", Address: server1.URL},
 		Node{ID: "handler1", Address: server2.URL},
 	)
@@ -759,7 +759,7 @@ func TestWaitContainerNotFound(t *testing.T) {
 		http.Error(w, "No such container", http.StatusNotFound)
 	}))
 	defer server2.Close()
-	cluster, err := New(nil,
+	cluster, err := New(nil, nil,
 		Node{ID: "handler0", Address: server1.URL},
 		Node{ID: "handler1", Address: server2.URL},
 	)
@@ -789,7 +789,7 @@ func TestWaitContainerWithStorage(t *testing.T) {
 		w.Write([]byte(body))
 	}))
 	defer server2.Close()
-	cluster, err := New(nil,
+	cluster, err := New(nil, nil,
 		Node{ID: "handler0", Address: server1.URL},
 		Node{ID: "handler1", Address: server2.URL},
 	)
@@ -813,7 +813,7 @@ func TestWaitContainerWithStorage(t *testing.T) {
 }
 
 func TestWaitContainerNotFoundWithStorage(t *testing.T) {
-	cluster, err := New(nil, Node{ID: "handler0", Address: "http://localhost:4243"})
+	cluster, err := New(nil, nil, Node{ID: "handler0", Address: "http://localhost:4243"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -841,7 +841,7 @@ func TestAttachToContainer(t *testing.T) {
 		w.Write([]byte("something happened"))
 	}))
 	defer server2.Close()
-	cluster, err := New(nil,
+	cluster, err := New(nil, nil,
 		Node{ID: "handler0", Address: server1.URL},
 		Node{ID: "handler1", Address: server2.URL},
 	)
@@ -875,7 +875,7 @@ func TestAttachToContainerWithStorage(t *testing.T) {
 		w.Write([]byte("ok"))
 	}))
 	defer server2.Close()
-	cluster, err := New(nil,
+	cluster, err := New(nil, nil,
 		Node{ID: "handler0", Address: server1.URL},
 		Node{ID: "handler1", Address: server2.URL},
 	)
@@ -901,7 +901,7 @@ func TestAttachToContainerWithStorage(t *testing.T) {
 }
 
 func TestAttachToContainerNotFoundWithStorage(t *testing.T) {
-	cluster, err := New(nil, Node{ID: "handler0", Address: "http://localhost:8282"})
+	cluster, err := New(nil, nil, Node{ID: "handler0", Address: "http://localhost:8282"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -931,7 +931,7 @@ func TestCommitContainer(t *testing.T) {
 		w.Write([]byte(`{"Id":"596069db4bf5"}`))
 	}))
 	defer server2.Close()
-	cluster, err := New(nil,
+	cluster, err := New(nil, nil,
 		Node{ID: "handler0", Address: server1.URL},
 		Node{ID: "handler1", Address: server2.URL},
 	)
@@ -958,7 +958,7 @@ func TestCommitContainerError(t *testing.T) {
 		http.Error(w, "container not found", http.StatusNotFound)
 	}))
 	defer server1.Close()
-	cluster, err := New(nil,
+	cluster, err := New(nil, nil,
 		Node{ID: "handler0", Address: server1.URL},
 	)
 	if err != nil {
@@ -987,7 +987,7 @@ func TestCommitContainerWithStorage(t *testing.T) {
 		w.Write([]byte(`{"Id":"596069db4bf5"}`))
 	}))
 	defer server2.Close()
-	cluster, err := New(nil,
+	cluster, err := New(nil, nil,
 		Node{ID: "handler0", Address: server1.URL},
 		Node{ID: "handler1", Address: server2.URL},
 	)
@@ -1021,7 +1021,7 @@ func TestCommitContainerWithStorageAndImageID(t *testing.T) {
 		w.Write([]byte(`{"Id":"596069db4bf5"}`))
 	}))
 	defer server.Close()
-	cluster, err := New(nil, Node{ID: "handler0", Address: server.URL})
+	cluster, err := New(nil, nil, Node{ID: "handler0", Address: server.URL})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1042,7 +1042,7 @@ func TestCommitContainerWithStorageAndImageID(t *testing.T) {
 }
 
 func TestCommitContainerNotFoundWithStorage(t *testing.T) {
-	cluster, err := New(nil, Node{ID: "handler0", Address: "http://localhost:4243"})
+	cluster, err := New(nil, nil, Node{ID: "handler0", Address: "http://localhost:4243"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1062,7 +1062,7 @@ func TestExportContainer(t *testing.T) {
 		w.Write([]byte(content))
 	}))
 	defer server.Close()
-	cluster, err := New(nil, Node{ID: "handler0", Address: server.URL})
+	cluster, err := New(nil, nil, Node{ID: "handler0", Address: server.URL})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1084,7 +1084,7 @@ func TestExportContainerNotFoundWithStorage(t *testing.T) {
 		w.Write([]byte(""))
 	}))
 	defer server.Close()
-	cluster, err := New(nil, Node{ID: "handler0", Address: server.URL})
+	cluster, err := New(nil, nil, Node{ID: "handler0", Address: server.URL})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1103,7 +1103,7 @@ func TestExportContainerNoStorage(t *testing.T) {
 		w.Write([]byte(content))
 	}))
 	defer server.Close()
-	cluster, err := New(nil, Node{ID: "handler0", Address: server.URL})
+	cluster, err := New(nil, nil, Node{ID: "handler0", Address: server.URL})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1116,7 +1116,7 @@ func TestExportContainerNoStorage(t *testing.T) {
 }
 
 func TestGetNode(t *testing.T) {
-	cluster, err := New(nil,
+	cluster, err := New(nil, nil,
 		Node{ID: "handler0", Address: "http://localhost:4243"},
 		Node{ID: "handler1", Address: "http://localhost:4242"},
 		Node{ID: "handler2", Address: "http://localhost:4241"},
@@ -1146,7 +1146,7 @@ func TestGetNode(t *testing.T) {
 	if !reflect.DeepEqual(err, &expected) {
 		t.Errorf("cluster.getNode(%q): wrong error. Want %#v. Got %#v.", "e90305", expected, err)
 	}
-	cluster, err = New(failingScheduler{})
+	cluster, err = New(failingScheduler{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

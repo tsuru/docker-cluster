@@ -36,7 +36,7 @@ func TestNewCluster(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		_, err := New(&roundRobin{}, tt.input...)
+		_, err := New(&roundRobin{}, nil, tt.input...)
 		if tt.fail && err == nil || !tt.fail && err != nil {
 			t.Errorf("cluster.New() for input %#v. Expect failure: %v. Got: %v.", tt.input, tt.fail, err)
 		}
@@ -45,7 +45,7 @@ func TestNewCluster(t *testing.T) {
 
 func TestRegister(t *testing.T) {
 	var scheduler roundRobin
-	cluster, err := New(&scheduler)
+	cluster, err := New(&scheduler, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -73,7 +73,7 @@ func TestRegister(t *testing.T) {
 
 func TestRegisterSchedulerUnableToRegister(t *testing.T) {
 	var scheduler fakeScheduler
-	cluster, err := New(scheduler)
+	cluster, err := New(scheduler, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -84,7 +84,7 @@ func TestRegisterSchedulerUnableToRegister(t *testing.T) {
 }
 
 func TestRegisterFailure(t *testing.T) {
-	cluster, err := New(&roundRobin{})
+	cluster, err := New(&roundRobin{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -96,7 +96,7 @@ func TestRegisterFailure(t *testing.T) {
 
 func TestUnregister(t *testing.T) {
 	var scheduler roundRobin
-	cluster, err := New(&scheduler)
+	cluster, err := New(&scheduler, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -115,7 +115,7 @@ func TestUnregister(t *testing.T) {
 
 func TestUnregisterUnableToRegister(t *testing.T) {
 	var scheduler fakeScheduler
-	cluster, err := New(scheduler)
+	cluster, err := New(scheduler, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -127,7 +127,7 @@ func TestUnregisterUnableToRegister(t *testing.T) {
 
 func TestNodesShouldGetSchedulerNodes(t *testing.T) {
 	var scheduler roundRobin
-	cluster, err := New(&scheduler)
+	cluster, err := New(&scheduler, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -149,7 +149,7 @@ func TestNodesShouldGetSchedulerNodes(t *testing.T) {
 
 func TestNodesShouldReturnEmptyListWhenNoNodeIsFound(t *testing.T) {
 	var scheduler roundRobin
-	cluster, err := New(&scheduler)
+	cluster, err := New(&scheduler, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -171,7 +171,7 @@ func TestRunOnNodesStress(t *testing.T) {
 		w.Write([]byte(body))
 	}))
 	defer server.Close()
-	cluster, err := New(nil, Node{ID: "server0", Address: server.URL})
+	cluster, err := New(nil, nil, Node{ID: "server0", Address: server.URL})
 	if err != nil {
 		t.Fatal(err)
 	}
