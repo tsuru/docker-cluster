@@ -563,7 +563,7 @@ func TestRedisStorageStoreNode(t *testing.T) {
 	if err != nil {
 		t.Errorf("Got unexpected %s error", err.Error)
 	}
-	cmd := conn.cmds[0]
+	cmd := conn.cmds[1]
 	expectedCmd := "SET"
 	if cmd.cmd != expectedCmd {
 		t.Errorf("StoreNode(%q, %q): want command %q. Got %q.", id, address, expectedCmd, cmd.cmd)
@@ -571,6 +571,59 @@ func TestRedisStorageStoreNode(t *testing.T) {
 	expectedArgs := []interface{}{"node:" + id, address}
 	if !reflect.DeepEqual(cmd.args, expectedArgs) {
 		t.Errorf("StoreNode(%q, %q): want args %#v. Got %#v.", id, address, expectedArgs, cmd.args)
+	}
+}
+
+func TestRedisStorageRetrieveNode(t *testing.T) {
+	conn := resultCommandConn{
+		fakeConn: &fakeConn{},
+		reply:    map[string]interface{}{"GET": []byte("http://docker-node01.com:4243")},
+	}
+	var storage redisStorage
+	storage.pool = redis.NewPool(func() (redis.Conn, error) {
+		return &conn, nil
+	}, 3)
+	id := "server0"
+	address := "http://docker-node01.com:4243"
+	err := storage.StoreNode(id, address)
+	if err != nil {
+		t.Errorf("Got unexpected %s error", err.Error)
+	}
+	node, err := storage.RetrieveNode(id)
+	if err != nil {
+		t.Errorf("Got unexpected %s error", err.Error)
+	}
+	if node != address {
+		t.Errorf("Expected %q, got %q", address, node)
+	}
+
+}
+
+func TestRedisStorageRetrieveNodes(t *testing.T) {
+	conn := resultCommandConn{
+		fakeConn: &fakeConn{},
+		reply: map[string]interface{}{
+			"LRANGE": []string{"server01"},
+			"GET":    []byte("http://docker-node01.com:4243"),
+		},
+	}
+	var storage redisStorage
+	storage.pool = redis.NewPool(func() (redis.Conn, error) {
+		return &conn, nil
+	}, 3)
+	id := "server01"
+	address := "http://docker-node01.com:4243"
+	err := storage.StoreNode(id, address)
+	if err != nil {
+		t.Errorf("Got unexpected %s error", err.Error)
+	}
+	nodes, err := storage.RetrieveNodes()
+	if err != nil {
+		t.Errorf("Got unexpected %s error", err.Error)
+	}
+	expected := map[string]string{"server01": "http://docker-node01.com:4243"}
+	if !reflect.DeepEqual(nodes, expected) {
+		t.Errorf("Expected nodes to be equal %q, got %q", expected, nodes)
 	}
 }
 
@@ -588,7 +641,7 @@ func TestRedisStorageRemoveNode(t *testing.T) {
 	if err != nil {
 		t.Errorf("Got unexpected %s error", err.Error)
 	}
-	cmd := conn.cmds[0]
+	cmd := conn.cmds[1]
 	expectedCmd := "DEL"
 	if cmd.cmd != expectedCmd {
 		t.Errorf("RemoveNode(%q): want command %q. Got %q.", id, expectedCmd, cmd.cmd)

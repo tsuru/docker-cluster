@@ -99,15 +99,48 @@ func (s *redisStorage) RemoveImage(id string) error {
 func (s *redisStorage) StoreNode(id, address string) error {
 	conn := s.pool.Get()
 	defer conn.Close()
-	_, err := conn.Do("SET", s.key("node:"+id), address)
+	_, err := conn.Do("LPUSH", s.key("nodes"), id)
+	if err != nil {
+		return err
+	}
+	_, err = conn.Do("SET", s.key("node:"+id), address)
 	return err
 
+}
+
+func (s *redisStorage) RetrieveNode(id string) (string, error) {
+	conn := s.pool.Get()
+	defer conn.Close()
+	result, err := conn.Do("GET", s.key("node:"+id))
+	if err != nil {
+		return "", err
+	}
+	if result == "" {
+		return "", ErrNoSuchNode
+	}
+	return string(result.([]byte)), nil
+}
+
+func (s *redisStorage) RetrieveNodes() (map[string]string, error) {
+	conn := s.pool.Get()
+	defer conn.Close()
+	result, err := conn.Do("LRANGE", "nodes", 0, -1)
+	if err != nil {
+		return nil, err
+	}
+	nodes := map[string]string{}
+	for _, id := range result.([]string) {
+		addr, _ := s.RetrieveNode(id)
+		nodes[id] = addr
+	}
+	return nodes, nil
 }
 
 func (s *redisStorage) RemoveNode(id string) error {
 	conn := s.pool.Get()
 	defer conn.Close()
-	result, err := conn.Do("DEL", s.key("node:"+id))
+	result, err := conn.Do("LREM", s.key("nodes"), id)
+	result, err = conn.Do("DEL", s.key("node:"+id))
 	if err != nil {
 		return err
 	}
