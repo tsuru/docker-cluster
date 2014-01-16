@@ -25,7 +25,7 @@ func TestRemoveImage(t *testing.T) {
 		w.WriteHeader(http.StatusNoContent)
 	}))
 	defer server2.Close()
-	cluster, err := New(nil, nil,
+	cluster, err := New(nil, &mapStorage{},
 		Node{ID: "handler0", Address: server1.URL},
 		Node{ID: "handler1", Address: server2.URL},
 	)
@@ -51,7 +51,7 @@ func TestRemoveImageNotFound(t *testing.T) {
 		http.Error(w, "No such image", http.StatusNotFound)
 	}))
 	defer server2.Close()
-	cluster, err := New(nil, nil,
+	cluster, err := New(nil, &mapStorage{},
 		Node{ID: "handler0", Address: server1.URL},
 		Node{ID: "handler1", Address: server2.URL},
 	)
@@ -75,7 +75,7 @@ func TestPullImage(t *testing.T) {
 	}))
 	defer server2.Close()
 	var buf safe.Buffer
-	cluster, err := New(nil, nil,
+	cluster, err := New(nil, &mapStorage{},
 		Node{ID: "handler0", Address: server1.URL},
 		Node{ID: "handler1", Address: server2.URL},
 	)
@@ -104,7 +104,7 @@ func TestPullImageNotFound(t *testing.T) {
 		http.Error(w, "No such image", http.StatusNotFound)
 	}))
 	defer server2.Close()
-	cluster, err := New(nil, nil,
+	cluster, err := New(nil, &mapStorage{},
 		Node{ID: "handler0", Address: server1.URL},
 		Node{ID: "handler1", Address: server2.URL},
 	)
@@ -128,7 +128,7 @@ func TestPushImage(t *testing.T) {
 	}))
 	defer server2.Close()
 	var buf safe.Buffer
-	cluster, err := New(nil, nil,
+	cluster, err := New(nil, &mapStorage{iMap: map[string]string{"tsuru/ruby": "handler0"}},
 		Node{ID: "handler0", Address: server1.URL},
 		Node{ID: "handler1", Address: server2.URL},
 	)
@@ -137,6 +137,9 @@ func TestPushImage(t *testing.T) {
 	}
 	var auth docker.AuthConfiguration
 	err = cluster.PushImage(docker.PushImageOptions{Name: "tsuru/ruby"}, auth, &buf)
+	if err != nil {
+		t.Fatal(err)
+	}
 	re := regexp.MustCompile(`^Pushing to server \d`)
 	if !re.MatchString(buf.String()) {
 		t.Errorf("Wrong output: Want %q. Got %q.", "Pushing to server [12]", buf.String())
@@ -152,7 +155,7 @@ func TestPushImageNotFound(t *testing.T) {
 		http.Error(w, "No such image", http.StatusNotFound)
 	}))
 	defer server2.Close()
-	cluster, err := New(nil, nil,
+	cluster, err := New(nil, &mapStorage{},
 		Node{ID: "handler0", Address: server1.URL},
 		Node{ID: "handler1", Address: server2.URL},
 	)
@@ -205,7 +208,7 @@ func TestImportImage(t *testing.T) {
 		w.Write([]byte("importing from 2"))
 	}))
 	defer server2.Close()
-	cluster, err := New(nil, nil,
+	cluster, err := New(nil, &mapStorage{},
 		Node{ID: "handler0", Address: server1.URL},
 		Node{ID: "handler1", Address: server2.URL},
 	)
@@ -232,7 +235,7 @@ func TestImportImageWithAbsentFile(t *testing.T) {
 		http.Error(w, "file not found", http.StatusNotFound)
 	}))
 	defer server2.Close()
-	cluster, err := New(nil, nil,
+	cluster, err := New(nil, &mapStorage{},
 		Node{ID: "handler0", Address: server1.URL},
 		Node{ID: "handler1", Address: server2.URL},
 	)

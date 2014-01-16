@@ -98,6 +98,20 @@ func (s *mapStorage) StoreNode(id, address string) error {
 	return nil
 }
 
+func (s *mapStorage) RetrieveNode(id string) (string, error) {
+	s.nMut.Lock()
+	defer s.nMut.Unlock()
+	address, ok := s.nMap[id]
+	if !ok {
+		return "", errors.New("no such node")
+	}
+	return address, nil
+}
+
+func (s *mapStorage) RetrieveNodes() (map[string]string, error) {
+	return s.nMap, nil
+}
+
 func (s *mapStorage) RemoveNode(id string) error {
 	s.nMut.Lock()
 	defer s.nMut.Unlock()

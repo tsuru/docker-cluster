@@ -5,6 +5,7 @@
 package cluster
 
 import (
+	"errors"
 	"github.com/dotcloud/docker"
 	dcli "github.com/fsouza/go-dockerclient"
 	"sync"
@@ -53,50 +54,76 @@ func (s *roundRobin) Schedule(opts dcli.CreateContainerOptions, config *docker.C
 func (s *roundRobin) next() node {
 	s.mut.RLock()
 	defer s.mut.RUnlock()
-	if len(s.nodes) == 0 {
+	nodes, _ := s.Nodes()
+	if len(nodes) == 0 {
 		panic("No nodes available")
 	}
-	index := atomic.AddInt64(&s.lastUsed, 1) % int64(len(s.nodes))
-	return s.nodes[index]
+	index := atomic.AddInt64(&s.lastUsed, 1) % int64(len(nodes))
+	cli, err := dcli.NewClient(nodes[index].Address)
+	if err != nil {
+		panic(err)
+	}
+	return node{Client: cli, edp: nodes[index].Address, id: nodes[index].ID}
 }
 
 func (s *roundRobin) Register(params map[string]string) error {
+	nodes, _ := s.Nodes()
 	s.mut.Lock()
 	defer s.mut.Unlock()
-	if len(s.nodes) == 0 {
+	if len(nodes) == 0 {
 		s.lastUsed = -1
-		s.nodes = make([]node, 0)
 	}
-	client, err := dcli.NewClient(params["address"])
-	if err != nil {
-		return err
+	//client, err := dcli.NewClient(params["address"])
+	//if err != nil {
+	//	return err
+	//}
+	//s.nodes = append(s.nodes, node{Client: client, edp: params["address"], id: params["ID"]})
+	if s.stor == nil {
+		return ErrImmutableCluster
 	}
-	s.nodes = append(s.nodes, node{Client: client, edp: params["address"], id: params["ID"]})
-	return nil
+	if params["address"] == "" {
+		return errors.New("Invalid address")
+	}
+	return s.stor.StoreNode(params["ID"], params["address"])
 }
 
 func (s *roundRobin) Unregister(params map[string]string) error {
-	nodes, err := s.Nodes()
-	if err != nil {
-		return err
-	}
+	//nodes, err := s.Nodes()
+	//if err != nil {
+	//	return err
+	//}
 	s.mut.Lock()
 	defer s.mut.Unlock()
-	for i, n := range nodes {
-		if n.ID == params["ID"] && n.Address == params["address"] {
-			s.nodes = append(s.nodes[:i], s.nodes[i+1:]...)
-			break
-		}
+	//for i, n := range nodes {
+	//	if n.ID == params["ID"] && n.Address == params["address"] {
+	//		s.nodes = append(s.nodes[:i], s.nodes[i+1:]...)
+	//		break
+	//	}
+	//}
+	if s.stor == nil {
+		return ErrImmutableCluster
 	}
-	return nil
+	return s.stor.RemoveNode(params["ID"])
 }
 
 func (s *roundRobin) Nodes() ([]Node, error) {
 	s.mut.RLock()
 	defer s.mut.RUnlock()
-	nodes := make([]Node, len(s.nodes))
-	for i, node := range s.nodes {
-		nodes[i] = Node{ID: node.id, Address: node.edp}
+	//nodes := make([]Node, len(s.nodes))
+	//for i, node := range s.nodes {
+	//	nodes[i] = Node{ID: node.id, Address: node.edp}
+	//}
+	//return nodes, nil
+	if s.stor == nil {
+		return nil, ErrImmutableCluster
+	}
+	result, err := s.stor.RetrieveNodes()
+	if err != nil {
+		return nil, err
+	}
+	nodes := []Node{}
+	for k, v := range result {
+		nodes = append(nodes, Node{ID: k, Address: v})
 	}
 	return nodes, nil
 }

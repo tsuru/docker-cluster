@@ -15,28 +15,24 @@ import (
 
 func TestNewCluster(t *testing.T) {
 	var tests = []struct {
-		scheduler Scheduler
-		input     []Node
-		fail      bool
+		input []Node
+		fail  bool
 	}{
 		{
-			&roundRobin{},
 			[]Node{{ID: "something", Address: "http://localhost:8083"}},
 			false,
 		},
 		{
-			&roundRobin{},
 			[]Node{{ID: "something", Address: ""}, {ID: "otherthing", Address: "http://localhost:8083"}},
 			true,
 		},
 		{
-			nil,
 			[]Node{{ID: "something", Address: "http://localhost:8083"}},
 			false,
 		},
 	}
 	for _, tt := range tests {
-		_, err := New(&roundRobin{}, nil, tt.input...)
+		_, err := New(nil, &mapStorage{}, tt.input...)
 		if tt.fail && err == nil || !tt.fail && err != nil {
 			t.Errorf("cluster.New() for input %#v. Expect failure: %v. Got: %v.", tt.input, tt.fail, err)
 		}
@@ -44,8 +40,8 @@ func TestNewCluster(t *testing.T) {
 }
 
 func TestRegister(t *testing.T) {
-	var scheduler roundRobin
-	cluster, err := New(&scheduler, nil)
+	scheduler := &roundRobin{stor: &mapStorage{}}
+	cluster, err := New(scheduler, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -73,7 +69,7 @@ func TestRegister(t *testing.T) {
 
 func TestRegisterSchedulerUnableToRegister(t *testing.T) {
 	var scheduler fakeScheduler
-	cluster, err := New(scheduler, nil)
+	cluster, err := New(scheduler, &mapStorage{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -84,7 +80,7 @@ func TestRegisterSchedulerUnableToRegister(t *testing.T) {
 }
 
 func TestRegisterFailure(t *testing.T) {
-	cluster, err := New(&roundRobin{}, nil)
+	cluster, err := New(nil, &mapStorage{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -95,8 +91,8 @@ func TestRegisterFailure(t *testing.T) {
 }
 
 func TestUnregister(t *testing.T) {
-	var scheduler roundRobin
-	cluster, err := New(&scheduler, nil)
+	scheduler := &roundRobin{stor: &mapStorage{}}
+	cluster, err := New(scheduler, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -115,7 +111,7 @@ func TestUnregister(t *testing.T) {
 
 func TestUnregisterUnableToRegister(t *testing.T) {
 	var scheduler fakeScheduler
-	cluster, err := New(scheduler, nil)
+	cluster, err := New(scheduler, &mapStorage{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -126,8 +122,7 @@ func TestUnregisterUnableToRegister(t *testing.T) {
 }
 
 func TestNodesShouldGetSchedulerNodes(t *testing.T) {
-	var scheduler roundRobin
-	cluster, err := New(&scheduler, nil)
+	cluster, err := New(nil, &mapStorage{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -148,8 +143,7 @@ func TestNodesShouldGetSchedulerNodes(t *testing.T) {
 }
 
 func TestNodesShouldReturnEmptyListWhenNoNodeIsFound(t *testing.T) {
-	var scheduler roundRobin
-	cluster, err := New(&scheduler, nil)
+	cluster, err := New(nil, &mapStorage{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -171,11 +165,12 @@ func TestRunOnNodesStress(t *testing.T) {
 		w.Write([]byte(body))
 	}))
 	defer server.Close()
-	cluster, err := New(nil, nil, Node{ID: "server0", Address: server.URL})
+	id := "e90302"
+	storage := &mapStorage{cMap: map[string]string{id: "server0"}}
+	cluster, err := New(nil, storage, Node{ID: "server0", Address: server.URL})
 	if err != nil {
 		t.Fatal(err)
 	}
-	id := "e90302"
 	for i := 0; i < rand.Intn(10)+n; i++ {
 		container, err := cluster.InspectContainer(id)
 		if err != nil {
