@@ -129,7 +129,8 @@ func (s *redisStorage) RetrieveNodes() (map[string]string, error) {
 		return nil, err
 	}
 	nodes := map[string]string{}
-	for _, id := range result.([]string) {
+	for _, v := range result.([]interface{}) {
+		id := v.(string)
 		addr, _ := s.RetrieveNode(id)
 		nodes[id] = addr
 	}

@@ -603,7 +603,7 @@ func TestRedisStorageRetrieveNodes(t *testing.T) {
 	conn := resultCommandConn{
 		fakeConn: &fakeConn{},
 		reply: map[string]interface{}{
-			"LRANGE": []string{"server01"},
+			"LRANGE": []interface{}{"server01"},
 			"GET":    []byte("http://docker-node01.com:4243"),
 		},
 	}
