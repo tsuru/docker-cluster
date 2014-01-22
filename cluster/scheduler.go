@@ -73,11 +73,6 @@ func (s *roundRobin) Register(params map[string]string) error {
 	if len(nodes) == 0 {
 		s.lastUsed = -1
 	}
-	//client, err := dcli.NewClient(params["address"])
-	//if err != nil {
-	//	return err
-	//}
-	//s.nodes = append(s.nodes, node{Client: client, edp: params["address"], id: params["ID"]})
 	if s.stor == nil {
 		return ErrImmutableCluster
 	}
@@ -88,18 +83,8 @@ func (s *roundRobin) Register(params map[string]string) error {
 }
 
 func (s *roundRobin) Unregister(params map[string]string) error {
-	//nodes, err := s.Nodes()
-	//if err != nil {
-	//	return err
-	//}
 	s.mut.Lock()
 	defer s.mut.Unlock()
-	//for i, n := range nodes {
-	//	if n.ID == params["ID"] && n.Address == params["address"] {
-	//		s.nodes = append(s.nodes[:i], s.nodes[i+1:]...)
-	//		break
-	//	}
-	//}
 	if s.stor == nil {
 		return ErrImmutableCluster
 	}
@@ -109,11 +94,6 @@ func (s *roundRobin) Unregister(params map[string]string) error {
 func (s *roundRobin) Nodes() ([]Node, error) {
 	s.mut.RLock()
 	defer s.mut.RUnlock()
-	//nodes := make([]Node, len(s.nodes))
-	//for i, node := range s.nodes {
-	//	nodes[i] = Node{ID: node.id, Address: node.edp}
-	//}
-	//return nodes, nil
 	if s.stor == nil {
 		return nil, ErrImmutableCluster
 	}
