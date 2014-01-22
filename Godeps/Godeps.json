@@ -1,19 +1,24 @@
 {
 	"ImportPath": "github.com/globocom/docker-cluster",
-	"GoVersion": "devel +1140207a3395 Wed Nov 20 13:47:37 2013 -0800",
+	"GoVersion": "devel +50235ae4e784 Wed Jan 22 13:30:12 2014 +0400",
 	"Packages": [
 		"./..."
 	],
 	"Deps": [
 		{
-			"ImportPath": "code.google.com/p/go.net",
+			"ImportPath": "code.google.com/p/go.net/websocket",
 			"Comment": "null-88",
 			"Rev": "55437409069bb181ad562b1ad1e5f361c44aff17"
 		},
 		{
+			"ImportPath": "code.google.com/p/gosqlite/sqlite3",
+			"Comment": "null-16",
+			"Rev": "74691fb6f83716190870cde1b658538dd4b18eb0"
+		},
+		{
 			"ImportPath": "github.com/dotcloud/docker",
-			"Comment": "v0.6.3",
-			"Rev": "b0a49a30c78e8cafecac455aa0a306ac1792a644"
+			"Comment": "v0.7.0",
+			"Rev": "0d078b65817fc91eba916652b3f087a6c2eef851"
 		},
 		{
 			"ImportPath": "github.com/dotcloud/tar",
@@ -21,16 +26,16 @@
 		},
 		{
 			"ImportPath": "github.com/fsouza/go-dockerclient",
-			"Rev": "8774c0b9482d4ed1e51b3e188a75bc63dfc79fa6"
+			"Rev": "270abd956f2f0e3216a02014ed502a1694e08478"
 		},
 		{
-			"ImportPath": "github.com/garyburd/redigo",
+			"ImportPath": "github.com/garyburd/redigo/redis",
 			"Rev": "8736767bf9f75f2374aac103059362a5c322d211"
 		},
 		{
-			"ImportPath": "github.com/globocom/tsuru",
-			"Comment": "0.2.9-64-g33de7c0",
-			"Rev": "33de7c020b3bfc0e5a6b03228cb7d33fdf4514ce"
+			"ImportPath": "github.com/globocom/tsuru/safe",
+			"Comment": "0.3.2-5-g9f42b32",
+			"Rev": "9f42b32dddb19738b8077bf7aeccdae5a7f435d6"
 		},
 		{
 			"ImportPath": "github.com/gorilla/context",
