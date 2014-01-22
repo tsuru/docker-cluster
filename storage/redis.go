@@ -124,13 +124,13 @@ func (s *redisStorage) RetrieveNode(id string) (string, error) {
 func (s *redisStorage) RetrieveNodes() (map[string]string, error) {
 	conn := s.pool.Get()
 	defer conn.Close()
-	result, err := conn.Do("LRANGE", "nodes", 0, -1)
+	result, err := conn.Do("LRANGE", s.key("nodes"), 0, -1)
 	if err != nil {
 		return nil, err
 	}
 	nodes := map[string]string{}
 	for _, v := range result.([]interface{}) {
-		id := v.(string)
+		id := string(v.([]byte))
 		addr, _ := s.RetrieveNode(id)
 		nodes[id] = addr
 	}
