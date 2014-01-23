@@ -78,7 +78,7 @@ func (s *roundRobin) Register(params map[string]string) error {
 	if params["address"] == "" {
 		return errors.New("Invalid address")
 	}
-	return s.stor.StoreNode(params["ID"], params["address"])
+	return s.stor.StoreNode(Node{ID: params["ID"], Address: params["address"]})
 }
 
 func (s *roundRobin) Unregister(params map[string]string) error {

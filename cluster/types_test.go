@@ -87,10 +87,10 @@ func (s *mapStorage) RemoveImage(imageID string) error {
 	return nil
 }
 
-func (s *mapStorage) StoreNode(id, address string) error {
+func (s *mapStorage) StoreNode(node Node) error {
 	s.nMut.Lock()
 	defer s.nMut.Unlock()
-	s.nodes = append(s.nodes, Node{ID: id, Address: address})
+	s.nodes = append(s.nodes, node)
 	return nil
 }
 
