@@ -48,7 +48,7 @@ type ImageStorage interface {
 }
 
 type NodeStorage interface {
-	StoreNode(id, address string) error
+	StoreNode(node Node) error
 	RetrieveNode(id string) (string, error)
 	RetrieveNodes() ([]Node, error)
 	RemoveNode(id string) error
