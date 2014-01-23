@@ -24,15 +24,10 @@ func (l containerList) Swap(i, j int) {
 	l[i], l[j] = l[j], l[i]
 }
 
-type storageNode struct {
-	id   string
-	addr string
-}
-
 type mapStorage struct {
 	cMap  map[string]string
 	iMap  map[string]string
-	nodes []storageNode
+	nodes []Node
 	cMut  sync.Mutex
 	iMut  sync.Mutex
 	nMut  sync.Mutex
@@ -95,7 +90,7 @@ func (s *mapStorage) RemoveImage(imageID string) error {
 func (s *mapStorage) StoreNode(id, address string) error {
 	s.nMut.Lock()
 	defer s.nMut.Unlock()
-	s.nodes = append(s.nodes, storageNode{id, address})
+	s.nodes = append(s.nodes, Node{ID: id, Address: address})
 	return nil
 }
 
@@ -103,19 +98,15 @@ func (s *mapStorage) RetrieveNode(id string) (string, error) {
 	s.nMut.Lock()
 	defer s.nMut.Unlock()
 	for _, node := range s.nodes {
-		if node.id == id {
-			return node.addr, nil
+		if node.ID == id {
+			return node.Address, nil
 		}
 	}
 	return "", errors.New("no such node")
 }
 
-func (s *mapStorage) RetrieveNodes() (map[string]string, error) {
-	nodes := make(map[string]string, len(s.nodes))
-	for _, node := range s.nodes {
-		nodes[node.id] = node.addr
-	}
-	return nodes, nil
+func (s *mapStorage) RetrieveNodes() ([]Node, error) {
+	return s.nodes, nil
 }
 
 func (s *mapStorage) RemoveNode(id string) error {
@@ -123,7 +114,7 @@ func (s *mapStorage) RemoveNode(id string) error {
 	defer s.nMut.Unlock()
 	index := -1
 	for i, node := range s.nodes {
-		if node.id == id {
+		if node.ID == id {
 			index = i
 		}
 	}

@@ -151,7 +151,7 @@ func TestNodesShouldReturnEmptyListWhenNoNodeIsFound(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !reflect.DeepEqual(nodes, []Node{}) {
+	if len(nodes) != 0 {
 		t.Errorf("Expected nodes to be empty, got %q", nodes)
 	}
 }

@@ -96,13 +96,5 @@ func (s *roundRobin) Nodes() ([]Node, error) {
 	if s.stor == nil {
 		return nil, ErrImmutableCluster
 	}
-	result, err := s.stor.RetrieveNodes()
-	if err != nil {
-		return nil, err
-	}
-	nodes := []Node{}
-	for k, v := range result {
-		nodes = append(nodes, Node{ID: k, Address: v})
-	}
-	return nodes, nil
+	return s.stor.RetrieveNodes()
 }
