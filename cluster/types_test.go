@@ -24,13 +24,18 @@ func (l containerList) Swap(i, j int) {
 	l[i], l[j] = l[j], l[i]
 }
 
+type storageNode struct {
+	id   string
+	addr string
+}
+
 type mapStorage struct {
-	cMap map[string]string
-	iMap map[string]string
-	nMap map[string]string
-	cMut sync.Mutex
-	iMut sync.Mutex
-	nMut sync.Mutex
+	cMap  map[string]string
+	iMap  map[string]string
+	nodes []storageNode
+	cMut  sync.Mutex
+	iMut  sync.Mutex
+	nMut  sync.Mutex
 }
 
 func (s *mapStorage) StoreContainer(containerID, hostID string) error {
@@ -90,31 +95,43 @@ func (s *mapStorage) RemoveImage(imageID string) error {
 func (s *mapStorage) StoreNode(id, address string) error {
 	s.nMut.Lock()
 	defer s.nMut.Unlock()
-	if s.nMap == nil {
-		s.nMap = make(map[string]string)
-	}
-	s.nMap[id] = address
+	s.nodes = append(s.nodes, storageNode{id, address})
 	return nil
 }
 
 func (s *mapStorage) RetrieveNode(id string) (string, error) {
 	s.nMut.Lock()
 	defer s.nMut.Unlock()
-	address, ok := s.nMap[id]
-	if !ok {
-		return "", errors.New("no such node")
+	for _, node := range s.nodes {
+		if node.id == id {
+			return node.addr, nil
+		}
 	}
-	return address, nil
+	return "", errors.New("no such node")
 }
 
 func (s *mapStorage) RetrieveNodes() (map[string]string, error) {
-	return s.nMap, nil
+	nodes := make(map[string]string, len(s.nodes))
+	for _, node := range s.nodes {
+		nodes[node.id] = node.addr
+	}
+	return nodes, nil
 }
 
 func (s *mapStorage) RemoveNode(id string) error {
 	s.nMut.Lock()
 	defer s.nMut.Unlock()
-	delete(s.nMap, id)
+	index := -1
+	for i, node := range s.nodes {
+		if node.id == id {
+			index = i
+		}
+	}
+	if index < 0 {
+		return errors.New("no such node")
+	}
+	copy(s.nodes[index:], s.nodes[index+1:])
+	s.nodes = s.nodes[:len(s.nodes)-1]
 	return nil
 }
 
