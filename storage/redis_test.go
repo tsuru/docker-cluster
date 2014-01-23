@@ -6,6 +6,7 @@ package storage
 
 import (
 	"github.com/garyburd/redigo/redis"
+	"github.com/globocom/docker-cluster/cluster"
 	"reflect"
 	"testing"
 )
@@ -621,7 +622,9 @@ func TestRedisStorageRetrieveNodes(t *testing.T) {
 	if err != nil {
 		t.Errorf("Got unexpected %s error", err.Error)
 	}
-	expected := map[string]string{"server01": "http://docker-node01.com:4243"}
+	expected := []cluster.Node{
+		{ID: "server01", Address: "http://docker-node01.com:4243"},
+	}
 	if !reflect.DeepEqual(nodes, expected) {
 		t.Errorf("Expected nodes to be equal %q, got %q", expected, nodes)
 	}

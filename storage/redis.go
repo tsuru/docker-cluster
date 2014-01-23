@@ -121,18 +121,19 @@ func (s *redisStorage) RetrieveNode(id string) (string, error) {
 	return string(result.([]byte)), nil
 }
 
-func (s *redisStorage) RetrieveNodes() (map[string]string, error) {
+func (s *redisStorage) RetrieveNodes() ([]cluster.Node, error) {
 	conn := s.pool.Get()
 	defer conn.Close()
 	result, err := conn.Do("LRANGE", s.key("nodes"), 0, -1)
 	if err != nil {
 		return nil, err
 	}
-	nodes := map[string]string{}
-	for _, v := range result.([]interface{}) {
+	items := result.([]interface{})
+	nodes := make([]cluster.Node, len(items))
+	for i, v := range items {
 		id := string(v.([]byte))
 		addr, _ := s.RetrieveNode(id)
-		nodes[id] = addr
+		nodes[i] = cluster.Node{ID: id, Address: addr}
 	}
 	return nodes, nil
 }
