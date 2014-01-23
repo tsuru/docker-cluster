@@ -5,8 +5,7 @@
 package cluster
 
 import (
-	"github.com/dotcloud/docker"
-	dcli "github.com/fsouza/go-dockerclient"
+	"github.com/fsouza/go-dockerclient"
 	"io"
 	"sync"
 )
@@ -14,7 +13,7 @@ import (
 // CreateContainer creates a container in one of the nodes.
 //
 // It returns the container, or an error, in case of failures.
-func (c *Cluster) CreateContainer(opts dcli.CreateContainerOptions, config *docker.Config) (string, *docker.Container, error) {
+func (c *Cluster) CreateContainer(opts docker.CreateContainerOptions, config *docker.Config) (string, *docker.Container, error) {
 	id, container, err := c.scheduler.Schedule(opts, config)
 	if err != nil {
 		return id, container, err
@@ -35,7 +34,7 @@ func (c *Cluster) InspectContainer(id string) (*docker.Container, error) {
 	}
 	container, err := c.runOnNodes(func(n node) (interface{}, error) {
 		return n.InspectContainer(id)
-	}, &dcli.NoSuchContainer{ID: id}, false)
+	}, &docker.NoSuchContainer{ID: id}, false)
 
 	if err != nil {
 		return nil, err
@@ -52,14 +51,14 @@ func (c *Cluster) KillContainer(id string) error {
 	}
 	_, err := c.runOnNodes(func(n node) (interface{}, error) {
 		return nil, n.KillContainer(id)
-	}, &dcli.NoSuchContainer{ID: id}, false)
+	}, &docker.NoSuchContainer{ID: id}, false)
 
 	return err
 }
 
 // ListContainers returns a slice of all containers in the cluster matching the
 // given criteria.
-func (c *Cluster) ListContainers(opts dcli.ListContainersOptions) ([]docker.APIContainers, error) {
+func (c *Cluster) ListContainers(opts docker.ListContainersOptions) ([]docker.APIContainers, error) {
 	nodes, err := c.scheduler.Nodes()
 	if err != nil {
 		return nil, err
@@ -69,7 +68,7 @@ func (c *Cluster) ListContainers(opts dcli.ListContainersOptions) ([]docker.APIC
 	errs := make(chan error, len(nodes))
 	for _, n := range nodes {
 		wg.Add(1)
-		client, _ := dcli.NewClient(n.Address)
+		client, _ := docker.NewClient(n.Address)
 		go func(n node) {
 			defer wg.Done()
 			if containers, err := n.ListContainers(opts); err != nil {
@@ -100,7 +99,7 @@ func (c *Cluster) RemoveContainer(id string) error {
 	}
 	_, err = c.runOnNodes(func(n node) (interface{}, error) {
 		return nil, n.RemoveContainer(id)
-	}, &dcli.NoSuchContainer{ID: id}, false)
+	}, &docker.NoSuchContainer{ID: id}, false)
 
 	return err
 }
@@ -126,7 +125,7 @@ func (c *Cluster) StartContainer(id string, hostConfig *docker.HostConfig) error
 	}
 	_, err := c.runOnNodes(func(n node) (interface{}, error) {
 		return nil, n.StartContainer(id, hostConfig)
-	}, &dcli.NoSuchContainer{ID: id}, false)
+	}, &docker.NoSuchContainer{ID: id}, false)
 
 	return err
 }
@@ -141,7 +140,7 @@ func (c *Cluster) StopContainer(id string, timeout uint) error {
 	}
 	_, err := c.runOnNodes(func(n node) (interface{}, error) {
 		return nil, n.StopContainer(id, timeout)
-	}, &dcli.NoSuchContainer{ID: id}, false)
+	}, &docker.NoSuchContainer{ID: id}, false)
 
 	return err
 }
@@ -156,7 +155,7 @@ func (c *Cluster) RestartContainer(id string, timeout uint) error {
 	}
 	_, err := c.runOnNodes(func(n node) (interface{}, error) {
 		return nil, n.RestartContainer(id, timeout)
-	}, &dcli.NoSuchContainer{ID: id}, false)
+	}, &docker.NoSuchContainer{ID: id}, false)
 
 	return err
 }
@@ -171,7 +170,7 @@ func (c *Cluster) WaitContainer(id string) (int, error) {
 	}
 	exit, err := c.runOnNodes(func(n node) (interface{}, error) {
 		return n.WaitContainer(id)
-	}, &dcli.NoSuchContainer{ID: id}, false)
+	}, &docker.NoSuchContainer{ID: id}, false)
 
 	if err != nil {
 		return -1, err
@@ -180,7 +179,7 @@ func (c *Cluster) WaitContainer(id string) (int, error) {
 }
 
 // AttachToContainer attaches to a container, using the given options.
-func (c *Cluster) AttachToContainer(opts dcli.AttachToContainerOptions) error {
+func (c *Cluster) AttachToContainer(opts docker.AttachToContainerOptions) error {
 	if node, err := c.getNodeForContainer(opts.Container); err == nil {
 		return node.AttachToContainer(opts)
 	} else if err != errStorageDisabled {
@@ -188,13 +187,13 @@ func (c *Cluster) AttachToContainer(opts dcli.AttachToContainerOptions) error {
 	}
 	_, err := c.runOnNodes(func(n node) (interface{}, error) {
 		return nil, n.AttachToContainer(opts)
-	}, &dcli.NoSuchContainer{ID: opts.Container}, false)
+	}, &docker.NoSuchContainer{ID: opts.Container}, false)
 
 	return err
 }
 
 // CommitContainer commits a container and returns the image id.
-func (c *Cluster) CommitContainer(opts dcli.CommitContainerOptions) (*docker.Image, error) {
+func (c *Cluster) CommitContainer(opts docker.CommitContainerOptions) (*docker.Image, error) {
 	if node, err := c.getNodeForContainer(opts.Container); err == nil {
 		image, err := node.CommitContainer(opts)
 		if err == nil {
@@ -210,7 +209,7 @@ func (c *Cluster) CommitContainer(opts dcli.CommitContainerOptions) (*docker.Ima
 	}
 	image, err := c.runOnNodes(func(n node) (interface{}, error) {
 		return n.CommitContainer(opts)
-	}, &dcli.NoSuchContainer{ID: opts.Container}, false)
+	}, &docker.NoSuchContainer{ID: opts.Container}, false)
 
 	if err != nil {
 		return nil, err

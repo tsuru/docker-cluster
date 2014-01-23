@@ -5,8 +5,7 @@
 package cluster
 
 import (
-	"github.com/dotcloud/docker"
-	dcli "github.com/fsouza/go-dockerclient"
+	"github.com/fsouza/go-dockerclient"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -31,7 +30,7 @@ func TestRoundRobinSchedule(t *testing.T) {
 	scheduler := &roundRobin{stor: &mapStorage{}}
 	scheduler.Register(map[string]string{"ID": "node0", "address": server1.URL})
 	scheduler.Register(map[string]string{"ID": "node1", "address": server2.URL})
-	opts := dcli.CreateContainerOptions{}
+	opts := docker.CreateContainerOptions{}
 	id, container, err := scheduler.Schedule(opts, &docker.Config{Memory: 67108864})
 	if err != nil {
 		t.Error(err)

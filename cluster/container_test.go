@@ -6,8 +6,7 @@ package cluster
 
 import (
 	"bytes"
-	"github.com/dotcloud/docker"
-	dclient "github.com/fsouza/go-dockerclient"
+	"github.com/fsouza/go-dockerclient"
 	"github.com/globocom/tsuru/safe"
 	"net/http"
 	"net/http/httptest"
@@ -39,7 +38,7 @@ func TestCreateContainer(t *testing.T) {
 		t.Fatal(err)
 	}
 	config := docker.Config{Memory: 67108864}
-	nodeID, container, err := cluster.CreateContainer(dclient.CreateContainerOptions{}, &config)
+	nodeID, container, err := cluster.CreateContainer(docker.CreateContainerOptions{}, &config)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -74,7 +73,7 @@ func TestCreateContainerOptions(t *testing.T) {
 		t.Fatal(err)
 	}
 	config := docker.Config{Memory: 67108864}
-	opts := dclient.CreateContainerOptions{Name: "name"}
+	opts := docker.CreateContainerOptions{Name: "name"}
 	nodeID, container, err := cluster.CreateContainer(opts, &config)
 	if err != nil {
 		t.Fatal(err)
@@ -97,7 +96,7 @@ func TestCreateContainerFailure(t *testing.T) {
 		t.Fatal(err)
 	}
 	config := docker.Config{Memory: 67108864}
-	_, _, err = cluster.CreateContainer(dclient.CreateContainerOptions{}, &config)
+	_, _, err = cluster.CreateContainer(docker.CreateContainerOptions{}, &config)
 	if err == nil {
 		t.Error("Got unexpected <nil> error")
 	}
@@ -127,7 +126,7 @@ func TestCreateContainerWithStorage(t *testing.T) {
 		t.Fatal(err)
 	}
 	config := docker.Config{Memory: 67108864}
-	_, _, err = cluster.CreateContainer(dclient.CreateContainerOptions{}, &config)
+	_, _, err = cluster.CreateContainer(docker.CreateContainerOptions{}, &config)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -194,7 +193,7 @@ func TestInspectContainerNoSuchContainer(t *testing.T) {
 	if container != nil {
 		t.Errorf("InspectContainer(%q): Expected <nil> container, got %#v.", id, container)
 	}
-	expected := &dclient.NoSuchContainer{ID: id}
+	expected := &docker.NoSuchContainer{ID: id}
 	if !reflect.DeepEqual(err, expected) {
 		t.Errorf("InspectContainer(%q): Wrong error. Want %#v. Got %#v.", id, expected, err)
 	}
@@ -210,7 +209,7 @@ func TestInspectContainerNoSuchContainerWithStorage(t *testing.T) {
 	if container != nil {
 		t.Errorf("InspectContainer(%q): Expected <nil> container, got %#v.", id, container)
 	}
-	expected := &dclient.NoSuchContainer{ID: id}
+	expected := &docker.NoSuchContainer{ID: id}
 	if !reflect.DeepEqual(err, expected) {
 		t.Errorf("InspectContainer(%q): Wrong error. Want %#v. Got %#v.", id, expected, err)
 	}
@@ -299,7 +298,7 @@ func TestKillContainerNotFoundWithStorage(t *testing.T) {
 	}
 	id := "abc123"
 	err = cluster.KillContainer(id)
-	expected := &dclient.NoSuchContainer{ID: id}
+	expected := &docker.NoSuchContainer{ID: id}
 	if !reflect.DeepEqual(err, expected) {
 		t.Errorf("KillContainer(%q): Wrong error. Want %#v. Got %#v.", id, expected, err)
 	}
@@ -361,7 +360,7 @@ func TestListContainers(t *testing.T) {
 		{ID: "8dfafdbc3a40", Image: "base:latest", Command: "echo 1", Created: 1367854155, Status: "Exit 0"},
 	})
 	sort.Sort(expected)
-	containers, err := cluster.ListContainers(dclient.ListContainersOptions{})
+	containers, err := cluster.ListContainers(docker.ListContainersOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -401,7 +400,7 @@ func TestListContainersFailure(t *testing.T) {
 	expected := []docker.APIContainers{
 		{ID: "8dfafdbc3a40", Image: "base:latest", Command: "echo 1", Created: 1367854155, Status: "Exit 0"},
 	}
-	containers, err := cluster.ListContainers(dclient.ListContainersOptions{})
+	containers, err := cluster.ListContainers(docker.ListContainersOptions{})
 	if err == nil {
 		t.Error("ListContainers: Expected non-nil error, got <nil>")
 	}
@@ -415,7 +414,7 @@ func TestListContainersSchedulerFailure(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	containers, err := cluster.ListContainers(dclient.ListContainersOptions{})
+	containers, err := cluster.ListContainers(docker.ListContainersOptions{})
 	expected := "Cannot retrieve list of nodes"
 	if err.Error() != expected {
 		t.Errorf("ListContainers(): wrong error. Want %q. Got %q", expected, err.Error())
@@ -493,7 +492,7 @@ func TestRemoveContainerNotFoundWithStorage(t *testing.T) {
 	}
 	id := "abc123"
 	err = cluster.RemoveContainer(id)
-	expected := &dclient.NoSuchContainer{ID: id}
+	expected := &docker.NoSuchContainer{ID: id}
 	if !reflect.DeepEqual(err, expected) {
 		t.Errorf("RemoveContainer(%q): Wrong error. Want %#v. Got %#v.", id, expected, err)
 	}
@@ -563,7 +562,7 @@ func TestStartContainerNotFoundWithStorage(t *testing.T) {
 	}
 	id := "abc123"
 	err = cluster.StartContainer(id, nil)
-	expected := &dclient.NoSuchContainer{ID: id}
+	expected := &docker.NoSuchContainer{ID: id}
 	if !reflect.DeepEqual(err, expected) {
 		t.Errorf("StartContainer(%q): Wrong error. Want %#v. Got %#v.", id, expected, err)
 	}
@@ -633,7 +632,7 @@ func TestStopContainerNotFoundWithStorage(t *testing.T) {
 	}
 	id := "abc123"
 	err = cluster.StopContainer(id, 10)
-	expected := &dclient.NoSuchContainer{ID: id}
+	expected := &docker.NoSuchContainer{ID: id}
 	if !reflect.DeepEqual(err, expected) {
 		t.Errorf("StopContainer(%q): Wrong error. Want %#v. Got %#v.", id, expected, err)
 	}
@@ -703,7 +702,7 @@ func TestRestartContainerNotFoundWithStorage(t *testing.T) {
 	}
 	id := "abc123"
 	err = cluster.RestartContainer(id, 10)
-	expected := &dclient.NoSuchContainer{ID: id}
+	expected := &docker.NoSuchContainer{ID: id}
 	if !reflect.DeepEqual(err, expected) {
 		t.Errorf("RestartContainer(%q): Wrong error. Want %#v. Got %#v.", id, expected, err)
 	}
@@ -809,7 +808,7 @@ func TestWaitContainerNotFoundWithStorage(t *testing.T) {
 	if status != expectedStatus {
 		t.Errorf("WaitContainer(%q): wrong status. Want %d. Got %d.", id, expectedStatus, status)
 	}
-	expected := &dclient.NoSuchContainer{ID: id}
+	expected := &docker.NoSuchContainer{ID: id}
 	if !reflect.DeepEqual(err, expected) {
 		t.Errorf("WaitContainer(%q): wrong error. Want %#v. Got %#v.", id, expected, err)
 	}
@@ -833,7 +832,7 @@ func TestAttachToContainer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	opts := dclient.AttachToContainerOptions{
+	opts := docker.AttachToContainerOptions{
 		Container:    "abcdef",
 		OutputStream: &safe.Buffer{},
 		Logs:         true,
@@ -869,7 +868,7 @@ func TestAttachToContainerWithStorage(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	opts := dclient.AttachToContainerOptions{
+	opts := docker.AttachToContainerOptions{
 		Container:    id,
 		OutputStream: &safe.Buffer{},
 		Logs:         true,
@@ -890,14 +889,14 @@ func TestAttachToContainerNotFoundWithStorage(t *testing.T) {
 		t.Fatal(err)
 	}
 	id := "abcdef"
-	opts := dclient.AttachToContainerOptions{
+	opts := docker.AttachToContainerOptions{
 		Container:    "abcdef",
 		OutputStream: &safe.Buffer{},
 		Logs:         true,
 		Stdout:       true,
 	}
 	err = cluster.AttachToContainer(opts)
-	expected := &dclient.NoSuchContainer{ID: id}
+	expected := &docker.NoSuchContainer{ID: id}
 	if !reflect.DeepEqual(err, expected) {
 		t.Errorf("AttachToContainer(%q): Wrong error. Want %#v. Got %#v.", id, expected, err)
 	}
@@ -921,7 +920,7 @@ func TestCommitContainer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	opts := dclient.CommitContainerOptions{
+	opts := docker.CommitContainerOptions{
 		Container: "abcdef",
 	}
 	image, err := cluster.CommitContainer(opts)
@@ -947,7 +946,7 @@ func TestCommitContainerError(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	opts := dclient.CommitContainerOptions{
+	opts := docker.CommitContainerOptions{
 		Container: "abcdef",
 	}
 	image, err := cluster.CommitContainer(opts)
@@ -982,7 +981,7 @@ func TestCommitContainerWithStorage(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	opts := dclient.CommitContainerOptions{Container: id, Repository: "tsuru/python"}
+	opts := docker.CommitContainerOptions{Container: id, Repository: "tsuru/python"}
 	image, err := cluster.CommitContainer(opts)
 	if err != nil {
 		t.Fatal(err)
@@ -1012,7 +1011,7 @@ func TestCommitContainerWithStorageAndImageID(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	opts := dclient.CommitContainerOptions{Container: id}
+	opts := docker.CommitContainerOptions{Container: id}
 	image, err := cluster.CommitContainer(opts)
 	if err != nil {
 		t.Fatal(err)
@@ -1028,9 +1027,9 @@ func TestCommitContainerNotFoundWithStorage(t *testing.T) {
 		t.Fatal(err)
 	}
 	id := "abc123"
-	opts := dclient.CommitContainerOptions{Container: id}
+	opts := docker.CommitContainerOptions{Container: id}
 	_, err = cluster.CommitContainer(opts)
-	expected := &dclient.NoSuchContainer{ID: id}
+	expected := &docker.NoSuchContainer{ID: id}
 	if !reflect.DeepEqual(err, expected) {
 		t.Errorf("CommitContainer(%q): wrong error. Want %#v. Got %#v.", id, expected, err)
 	}
@@ -1119,7 +1118,7 @@ func TestGetNode(t *testing.T) {
 		t.Errorf("cluster.getNode(%q): wrong node. Want %q. Got %q.", "e90301", "handler1", node.id)
 	}
 	_, err = cluster.getNodeForContainer("e90305")
-	expected := dclient.NoSuchContainer{ID: "e90305"}
+	expected := docker.NoSuchContainer{ID: "e90305"}
 	if !reflect.DeepEqual(err, &expected) {
 		t.Errorf("cluster.getNode(%q): wrong error. Want %#v. Got %#v.", "e90305", expected, err)
 	}

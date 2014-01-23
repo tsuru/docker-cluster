@@ -6,8 +6,7 @@ package cluster
 
 import (
 	"errors"
-	"github.com/dotcloud/docker"
-	dcli "github.com/fsouza/go-dockerclient"
+	"github.com/fsouza/go-dockerclient"
 	"sync"
 )
 
@@ -49,7 +48,7 @@ func (s *mapStorage) RetrieveContainer(containerID string) (string, error) {
 	defer s.cMut.Unlock()
 	host, ok := s.cMap[containerID]
 	if !ok {
-		return "", &dcli.NoSuchContainer{ID: containerID}
+		return "", &docker.NoSuchContainer{ID: containerID}
 	}
 	return host, nil
 }
@@ -76,7 +75,7 @@ func (s *mapStorage) RetrieveImage(imageID string) (string, error) {
 	defer s.iMut.Unlock()
 	host, ok := s.iMap[imageID]
 	if !ok {
-		return "", dcli.ErrNoSuchImage
+		return "", docker.ErrNoSuchImage
 	}
 	return host, nil
 }
@@ -121,7 +120,7 @@ func (s *mapStorage) RemoveNode(id string) error {
 
 type fakeScheduler struct{}
 
-func (fakeScheduler) Schedule(opts dcli.CreateContainerOptions, config *docker.Config) (string, *docker.Container, error) {
+func (fakeScheduler) Schedule(opts docker.CreateContainerOptions, config *docker.Config) (string, *docker.Container, error) {
 	return "", nil, nil
 }
 
@@ -131,7 +130,7 @@ func (fakeScheduler) Nodes() ([]Node, error) {
 
 type failingScheduler struct{}
 
-func (failingScheduler) Schedule(opts dcli.CreateContainerOptions, config *docker.Config) (string, *docker.Container, error) {
+func (failingScheduler) Schedule(opts docker.CreateContainerOptions, config *docker.Config) (string, *docker.Container, error) {
 	return "", nil, errors.New("Cannot schedule")
 }
 
