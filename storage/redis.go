@@ -96,14 +96,14 @@ func (s *redisStorage) RemoveImage(id string) error {
 	return nil
 }
 
-func (s *redisStorage) StoreNode(id, address string) error {
+func (s *redisStorage) StoreNode(node cluster.Node) error {
 	conn := s.pool.Get()
 	defer conn.Close()
-	_, err := conn.Do("LPUSH", s.key("nodes"), id)
+	_, err := conn.Do("LPUSH", s.key("nodes"), node.ID)
 	if err != nil {
 		return err
 	}
-	_, err = conn.Do("SET", s.key("node:"+id), address)
+	_, err = conn.Do("SET", s.key("node:"+node.ID), node.Address)
 	return err
 
 }

@@ -560,7 +560,7 @@ func TestRedisStorageStoreNode(t *testing.T) {
 	}, 3)
 	id := "server01"
 	address := "http://docker-node01.com:4243"
-	err := storage.StoreNode(id, address)
+	err := storage.StoreNode(cluster.Node{ID: id, Address: address})
 	if err != nil {
 		t.Errorf("Got unexpected %s error", err.Error)
 	}
@@ -586,7 +586,7 @@ func TestRedisStorageRetrieveNode(t *testing.T) {
 	}, 3)
 	id := "server0"
 	address := "http://docker-node01.com:4243"
-	err := storage.StoreNode(id, address)
+	err := storage.StoreNode(cluster.Node{ID: id, Address: address})
 	if err != nil {
 		t.Errorf("Got unexpected %s error", err.Error)
 	}
@@ -614,7 +614,7 @@ func TestRedisStorageRetrieveNodes(t *testing.T) {
 	}, 3)
 	id := "server01"
 	address := "http://docker-node01.com:4243"
-	err := storage.StoreNode(id, address)
+	err := storage.StoreNode(cluster.Node{ID: id, Address: address})
 	if err != nil {
 		t.Errorf("Got unexpected %s error", err.Error)
 	}
