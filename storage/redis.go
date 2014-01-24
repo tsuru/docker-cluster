@@ -115,7 +115,7 @@ func (s *redisStorage) RetrieveNode(id string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if result == "" {
+	if result == nil {
 		return "", ErrNoSuchNode
 	}
 	return string(result.([]byte)), nil
