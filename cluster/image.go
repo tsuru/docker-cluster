@@ -19,6 +19,9 @@ func (c *Cluster) RemoveImage(name string) error {
 
 // PullImage pulls an image from a remote registry server, returning an error
 // in case of failure.
+//
+// It will pull all images in parallel, so users need to make sure that the
+// given buffer is safe.
 func (c *Cluster) PullImage(opts docker.PullImageOptions) error {
 	_, err := c.runOnNodes(func(n node) (interface{}, error) {
 		return nil, n.PullImage(opts)
