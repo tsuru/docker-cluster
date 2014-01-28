@@ -105,7 +105,6 @@ func (s *redisStorage) StoreNode(node cluster.Node) error {
 	}
 	_, err = conn.Do("SET", s.key("node:"+node.ID), node.Address)
 	return err
-
 }
 
 func (s *redisStorage) RetrieveNode(id string) (string, error) {
