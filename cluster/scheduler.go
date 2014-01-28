@@ -16,7 +16,7 @@ import (
 type Scheduler interface {
 	// Schedule creates a new container, returning the ID of the node where
 	// the container is running, and the container, or an error.
-	Schedule(opts docker.CreateContainerOptions, config *docker.Config) (string, *docker.Container, error)
+	Schedule(opts docker.CreateContainerOptions) (string, *docker.Container, error)
 
 	// Nodes returns a slice of nodes in the scheduler.
 	Nodes() ([]Node, error)
@@ -44,9 +44,9 @@ type roundRobin struct {
 	stor     Storage
 }
 
-func (s *roundRobin) Schedule(opts docker.CreateContainerOptions, config *docker.Config) (string, *docker.Container, error) {
+func (s *roundRobin) Schedule(opts docker.CreateContainerOptions) (string, *docker.Container, error) {
 	node := s.next()
-	container, err := node.CreateContainer(opts, config)
+	container, err := node.CreateContainer(opts)
 	return node.id, container, err
 }
 

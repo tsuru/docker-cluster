@@ -5,8 +5,7 @@
 package cluster
 
 import (
-	dcli "github.com/fsouza/go-dockerclient"
-	"io"
+	"github.com/fsouza/go-dockerclient"
 )
 
 // RemoveImage removes an image from all nodes in the cluster, returning an
@@ -14,30 +13,30 @@ import (
 func (c *Cluster) RemoveImage(name string) error {
 	_, err := c.runOnNodes(func(n node) (interface{}, error) {
 		return nil, n.RemoveImage(name)
-	}, dcli.ErrNoSuchImage, false)
+	}, docker.ErrNoSuchImage, false)
 	return err
 }
 
 // PullImage pulls an image from a remote registry server, returning an error
 // in case of failure.
-func (c *Cluster) PullImage(opts dcli.PullImageOptions, w io.Writer) error {
+func (c *Cluster) PullImage(opts docker.PullImageOptions) error {
 	_, err := c.runOnNodes(func(n node) (interface{}, error) {
-		return nil, n.PullImage(opts, w)
-	}, dcli.ErrNoSuchImage, true)
+		return nil, n.PullImage(opts)
+	}, docker.ErrNoSuchImage, true)
 	return err
 }
 
 // PushImage pushes an image to a remote registry server, returning an error in
 // case of failure.
-func (c *Cluster) PushImage(opts dcli.PushImageOptions, auth dcli.AuthConfiguration, w io.Writer) error {
+func (c *Cluster) PushImage(opts docker.PushImageOptions, auth docker.AuthConfiguration) error {
 	if node, err := c.getNodeForImage(opts.Name); err == nil {
-		return node.PushImage(opts, auth, w)
+		return node.PushImage(opts, auth)
 	} else if err != errStorageDisabled {
 		return err
 	}
 	_, err := c.runOnNodes(func(n node) (interface{}, error) {
-		return nil, n.PushImage(opts, auth, w)
-	}, dcli.ErrNoSuchImage, false)
+		return nil, n.PushImage(opts, auth)
+	}, docker.ErrNoSuchImage, false)
 	return err
 }
 
@@ -48,9 +47,9 @@ func (c *Cluster) getNodeForImage(image string) (node, error) {
 }
 
 // ImportImage imports an image from a url or stdin
-func (c *Cluster) ImportImage(opts dcli.ImportImageOptions, in io.Reader, out io.Writer) error {
+func (c *Cluster) ImportImage(opts docker.ImportImageOptions) error {
 	_, err := c.runOnNodes(func(n node) (interface{}, error) {
-		return nil, n.ImportImage(opts, in, out)
-	}, dcli.ErrNoSuchImage, false)
+		return nil, n.ImportImage(opts)
+	}, docker.ErrNoSuchImage, false)
 	return err
 }

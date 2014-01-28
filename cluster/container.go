@@ -6,15 +6,14 @@ package cluster
 
 import (
 	"github.com/fsouza/go-dockerclient"
-	"io"
 	"sync"
 )
 
 // CreateContainer creates a container in one of the nodes.
 //
 // It returns the container, or an error, in case of failures.
-func (c *Cluster) CreateContainer(opts docker.CreateContainerOptions, config *docker.Config) (string, *docker.Container, error) {
-	id, container, err := c.scheduler.Schedule(opts, config)
+func (c *Cluster) CreateContainer(opts docker.CreateContainerOptions) (string, *docker.Container, error) {
+	id, container, err := c.scheduler.Schedule(opts)
 	if err != nil {
 		return id, container, err
 	}
@@ -92,23 +91,23 @@ func (c *Cluster) ListContainers(opts docker.ListContainersOptions) ([]docker.AP
 }
 
 // RemoveContainer removes a container from the cluster.
-func (c *Cluster) RemoveContainer(id string) error {
-	err := c.removeFromStorage(id)
+func (c *Cluster) RemoveContainer(opts docker.RemoveContainerOptions) error {
+	err := c.removeFromStorage(opts)
 	if err != errStorageDisabled {
 		return err
 	}
 	_, err = c.runOnNodes(func(n node) (interface{}, error) {
-		return nil, n.RemoveContainer(id)
-	}, &docker.NoSuchContainer{ID: id}, false)
+		return nil, n.RemoveContainer(opts)
+	}, &docker.NoSuchContainer{ID: opts.ID}, false)
 
 	return err
 }
 
-func (c *Cluster) removeFromStorage(id string) error {
-	if node, err := c.getNodeForContainer(id); err == nil {
-		err = node.RemoveContainer(id)
+func (c *Cluster) removeFromStorage(opts docker.RemoveContainerOptions) error {
+	if node, err := c.getNodeForContainer(opts.ID); err == nil {
+		err = node.RemoveContainer(opts)
 		if err == nil {
-			c.storage().RemoveContainer(id)
+			c.storage().RemoveContainer(opts.ID)
 		}
 		return err
 	} else if err != errStorageDisabled {
@@ -219,12 +218,12 @@ func (c *Cluster) CommitContainer(opts docker.CommitContainerOptions) (*docker.I
 
 // ExportContainer exports a container as a tar and writes
 // the result in out.
-func (c *Cluster) ExportContainer(containerID string, out io.Writer) error {
-	node, err := c.getNodeForContainer(containerID)
+func (c *Cluster) ExportContainer(opts docker.ExportContainerOptions) error {
+	node, err := c.getNodeForContainer(opts.ID)
 	if err != nil {
 		return err
 	}
-	return node.ExportContainer(containerID, out)
+	return node.ExportContainer(opts)
 }
 
 func (c *Cluster) getNodeForContainer(container string) (node, error) {

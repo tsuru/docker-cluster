@@ -128,7 +128,7 @@ func (s *mapStorage) RemoveNode(id string) error {
 
 type fakeScheduler struct{}
 
-func (fakeScheduler) Schedule(opts docker.CreateContainerOptions, config *docker.Config) (string, *docker.Container, error) {
+func (fakeScheduler) Schedule(opts docker.CreateContainerOptions) (string, *docker.Container, error) {
 	return "", nil, nil
 }
 
@@ -138,7 +138,7 @@ func (fakeScheduler) Nodes() ([]Node, error) {
 
 type failingScheduler struct{}
 
-func (failingScheduler) Schedule(opts docker.CreateContainerOptions, config *docker.Config) (string, *docker.Container, error) {
+func (failingScheduler) Schedule(opts docker.CreateContainerOptions) (string, *docker.Container, error) {
 	return "", nil, errors.New("Cannot schedule")
 }
 

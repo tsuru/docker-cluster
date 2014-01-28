@@ -30,8 +30,8 @@ func TestRoundRobinSchedule(t *testing.T) {
 	scheduler := &roundRobin{stor: &mapStorage{}}
 	scheduler.Register(map[string]string{"ID": "node0", "address": server1.URL})
 	scheduler.Register(map[string]string{"ID": "node1", "address": server2.URL})
-	opts := docker.CreateContainerOptions{}
-	id, container, err := scheduler.Schedule(opts, &docker.Config{Memory: 67108864})
+	opts := docker.CreateContainerOptions{Config: &docker.Config{Memory: 67108864}}
+	id, container, err := scheduler.Schedule(opts)
 	if err != nil {
 		t.Error(err)
 	}
@@ -41,11 +41,11 @@ func TestRoundRobinSchedule(t *testing.T) {
 	if container.ID != "e90302" {
 		t.Errorf("roundRobin.Schedule(): wrong container ID. Want %q. Got %q.", "e90302", container.ID)
 	}
-	id, _, _ = scheduler.Schedule(opts, &docker.Config{Memory: 67108864})
+	id, _, _ = scheduler.Schedule(opts)
 	if id != "node1" {
 		t.Errorf("roundRobin.Schedule(): wrong node ID. Want %q. Got %q.", "node1", id)
 	}
-	id, _, _ = scheduler.Schedule(opts, &docker.Config{Memory: 67108864})
+	id, _, _ = scheduler.Schedule(opts)
 	if id != "node0" {
 		t.Errorf("roundRobin.Schedule(): wrong node ID. Want %q. Got %q.", "node0", id)
 	}

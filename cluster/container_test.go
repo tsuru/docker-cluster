@@ -38,7 +38,7 @@ func TestCreateContainer(t *testing.T) {
 		t.Fatal(err)
 	}
 	config := docker.Config{Memory: 67108864}
-	nodeID, container, err := cluster.CreateContainer(docker.CreateContainerOptions{}, &config)
+	nodeID, container, err := cluster.CreateContainer(docker.CreateContainerOptions{Config: &config})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -73,8 +73,8 @@ func TestCreateContainerOptions(t *testing.T) {
 		t.Fatal(err)
 	}
 	config := docker.Config{Memory: 67108864}
-	opts := docker.CreateContainerOptions{Name: "name"}
-	nodeID, container, err := cluster.CreateContainer(opts, &config)
+	opts := docker.CreateContainerOptions{Name: "name", Config: &config}
+	nodeID, container, err := cluster.CreateContainer(opts)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -96,7 +96,7 @@ func TestCreateContainerFailure(t *testing.T) {
 		t.Fatal(err)
 	}
 	config := docker.Config{Memory: 67108864}
-	_, _, err = cluster.CreateContainer(docker.CreateContainerOptions{}, &config)
+	_, _, err = cluster.CreateContainer(docker.CreateContainerOptions{Config: &config})
 	if err == nil {
 		t.Error("Got unexpected <nil> error")
 	}
@@ -126,7 +126,7 @@ func TestCreateContainerWithStorage(t *testing.T) {
 		t.Fatal(err)
 	}
 	config := docker.Config{Memory: 67108864}
-	_, _, err = cluster.CreateContainer(docker.CreateContainerOptions{}, &config)
+	_, _, err = cluster.CreateContainer(docker.CreateContainerOptions{Config: &config})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -443,7 +443,7 @@ func TestRemoveContainer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = cluster.RemoveContainer(id)
+	err = cluster.RemoveContainer(docker.RemoveContainerOptions{ID: id})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -472,7 +472,7 @@ func TestRemoveContainerWithStorage(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = cluster.RemoveContainer(id)
+	err = cluster.RemoveContainer(docker.RemoveContainerOptions{ID: id})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -491,7 +491,7 @@ func TestRemoveContainerNotFoundWithStorage(t *testing.T) {
 		t.Fatal(err)
 	}
 	id := "abc123"
-	err = cluster.RemoveContainer(id)
+	err = cluster.RemoveContainer(docker.RemoveContainerOptions{ID: id})
 	expected := &docker.NoSuchContainer{ID: id}
 	if !reflect.DeepEqual(err, expected) {
 		t.Errorf("RemoveContainer(%q): Wrong error. Want %#v. Got %#v.", id, expected, err)
@@ -1048,7 +1048,7 @@ func TestExportContainer(t *testing.T) {
 		t.Fatal(err)
 	}
 	out := &bytes.Buffer{}
-	err = cluster.ExportContainer(containerID, out)
+	err = cluster.ExportContainer(docker.ExportContainerOptions{ID: containerID, OutputStream: out})
 	if err != nil {
 		t.Errorf("ExportContainer: unexpected error: %#v", err.Error())
 	}
@@ -1068,7 +1068,7 @@ func TestExportContainerNotFoundWithStorage(t *testing.T) {
 	}
 	containerID := "3e2f21a89f"
 	out := &bytes.Buffer{}
-	err = cluster.ExportContainer(containerID, out)
+	err = cluster.ExportContainer(docker.ExportContainerOptions{ID: containerID, OutputStream: out})
 	if err == nil {
 		t.Errorf("ExportContainer: expected error not to be <nil>", err.Error())
 	}
@@ -1086,7 +1086,7 @@ func TestExportContainerNoStorage(t *testing.T) {
 	}
 	containerID := "3e2f21a89f"
 	out := &bytes.Buffer{}
-	err = cluster.ExportContainer(containerID, out)
+	err = cluster.ExportContainer(docker.ExportContainerOptions{ID: containerID, OutputStream: out})
 	if err == nil {
 		t.Errorf("ExportContainer: expected error not to be <nil>", err.Error())
 	}
