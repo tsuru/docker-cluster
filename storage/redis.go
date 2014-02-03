@@ -141,6 +141,9 @@ func (s *redisStorage) RemoveNode(id string) error {
 	conn := s.pool.Get()
 	defer conn.Close()
 	result, err := conn.Do("LREM", s.key("nodes"), 0, id)
+	if err != nil {
+		return err
+	}
 	result, err = conn.Do("DEL", s.key("node:"+id))
 	if err != nil {
 		return err
