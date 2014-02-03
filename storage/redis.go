@@ -13,7 +13,7 @@ import (
 )
 
 var (
-	ErrNoSuchNode      = errors.New("No such container")
+	ErrNoSuchNode      = errors.New("No such node")
 	ErrNoSuchContainer = errors.New("No such container")
 	ErrNoSuchImage     = errors.New("No such image")
 )
