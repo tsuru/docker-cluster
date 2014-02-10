@@ -9,10 +9,16 @@ import (
 	"sync"
 )
 
-// CreateContainer creates a container in one of the nodes.
+// CreateContainer creates a container in the specified node. If no node is
+// specified, it will create the container in a node selected by the scheduler.
 //
 // It returns the container, or an error, in case of failures.
-func (c *Cluster) CreateContainer(opts docker.CreateContainerOptions) (string, *docker.Container, error) {
+func (c *Cluster) CreateContainer(opts docker.CreateContainerOptions, nodes ...string) (string, *docker.Container, error) {
+	if len(nodes) > 0 {
+		node := nodes[0]
+		container, err := c.createContainerInNode(opts, node)
+		return node, container, err
+	}
 	id, container, err := c.scheduler.Schedule(opts)
 	if err != nil {
 		return id, container, err
@@ -21,6 +27,16 @@ func (c *Cluster) CreateContainer(opts docker.CreateContainerOptions) (string, *
 		storage.StoreContainer(container.ID, id)
 	}
 	return id, container, err
+}
+
+func (c *Cluster) createContainerInNode(opts docker.CreateContainerOptions, nodeID string) (*docker.Container, error) {
+	node, err := c.getNode(func(Storage) (string, error) {
+		return nodeID, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return node.CreateContainer(opts)
 }
 
 // InspectContainer returns information about a container by its ID, getting

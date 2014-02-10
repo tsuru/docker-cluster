@@ -102,6 +102,39 @@ func TestCreateContainerFailure(t *testing.T) {
 	}
 }
 
+func TestCreateContainerSpecifyNode(t *testing.T) {
+	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body := `{"Id":"e90302"}`
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(body))
+	}))
+	defer server1.Close()
+	server2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body := `{"Id":"e90303"}`
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(body))
+	}))
+	defer server2.Close()
+	cluster, err := New(nil, &mapStorage{},
+		Node{ID: "handler0", Address: server1.URL},
+		Node{ID: "handler1", Address: server2.URL},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	opts := docker.CreateContainerOptions{Config: &docker.Config{Memory: 67108864}}
+	nodeID, container, err := cluster.CreateContainer(opts, "handler1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if nodeID != "handler1" {
+		t.Errorf("CreateContainer: wrong node ID. Want %q. Got %q.", "handler1", nodeID)
+	}
+	if container.ID != "e90303" {
+		t.Errorf("CreateContainer: wrong container ID. Want %q. Got %q.", "e90303", container.ID)
+	}
+}
+
 func TestCreateContainerWithStorage(t *testing.T) {
 	body := `{"Id":"e90302"}`
 	handler := []bool{false, false}
