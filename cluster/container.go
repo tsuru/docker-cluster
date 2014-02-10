@@ -14,12 +14,17 @@ import (
 //
 // It returns the container, or an error, in case of failures.
 func (c *Cluster) CreateContainer(opts docker.CreateContainerOptions, nodes ...string) (string, *docker.Container, error) {
+	var (
+		id        string
+		container *docker.Container
+		err       error
+	)
 	if len(nodes) > 0 {
-		node := nodes[0]
-		container, err := c.createContainerInNode(opts, node)
-		return node, container, err
+		id = nodes[0]
+		container, err = c.createContainerInNode(opts, id)
+	} else {
+		id, container, err = c.scheduler.Schedule(opts)
 	}
-	id, container, err := c.scheduler.Schedule(opts)
 	if err != nil {
 		return id, container, err
 	}

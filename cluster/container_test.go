@@ -115,7 +115,8 @@ func TestCreateContainerSpecifyNode(t *testing.T) {
 		w.Write([]byte(body))
 	}))
 	defer server2.Close()
-	cluster, err := New(nil, &mapStorage{},
+	var storage mapStorage
+	cluster, err := New(nil, &storage,
 		Node{ID: "handler0", Address: server1.URL},
 		Node{ID: "handler1", Address: server2.URL},
 	)
@@ -132,6 +133,10 @@ func TestCreateContainerSpecifyNode(t *testing.T) {
 	}
 	if container.ID != "e90303" {
 		t.Errorf("CreateContainer: wrong container ID. Want %q. Got %q.", "e90303", container.ID)
+	}
+	expected := map[string]string{"e90303": "handler1"}
+	if storage.cMap["e90303"] != "handler1" {
+		t.Errorf("Cluster.CreateContainer() with storage: wrong data. Want %#v. Got %#v.", expected, storage.cMap)
 	}
 }
 
