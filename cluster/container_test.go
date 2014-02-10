@@ -135,6 +135,32 @@ func TestCreateContainerSpecifyNode(t *testing.T) {
 	}
 }
 
+func TestCreateContainerSpecifyUnknownNode(t *testing.T) {
+	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body := `{"Id":"e90302"}`
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(body))
+	}))
+	defer server1.Close()
+	cluster, err := New(nil, &mapStorage{},
+		Node{ID: "handler0", Address: server1.URL},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	opts := docker.CreateContainerOptions{Config: &docker.Config{Memory: 67108864}}
+	nodeID, container, err := cluster.CreateContainer(opts, "handler1")
+	if err != ErrUnknownNode {
+		t.Errorf("Got unexpected error. Want %#v. Got %#v.", ErrUnknownNode, err)
+	}
+	if nodeID != "handler1" {
+		t.Errorf("Got wrong node ID. Want %q. Got %q.", "handler1", nodeID)
+	}
+	if container != nil {
+		t.Errorf("Got unexpected value for container. Want <nil>. Got %#v", container)
+	}
+}
+
 func TestCreateContainerWithStorage(t *testing.T) {
 	body := `{"Id":"e90302"}`
 	handler := []bool{false, false}
