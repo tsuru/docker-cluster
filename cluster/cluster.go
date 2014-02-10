@@ -132,10 +132,13 @@ func (c *Cluster) storage() Storage {
 
 type nodeFunc func(node) (interface{}, error)
 
-func (c *Cluster) runOnNodes(fn nodeFunc, errNotFound error, wait bool) (interface{}, error) {
+func (c *Cluster) runOnNodes(fn nodeFunc, errNotFound error, wait bool, nodeIDs ...string) (interface{}, error) {
 	nodes, err := c.scheduler.Nodes()
 	if err != nil {
 		return nil, err
+	}
+	if len(nodeIDs) > 0 {
+		nodes = c.filterNodes(nodes, nodeIDs)
 	}
 	var wg sync.WaitGroup
 	finish := make(chan int8, len(nodes))
@@ -184,6 +187,19 @@ func (c *Cluster) runOnNodes(fn nodeFunc, errNotFound error, wait bool) (interfa
 			return nil, errNotFound
 		}
 	}
+}
+
+func (c *Cluster) filterNodes(nodes []Node, ids []string) []Node {
+	filteredNodes := make([]Node, 0, len(nodes))
+	for _, node := range nodes {
+		for _, id := range ids {
+			if node.ID == id {
+				filteredNodes = append(filteredNodes, node)
+				break
+			}
+		}
+	}
+	return filteredNodes
 }
 
 func (c *Cluster) getNode(retrieveFn func(Storage) (string, error)) (node, error) {

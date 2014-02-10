@@ -118,6 +118,69 @@ func TestPullImageNotFound(t *testing.T) {
 	}
 }
 
+func TestPullImageSpecifyNode(t *testing.T) {
+	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("Pulling from 1!"))
+	}))
+	defer server1.Close()
+	server2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("Pulling from 2!"))
+	}))
+	defer server2.Close()
+	var buf safe.Buffer
+	cluster, err := New(nil, &mapStorage{},
+		Node{ID: "handler0", Address: server1.URL},
+		Node{ID: "handler1", Address: server2.URL},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = cluster.PullImage(docker.PullImageOptions{Repository: "tsuru/python", OutputStream: &buf}, "handler1")
+	if err != nil {
+		t.Error(err)
+	}
+	expected := "Pulling from 2!"
+	if r := buf.String(); r != expected {
+		t.Errorf("Wrong output: Want %q. Got %q.", expected, r)
+	}
+}
+
+func TestPullImageSpecifyMultipleNodes(t *testing.T) {
+	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("Pulling from 1!"))
+	}))
+	defer server1.Close()
+	server2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("Pulling from 2!"))
+	}))
+	defer server2.Close()
+	server3 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("Pulling from 3!"))
+	}))
+	defer server3.Close()
+	var buf safe.Buffer
+	cluster, err := New(nil, &mapStorage{},
+		Node{ID: "handler0", Address: server1.URL},
+		Node{ID: "handler1", Address: server2.URL},
+		Node{ID: "handler2", Address: server3.URL},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	opts := docker.PullImageOptions{Repository: "tsuru/python", OutputStream: &buf}
+	err = cluster.PullImage(opts, "handler1", "handler2")
+	if err != nil {
+		t.Error(err)
+	}
+	alternatives := []string{
+		"Pulling from 2!Pulling from 3!",
+		"Pulling from 3!Pulling from 2!",
+	}
+	if r := buf.String(); r != alternatives[0] && r != alternatives[1] {
+		t.Errorf("Wrong output: Want %q. Got %q.", "Pulling from 2!Pulling from 3!", r)
+	}
+}
+
 func TestPushImage(t *testing.T) {
 	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("Pushing to server 1!"))
