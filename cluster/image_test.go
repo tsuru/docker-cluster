@@ -82,7 +82,8 @@ func TestPullImage(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = cluster.PullImage(docker.PullImageOptions{Repository: "tsuru/python", OutputStream: &buf})
+	opts := docker.PullImageOptions{Repository: "tsuru/python", OutputStream: &buf}
+	err = cluster.PullImage(opts, docker.AuthConfiguration{})
 	if err != nil {
 		t.Error(err)
 	}
@@ -112,7 +113,8 @@ func TestPullImageNotFound(t *testing.T) {
 		t.Fatal(err)
 	}
 	var buf bytes.Buffer
-	err = cluster.PullImage(docker.PullImageOptions{Repository: "tsuru/python", OutputStream: &buf})
+	opts := docker.PullImageOptions{Repository: "tsuru/python", OutputStream: &buf}
+	err = cluster.PullImage(opts, docker.AuthConfiguration{})
 	if err == nil {
 		t.Error("PullImage: got unexpected <nil> error")
 	}
@@ -135,7 +137,8 @@ func TestPullImageSpecifyNode(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = cluster.PullImage(docker.PullImageOptions{Repository: "tsuru/python", OutputStream: &buf}, "handler1")
+	opts := docker.PullImageOptions{Repository: "tsuru/python", OutputStream: &buf}
+	err = cluster.PullImage(opts, docker.AuthConfiguration{}, "handler1")
 	if err != nil {
 		t.Error(err)
 	}
@@ -168,7 +171,7 @@ func TestPullImageSpecifyMultipleNodes(t *testing.T) {
 		t.Fatal(err)
 	}
 	opts := docker.PullImageOptions{Repository: "tsuru/python", OutputStream: &buf}
-	err = cluster.PullImage(opts, "handler1", "handler2")
+	err = cluster.PullImage(opts, docker.AuthConfiguration{}, "handler1", "handler2")
 	if err != nil {
 		t.Error(err)
 	}

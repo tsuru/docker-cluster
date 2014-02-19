@@ -20,9 +20,9 @@ func (c *Cluster) RemoveImage(name string) error {
 //
 // It will pull all images in parallel, so users need to make sure that the
 // given buffer is safe.
-func (c *Cluster) PullImage(opts docker.PullImageOptions, nodes ...string) error {
+func (c *Cluster) PullImage(opts docker.PullImageOptions, auth docker.AuthConfiguration, nodes ...string) error {
 	_, err := c.runOnNodes(func(n node) (interface{}, error) {
-		return nil, n.PullImage(opts)
+		return nil, n.PullImage(opts, auth)
 	}, docker.ErrNoSuchImage, true, nodes...)
 	return err
 }
