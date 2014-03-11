@@ -886,6 +886,7 @@ func TestAttachToContainer(t *testing.T) {
 	defer server1.Close()
 	server2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		called = true
+		w.Write([]byte{1, 0, 0, 0, 0, 0, 0, 18})
 		w.Write([]byte("something happened"))
 	}))
 	defer server2.Close()
@@ -901,7 +902,6 @@ func TestAttachToContainer(t *testing.T) {
 		OutputStream: &safe.Buffer{},
 		Logs:         true,
 		Stdout:       true,
-		RawTerminal:  true,
 	}
 	err = cluster.AttachToContainer(opts)
 	if err != nil {
