@@ -6,7 +6,7 @@ package storage
 
 import (
 	"github.com/garyburd/redigo/redis"
-	"github.com/globocom/docker-cluster/cluster"
+	"github.com/tsuru/docker-cluster/cluster"
 	"reflect"
 	"testing"
 )
