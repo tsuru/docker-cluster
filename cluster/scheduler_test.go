@@ -9,19 +9,34 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"sync/atomic"
 	"testing"
 )
 
 func TestRoundRobinSchedule(t *testing.T) {
+	var pulls int32
 	body := `{"Id":"e90302"}`
 	handler := []bool{false, false}
+	image := "tsuru/python"
 	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/images/create" {
+			atomic.AddInt32(&pulls, 1)
+			if got := r.URL.Query().Get("fromImage"); got != image {
+				t.Errorf("Schedule: wrong image name. Want %q. Got %q.", image, got)
+			}
+		}
 		handler[0] = true
 		w.Header().Set("Content-Type", "application/json")
 		w.Write([]byte(body))
 	}))
 	defer server1.Close()
 	server2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/images/create" {
+			atomic.AddInt32(&pulls, 1)
+			if got := r.URL.Query().Get("fromImage"); got != image {
+				t.Errorf("Schedule: wrong image name. Want %q. Got %q.", image, got)
+			}
+		}
 		handler[1] = true
 		w.Header().Set("Content-Type", "application/json")
 		w.Write([]byte(body))
@@ -30,7 +45,7 @@ func TestRoundRobinSchedule(t *testing.T) {
 	scheduler := &roundRobin{stor: &mapStorage{}}
 	scheduler.Register(map[string]string{"ID": "node0", "address": server1.URL})
 	scheduler.Register(map[string]string{"ID": "node1", "address": server2.URL})
-	opts := docker.CreateContainerOptions{Config: &docker.Config{Memory: 67108864}}
+	opts := docker.CreateContainerOptions{Config: &docker.Config{Memory: 67108864, Image: image}}
 	id, container, err := scheduler.Schedule(opts)
 	if err != nil {
 		t.Error(err)

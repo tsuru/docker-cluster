@@ -46,6 +46,7 @@ type roundRobin struct {
 
 func (s *roundRobin) Schedule(opts docker.CreateContainerOptions) (string, *docker.Container, error) {
 	node := s.next()
+	node.PullImage(docker.PullImageOptions{Repository: opts.Config.Image}, docker.AuthConfiguration{})
 	container, err := node.CreateContainer(opts)
 	return node.id, container, err
 }
