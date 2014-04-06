@@ -7,7 +7,7 @@ package cluster
 import (
 	"bytes"
 	"github.com/fsouza/go-dockerclient"
-	"github.com/globocom/tsuru/safe"
+	"github.com/tsuru/tsuru/safe"
 	"net/http"
 	"net/http/httptest"
 	"regexp"
