@@ -103,6 +103,7 @@ func TestCreateContainerFailure(t *testing.T) {
 }
 
 func TestCreateContainerSpecifyNode(t *testing.T) {
+	var requests []string
 	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body := `{"Id":"e90302"}`
 		w.Header().Set("Content-Type", "application/json")
@@ -110,6 +111,7 @@ func TestCreateContainerSpecifyNode(t *testing.T) {
 	}))
 	defer server1.Close()
 	server2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests = append(requests, r.RequestURI)
 		body := `{"Id":"e90303"}`
 		w.Header().Set("Content-Type", "application/json")
 		w.Write([]byte(body))
@@ -123,7 +125,10 @@ func TestCreateContainerSpecifyNode(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	opts := docker.CreateContainerOptions{Config: &docker.Config{Memory: 67108864}}
+	opts := docker.CreateContainerOptions{Config: &docker.Config{
+		Memory: 67108864,
+		Image:  "myImage",
+	}}
 	nodeID, container, err := cluster.CreateContainer(opts, "handler1")
 	if err != nil {
 		t.Fatal(err)
@@ -137,6 +142,17 @@ func TestCreateContainerSpecifyNode(t *testing.T) {
 	expected := map[string]string{"e90303": "handler1"}
 	if storage.cMap["e90303"] != "handler1" {
 		t.Errorf("Cluster.CreateContainer() with storage: wrong data. Want %#v. Got %#v.", expected, storage.cMap)
+	}
+	if len(requests) != 2 {
+		t.Errorf("Expected 2 api calls, got %d.", len(requests))
+	}
+	expectedReq := "/images/create?fromImage=myImage"
+	if requests[0] != expectedReq {
+		t.Errorf("Incorrect request 0. Want %#v. Got %#v", expectedReq, requests[0])
+	}
+	expectedReq = "/containers/create"
+	if requests[1] != expectedReq {
+		t.Errorf("Incorrect request 1. Want %#v. Got %#v", expectedReq, requests[1])
 	}
 }
 

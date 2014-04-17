@@ -41,6 +41,7 @@ func (c *Cluster) createContainerInNode(opts docker.CreateContainerOptions, node
 	if err != nil {
 		return nil, err
 	}
+	node.PullImage(docker.PullImageOptions{Repository: opts.Config.Image}, docker.AuthConfiguration{})
 	return node.CreateContainer(opts)
 }
 
