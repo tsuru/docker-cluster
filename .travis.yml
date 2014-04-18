@@ -5,6 +5,6 @@ go:
   - tip
 install:
   - go get -d ./...
-  - go get github.com/globocom/tsuru/safe
+  - go get github.com/tsuru/tsuru/safe
 script:
   - go test -race ./...
