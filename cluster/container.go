@@ -14,6 +14,12 @@ import (
 //
 // It returns the container, or an error, in case of failures.
 func (c *Cluster) CreateContainer(opts docker.CreateContainerOptions, nodes ...string) (string, *docker.Container, error) {
+	return c.CreateContainerSchedulerOpts(opts, nil, nodes...)
+}
+
+// Similar to CreateContainer but allows arbritary options to be passed to
+// the scheduler.
+func (c *Cluster) CreateContainerSchedulerOpts(opts docker.CreateContainerOptions, schedulerOpts SchedulerOptions, nodes ...string) (string, *docker.Container, error) {
 	var (
 		id        string
 		container *docker.Container
@@ -21,10 +27,14 @@ func (c *Cluster) CreateContainer(opts docker.CreateContainerOptions, nodes ...s
 	)
 	if len(nodes) > 0 {
 		id = nodes[0]
-		container, err = c.createContainerInNode(opts, id)
 	} else {
-		id, container, err = c.scheduler.Schedule(opts)
+		node, err := c.scheduler.Schedule(opts, schedulerOpts)
+		if err != nil {
+			return id, container, err
+		}
+		id = node.ID
 	}
+	container, err = c.createContainerInNode(opts, id)
 	if err != nil {
 		return id, container, err
 	}

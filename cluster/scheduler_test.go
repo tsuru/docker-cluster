@@ -6,63 +6,29 @@ package cluster
 
 import (
 	"github.com/fsouza/go-dockerclient"
-	"net/http"
-	"net/http/httptest"
 	"reflect"
-	"sync/atomic"
 	"testing"
 )
 
 func TestRoundRobinSchedule(t *testing.T) {
-	var pulls int32
-	body := `{"Id":"e90302"}`
-	handler := []bool{false, false}
-	image := "tsuru/python"
-	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/images/create" {
-			atomic.AddInt32(&pulls, 1)
-			if got := r.URL.Query().Get("fromImage"); got != image {
-				t.Errorf("Schedule: wrong image name. Want %q. Got %q.", image, got)
-			}
-		}
-		handler[0] = true
-		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(body))
-	}))
-	defer server1.Close()
-	server2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/images/create" {
-			atomic.AddInt32(&pulls, 1)
-			if got := r.URL.Query().Get("fromImage"); got != image {
-				t.Errorf("Schedule: wrong image name. Want %q. Got %q.", image, got)
-			}
-		}
-		handler[1] = true
-		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(body))
-	}))
-	defer server2.Close()
 	scheduler := &roundRobin{stor: &mapStorage{}}
-	scheduler.Register(map[string]string{"ID": "node0", "address": server1.URL})
-	scheduler.Register(map[string]string{"ID": "node1", "address": server2.URL})
-	opts := docker.CreateContainerOptions{Config: &docker.Config{Memory: 67108864, Image: image}}
-	id, container, err := scheduler.Schedule(opts)
+	scheduler.Register(map[string]string{"ID": "node0", "address": "url1"})
+	scheduler.Register(map[string]string{"ID": "node1", "address": "url2"})
+	opts := docker.CreateContainerOptions{Config: &docker.Config{}}
+	node, err := scheduler.Schedule(opts, nil)
 	if err != nil {
 		t.Error(err)
 	}
-	if id != "node0" {
-		t.Errorf("roundRobin.Schedule(): wrong node ID. Want %q. Got %q.", "node0", id)
+	if node.ID != "node0" {
+		t.Errorf("roundRobin.Schedule(): wrong node ID. Want %q. Got %q.", "node0", node.ID)
 	}
-	if container.ID != "e90302" {
-		t.Errorf("roundRobin.Schedule(): wrong container ID. Want %q. Got %q.", "e90302", container.ID)
+	node, _ = scheduler.Schedule(opts, nil)
+	if node.ID != "node1" {
+		t.Errorf("roundRobin.Schedule(): wrong node ID. Want %q. Got %q.", "node1", node.ID)
 	}
-	id, _, _ = scheduler.Schedule(opts)
-	if id != "node1" {
-		t.Errorf("roundRobin.Schedule(): wrong node ID. Want %q. Got %q.", "node1", id)
-	}
-	id, _, _ = scheduler.Schedule(opts)
-	if id != "node0" {
-		t.Errorf("roundRobin.Schedule(): wrong node ID. Want %q. Got %q.", "node0", id)
+	node, _ = scheduler.Schedule(opts, nil)
+	if node.ID != "node0" {
+		t.Errorf("roundRobin.Schedule(): wrong node ID. Want %q. Got %q.", "node0", node.ID)
 	}
 }
 

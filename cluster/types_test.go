@@ -6,6 +6,7 @@ package cluster
 
 import (
 	"errors"
+	"fmt"
 	"github.com/fsouza/go-dockerclient"
 	"sync"
 )
@@ -128,20 +129,56 @@ func (s *mapStorage) RemoveNode(id string) error {
 
 type fakeScheduler struct{}
 
-func (fakeScheduler) Schedule(opts docker.CreateContainerOptions) (string, *docker.Container, error) {
-	return "", nil, nil
+func (fakeScheduler) Schedule(opts docker.CreateContainerOptions, schedulerOpts SchedulerOptions) (Node, error) {
+	return Node{}, nil
 }
 
 func (fakeScheduler) Nodes() ([]Node, error) {
 	return nil, nil
 }
 
+func (s fakeScheduler) NodesForOptions(schedulerOpts SchedulerOptions) ([]Node, error) {
+	return s.Nodes()
+}
+
 type failingScheduler struct{}
 
-func (failingScheduler) Schedule(opts docker.CreateContainerOptions) (string, *docker.Container, error) {
-	return "", nil, errors.New("Cannot schedule")
+func (failingScheduler) Schedule(opts docker.CreateContainerOptions, schedulerOpts SchedulerOptions) (Node, error) {
+	return Node{}, errors.New("Cannot schedule")
 }
 
 func (failingScheduler) Nodes() ([]Node, error) {
 	return nil, errors.New("Cannot retrieve list of nodes")
+}
+
+func (s failingScheduler) NodesForOptions(schedulerOpts SchedulerOptions) ([]Node, error) {
+	return s.Nodes()
+}
+
+type optsScheduler struct {
+	roundRobin
+}
+
+func (s optsScheduler) Schedule(opts docker.CreateContainerOptions, schedulerOpts SchedulerOptions) (Node, error) {
+	optStr := schedulerOpts.(string)
+	if optStr != "myOpt" {
+		return Node{}, fmt.Errorf("Invalid option %s", optStr)
+	}
+	return s.roundRobin.Schedule(opts, schedulerOpts)
+}
+
+func (s optsScheduler) Nodes() ([]Node, error) {
+	return s.roundRobin.Nodes()
+}
+
+func (s optsScheduler) NodesForOptions(schedulerOpts SchedulerOptions) ([]Node, error) {
+	return s.roundRobin.NodesForOptions(schedulerOpts)
+}
+
+func (s optsScheduler) Register(params map[string]string) error {
+	return s.roundRobin.Register(params)
+}
+
+func (s optsScheduler) Unregister(params map[string]string) error {
+	return s.roundRobin.Unregister(params)
 }

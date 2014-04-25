@@ -86,6 +86,49 @@ func TestCreateContainerOptions(t *testing.T) {
 	}
 }
 
+func TestCreateContainerSchedulerOpts(t *testing.T) {
+	body := `{"Id":"e90302"}`
+	handler := []bool{false, false}
+	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		handler[0] = true
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(body))
+	}))
+	defer server1.Close()
+	server2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		handler[1] = true
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(body))
+	}))
+	defer server2.Close()
+	scheduler := optsScheduler{roundRobin{lastUsed: -1, stor: &mapStorage{}}}
+	cluster, err := New(scheduler, &mapStorage{},
+		Node{ID: "handler0", Address: server1.URL},
+		Node{ID: "handler1", Address: server2.URL},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	config := docker.Config{Memory: 67108864}
+	opts := docker.CreateContainerOptions{Name: "name", Config: &config}
+	schedulerOpts := "myOpt"
+	nodeID, container, err := cluster.CreateContainerSchedulerOpts(opts, schedulerOpts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if nodeID != "handler0" {
+		t.Errorf("CreateContainer: wrong node  ID. Want %q. Got %q.", "handler0", nodeID)
+	}
+	if container.ID != "e90302" {
+		t.Errorf("CreateContainer: wrong container ID. Want %q. Got %q.", "e90302", container.ID)
+	}
+	schedulerOpts = "myOptX"
+	nodeID, container, err = cluster.CreateContainerSchedulerOpts(opts, schedulerOpts)
+	if err == nil || err.Error() != "Invalid option myOptX" {
+		t.Fatal("Expected error but none returned.")
+	}
+}
+
 func TestCreateContainerFailure(t *testing.T) {
 	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "NoSuchImage", http.StatusNotFound)

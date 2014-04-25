@@ -50,20 +50,20 @@ func TestRegister(t *testing.T) {
 		t.Fatal(err)
 	}
 	node := scheduler.next()
-	if node.id != "abcdef" {
-		t.Errorf("Register failed. Got wrong ID. Want %q. Got %q.", "abcdef", node.id)
+	if node.ID != "abcdef" {
+		t.Errorf("Register failed. Got wrong ID. Want %q. Got %q.", "abcdef", node.ID)
 	}
 	err = cluster.Register(map[string]string{"ID": "abcdefg", "address": "http://localhost:4243"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	node = scheduler.next()
-	if node.id != "abcdefg" {
-		t.Errorf("Register failed. Got wrong ID. Want %q. Got %q.", "abcdefg", node.id)
+	if node.ID != "abcdefg" {
+		t.Errorf("Register failed. Got wrong ID. Want %q. Got %q.", "abcdefg", node.ID)
 	}
 	node = scheduler.next()
-	if node.id != "abcdef" {
-		t.Errorf("Register failed. Got wrong ID. Want %q. Got %q.", "abcdef", node.id)
+	if node.ID != "abcdef" {
+		t.Errorf("Register failed. Got wrong ID. Want %q. Got %q.", "abcdef", node.ID)
 	}
 }
 

@@ -11,15 +11,23 @@ import (
 	"sync/atomic"
 )
 
+// Arbitrary options to be sent to the scheduler. This options will
+// be only read and interpreted by the scheduler itself.
+type SchedulerOptions interface{}
+
 // Scheduler represents a scheduling strategy, that will be used when creating
 // new containers.
 type Scheduler interface {
 	// Schedule creates a new container, returning the ID of the node where
 	// the container is running, and the container, or an error.
-	Schedule(opts docker.CreateContainerOptions) (string, *docker.Container, error)
+	Schedule(opts docker.CreateContainerOptions, schedulerOpts SchedulerOptions) (Node, error)
 
 	// Nodes returns a slice of nodes in the scheduler.
 	Nodes() ([]Node, error)
+
+	// NodesForOptions returns a slice of nodes that could be used for
+	// given options.
+	NodesForOptions(schedulerOpts SchedulerOptions) ([]Node, error)
 }
 
 // Registrable represents a scheduler that can get new nodes via the Register
@@ -38,20 +46,16 @@ type node struct {
 }
 
 type roundRobin struct {
-	nodes    []node
 	lastUsed int64
 	mut      sync.RWMutex
 	stor     Storage
 }
 
-func (s *roundRobin) Schedule(opts docker.CreateContainerOptions) (string, *docker.Container, error) {
-	node := s.next()
-	node.PullImage(docker.PullImageOptions{Repository: opts.Config.Image}, docker.AuthConfiguration{})
-	container, err := node.CreateContainer(opts)
-	return node.id, container, err
+func (s *roundRobin) Schedule(opts docker.CreateContainerOptions, schedulerOpts SchedulerOptions) (Node, error) {
+	return s.next(), nil
 }
 
-func (s *roundRobin) next() node {
+func (s *roundRobin) next() Node {
 	s.mut.RLock()
 	defer s.mut.RUnlock()
 	nodes, _ := s.Nodes()
@@ -59,11 +63,7 @@ func (s *roundRobin) next() node {
 		panic("No nodes available")
 	}
 	index := atomic.AddInt64(&s.lastUsed, 1) % int64(len(nodes))
-	cli, err := docker.NewClient(nodes[index].Address)
-	if err != nil {
-		panic(err)
-	}
-	return node{Client: cli, edp: nodes[index].Address, id: nodes[index].ID}
+	return nodes[index]
 }
 
 func (s *roundRobin) Register(params map[string]string) error {
@@ -98,4 +98,8 @@ func (s *roundRobin) Nodes() ([]Node, error) {
 		return nil, ErrImmutableCluster
 	}
 	return s.stor.RetrieveNodes()
+}
+
+func (s *roundRobin) NodesForOptions(schedulerOpts SchedulerOptions) ([]Node, error) {
+	return s.Nodes()
 }

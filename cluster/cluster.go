@@ -124,6 +124,10 @@ func (c *Cluster) Nodes() ([]Node, error) {
 	return c.scheduler.Nodes()
 }
 
+func (c *Cluster) NodesForOptions(schedulerOpts SchedulerOptions) ([]Node, error) {
+	return c.scheduler.NodesForOptions(schedulerOpts)
+}
+
 func (c *Cluster) storage() Storage {
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()
