@@ -376,7 +376,7 @@ func TestKillContainer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = cluster.KillContainer(id)
+	err = cluster.KillContainer(docker.KillContainerOptions{ID: id})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -405,7 +405,7 @@ func TestKillContainerWithStorage(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = cluster.KillContainer(id)
+	err = cluster.KillContainer(docker.KillContainerOptions{ID: id})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -420,7 +420,7 @@ func TestKillContainerNotFoundWithStorage(t *testing.T) {
 		t.Fatal(err)
 	}
 	id := "abc123"
-	err = cluster.KillContainer(id)
+	err = cluster.KillContainer(docker.KillContainerOptions{ID: id})
 	expected := &docker.NoSuchContainer{ID: id}
 	if !reflect.DeepEqual(err, expected) {
 		t.Errorf("KillContainer(%q): Wrong error. Want %#v. Got %#v.", id, expected, err)
