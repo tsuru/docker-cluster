@@ -54,3 +54,23 @@ func (c *Cluster) ImportImage(opts docker.ImportImageOptions) error {
 	}, docker.ErrNoSuchImage, false)
 	return err
 }
+
+//BuildImage build an image and push it to register
+func (c *Cluster) BuildImage(buildOptions docker.BuildImageOptions) error {
+	nodes, err := c.Nodes()
+	if err != nil {
+		return err
+	}
+	nodeID := nodes[0].ID
+	node, err := c.getNode(func(Storage) (string, error) {
+		return nodeID, nil
+	})
+	if err != nil {
+		return err
+	}
+	err = node.BuildImage(buildOptions)
+	if err != nil {
+		return err
+	}
+	return c.storage().StoreImage(buildOptions.Name, nodeID)
+}

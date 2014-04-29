@@ -324,3 +324,30 @@ func TestImportImageWithAbsentFile(t *testing.T) {
 		t.Error("ImportImage: got unexpected <nil> error")
 	}
 }
+
+func TestBuildImage(t *testing.T) {
+	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	}))
+	defer server1.Close()
+	cluster, err := New(nil, &mapStorage{},
+		Node{ID: "handler0", Address: server1.URL},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var buf bytes.Buffer
+	buildOptions := docker.BuildImageOptions{
+		Name:         "tsuru/python",
+		Remote:       "http://localhost/Dockerfile",
+		InputStream:  nil,
+		OutputStream: &buf,
+	}
+	err = cluster.BuildImage(buildOptions)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = cluster.storage().RetrieveImage("tsuru/python")
+	if err != nil {
+		t.Error(err)
+	}
+}
