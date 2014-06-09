@@ -218,7 +218,19 @@ func (c *Cluster) AttachToContainer(opts docker.AttachToContainerOptions) error 
 	_, err := c.runOnNodes(func(n node) (interface{}, error) {
 		return nil, n.AttachToContainer(opts)
 	}, &docker.NoSuchContainer{ID: opts.Container}, false)
+	return err
+}
 
+// Logs retrieves the logs of the specified container.
+func (c *Cluster) Logs(opts docker.LogsOptions) error {
+	if node, err := c.getNodeForContainer(opts.Container); err == nil {
+		return node.Logs(opts)
+	} else if err != errStorageDisabled {
+		return err
+	}
+	_, err := c.runOnNodes(func(n node) (interface{}, error) {
+		return nil, n.Logs(opts)
+	}, &docker.NoSuchContainer{ID: opts.Container}, false)
 	return err
 }
 

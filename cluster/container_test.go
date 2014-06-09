@@ -1025,6 +1025,93 @@ func TestAttachToContainerNotFoundWithStorage(t *testing.T) {
 	}
 }
 
+func TestLogs(t *testing.T) {
+	var called bool
+	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "container not found", http.StatusNotFound)
+	}))
+	defer server1.Close()
+	server2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		w.Write([]byte("something happened"))
+	}))
+	defer server2.Close()
+	cluster, err := New(nil, &mapStorage{cMap: map[string]string{"abcdef": "handler1"}},
+		Node{ID: "handler0", Address: server1.URL},
+		Node{ID: "handler1", Address: server2.URL},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	opts := docker.LogsOptions{
+		Container:    "abcdef",
+		OutputStream: &safe.Buffer{},
+		Stdout:       true,
+		Stderr:       true,
+	}
+	err = cluster.Logs(opts)
+	if err != nil {
+		t.Errorf("Logs: unexpected error. Want <nil>. Got %#v.", err)
+	}
+	if !called {
+		t.Error("Logs: Did not call the remote HTTP API")
+	}
+}
+
+func TestLogsWithStorage(t *testing.T) {
+	var called bool
+	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		http.Error(w, "No such container", http.StatusNotFound)
+	}))
+	defer server1.Close()
+	server2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("ok"))
+	}))
+	defer server2.Close()
+	id := "abcdef"
+	storage := mapStorage{cMap: map[string]string{id: "handler1"}}
+	cluster, err := New(nil, &storage,
+		Node{ID: "handler0", Address: server1.URL},
+		Node{ID: "handler1", Address: server2.URL},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	opts := docker.LogsOptions{
+		Container:    id,
+		OutputStream: &safe.Buffer{},
+		Stdout:       true,
+		Stderr:       true,
+	}
+	err = cluster.Logs(opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if called {
+		t.Error("Logs(): should not call the node server")
+	}
+}
+
+func TestLogsContainerNotFoundWithStorage(t *testing.T) {
+	cluster, err := New(nil, &mapStorage{}, Node{ID: "handler0", Address: "http://localhost:8282"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := "abcdef"
+	opts := docker.LogsOptions{
+		Container:    "abcdef",
+		OutputStream: &safe.Buffer{},
+		Stdout:       true,
+		Stderr:       true,
+	}
+	err = cluster.Logs(opts)
+	expected := &docker.NoSuchContainer{ID: id}
+	if !reflect.DeepEqual(err, expected) {
+		t.Errorf("Logs(%q): Wrong error. Want %#v. Got %#v.", id, expected, err)
+	}
+}
+
 func TestCommitContainer(t *testing.T) {
 	var called bool
 	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
