@@ -186,7 +186,6 @@ func (c *Cluster) RestartContainer(id string, timeout uint) error {
 	_, err := c.runOnNodes(func(n node) (interface{}, error) {
 		return nil, n.RestartContainer(id, timeout)
 	}, &docker.NoSuchContainer{ID: id}, false)
-
 	return err
 }
 
@@ -200,7 +199,19 @@ func (c *Cluster) PauseContainer(id string) error {
 	_, err := c.runOnNodes(func(n node) (interface{}, error) {
 		return nil, n.PauseContainer(id)
 	}, &docker.NoSuchContainer{ID: id}, false)
+	return err
+}
 
+// UnpauseContainer removes the container from the paused state.
+func (c *Cluster) UnpauseContainer(id string) error {
+	if node, err := c.getNodeForContainer(id); err == nil {
+		return node.UnpauseContainer(id)
+	} else if err != errStorageDisabled {
+		return err
+	}
+	_, err := c.runOnNodes(func(n node) (interface{}, error) {
+		return nil, n.UnpauseContainer(id)
+	}, &docker.NoSuchContainer{ID: id}, false)
 	return err
 }
 

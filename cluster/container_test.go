@@ -901,6 +901,76 @@ func TestPauseContainerNotFoundWithStorage(t *testing.T) {
 	}
 }
 
+func TestUnpauseContainer(t *testing.T) {
+	var called bool
+	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "No such container", http.StatusNotFound)
+	}))
+	defer server1.Close()
+	server2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		w.Write([]byte("ok"))
+	}))
+	defer server2.Close()
+	id := "abc123"
+	cluster, err := New(nil, &mapStorage{cMap: map[string]string{id: "handler1"}},
+		Node{ID: "handler0", Address: server1.URL},
+		Node{ID: "handler1", Address: server2.URL},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = cluster.UnpauseContainer(id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !called {
+		t.Errorf("UnpauseContainer(%q): Did not call node HTTP server", id)
+	}
+}
+
+func TestUnpauseContainerWithStorage(t *testing.T) {
+	var called bool
+	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		http.Error(w, "No such container", http.StatusNotFound)
+	}))
+	defer server1.Close()
+	server2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("ok"))
+	}))
+	defer server2.Close()
+	id := "abc123"
+	storage := mapStorage{cMap: map[string]string{id: "handler1"}}
+	cluster, err := New(nil, &storage,
+		Node{ID: "handler0", Address: server1.URL},
+		Node{ID: "handler1", Address: server2.URL},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = cluster.UnpauseContainer(id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if called {
+		t.Errorf("UnpauseContainer(%q): should not call the node server", id)
+	}
+}
+
+func TestUnpauseContainerNotFoundWithStorage(t *testing.T) {
+	cluster, err := New(nil, &mapStorage{}, Node{ID: "handler0", Address: "http://localhost:8282"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := "abc123"
+	err = cluster.UnpauseContainer(id)
+	expected := &docker.NoSuchContainer{ID: id}
+	if !reflect.DeepEqual(err, expected) {
+		t.Errorf("UnpauseContainer(%q): Wrong error. Want %#v. Got %#v.", id, expected, err)
+	}
+}
+
 func TestWaitContainer(t *testing.T) {
 	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "No such container", http.StatusNotFound)
