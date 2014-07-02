@@ -190,6 +190,20 @@ func (c *Cluster) RestartContainer(id string, timeout uint) error {
 	return err
 }
 
+// PauseContainer changes the container to the paused state.
+func (c *Cluster) PauseContainer(id string) error {
+	if node, err := c.getNodeForContainer(id); err == nil {
+		return node.PauseContainer(id)
+	} else if err != errStorageDisabled {
+		return err
+	}
+	_, err := c.runOnNodes(func(n node) (interface{}, error) {
+		return nil, n.PauseContainer(id)
+	}, &docker.NoSuchContainer{ID: id}, false)
+
+	return err
+}
+
 // WaitContainer blocks until the given container stops, returning the exit
 // code of the container command.
 func (c *Cluster) WaitContainer(id string) (int, error) {
