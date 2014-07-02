@@ -834,12 +834,16 @@ func TestRestartContainerNotFoundWithStorage(t *testing.T) {
 func TestPauseContainer(t *testing.T) {
 	var called bool
 	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		http.Error(w, "No such container", http.StatusNotFound)
+		if r.URL.Path == "/containers/abc123/pause" {
+			http.Error(w, "No such container", http.StatusNotFound)
+		}
 	}))
 	defer server1.Close()
 	server2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		called = true
-		w.Write([]byte("ok"))
+		if r.URL.Path == "/containers/abc123/pause" {
+			called = true
+			w.Write([]byte("ok"))
+		}
 	}))
 	defer server2.Close()
 	id := "abc123"
@@ -862,12 +866,16 @@ func TestPauseContainer(t *testing.T) {
 func TestPauseContainerWithStorage(t *testing.T) {
 	var called bool
 	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		called = true
-		http.Error(w, "No such container", http.StatusNotFound)
+		if r.URL.Path == "/containers/abc123/pause" {
+			called = true
+			http.Error(w, "No such container", http.StatusNotFound)
+		}
 	}))
 	defer server1.Close()
 	server2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("ok"))
+		if r.URL.Path == "/containers/abc123/pause" {
+			w.Write([]byte("ok"))
+		}
 	}))
 	defer server2.Close()
 	id := "abc123"
@@ -904,12 +912,16 @@ func TestPauseContainerNotFoundWithStorage(t *testing.T) {
 func TestUnpauseContainer(t *testing.T) {
 	var called bool
 	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		http.Error(w, "No such container", http.StatusNotFound)
+		if r.URL.Path == "/containers/abc123/unpause" {
+			http.Error(w, "No such container", http.StatusNotFound)
+		}
 	}))
 	defer server1.Close()
 	server2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		called = true
-		w.Write([]byte("ok"))
+		if r.URL.Path == "/containers/abc123/unpause" {
+			called = true
+			w.Write([]byte("ok"))
+		}
 	}))
 	defer server2.Close()
 	id := "abc123"
@@ -932,12 +944,16 @@ func TestUnpauseContainer(t *testing.T) {
 func TestUnpauseContainerWithStorage(t *testing.T) {
 	var called bool
 	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		called = true
-		http.Error(w, "No such container", http.StatusNotFound)
+		if r.URL.Path == "/containers/abc123/unpause" {
+			called = true
+			http.Error(w, "No such container", http.StatusNotFound)
+		}
 	}))
 	defer server1.Close()
 	server2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("ok"))
+		if r.URL.Path == "/containers/abc123/unpause" {
+			w.Write([]byte("ok"))
+		}
 	}))
 	defer server2.Close()
 	id := "abc123"
