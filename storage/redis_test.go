@@ -243,7 +243,7 @@ func TestRedisStorageStoreImage(t *testing.T) {
 		t.Error(err)
 	}
 	cmd := conn.cmds[0]
-	expectedCmd := "SET"
+	expectedCmd := "LPUSH"
 	if cmd.cmd != expectedCmd {
 		t.Errorf("StoreImage(%q, %q): want command %q. Got %q.", image, host, expectedCmd, cmd.cmd)
 	}
@@ -267,7 +267,7 @@ func TestRedisStorageStoreImagePrefixed(t *testing.T) {
 		t.Error(err)
 	}
 	cmd := conn.cmds[0]
-	expectedCmd := "SET"
+	expectedCmd := "LPUSH"
 	if cmd.cmd != expectedCmd {
 		t.Errorf("StoreImage(%q, %q): want command %q. Got %q.", image, host, expectedCmd, cmd.cmd)
 	}
@@ -294,27 +294,27 @@ func TestRedisStorageStoreImageFailure(t *testing.T) {
 func TestRedisStorageRetrieveImage(t *testing.T) {
 	conn := resultCommandConn{
 		fakeConn: &fakeConn{},
-		reply:    map[string]interface{}{"GET": []byte("server0")},
+		reply:    map[string]interface{}{"LRANGE": []interface{}{[]byte("server0")}},
 	}
 	var storage redisStorage
 	storage.pool = redis.NewPool(func() (redis.Conn, error) {
 		return &conn, nil
 	}, 3)
 	image := "tsuru/python"
-	host, err := storage.RetrieveImage(image)
+	hosts, err := storage.RetrieveImage(image)
 	if err != nil {
 		t.Error(err)
 	}
-	expectedHost := "server0"
-	if host != expectedHost {
-		t.Errorf("RetrieveImage(%q): want host %q. Got %q.", image, expectedHost, host)
+	expectedHosts := []string{"server0"}
+	if !reflect.DeepEqual(hosts, expectedHosts) {
+		t.Errorf("RetrieveImage(%q): want host %q. Got %q.", image, expectedHosts, hosts)
 	}
 	cmd := conn.cmds[0]
-	expectedCmd := "GET"
+	expectedCmd := "LRANGE"
 	if cmd.cmd != expectedCmd {
 		t.Errorf("RetrieveImage(%q): want command %q. Got %q.", image, expectedCmd, cmd.cmd)
 	}
-	expectedArgs := []interface{}{"image:" + image}
+	expectedArgs := []interface{}{"image:" + image, 0, -1}
 	if !reflect.DeepEqual(cmd.args, expectedArgs) {
 		t.Errorf("RetrieveImage(%q): want args %#v. Got %#v.", image, expectedArgs, cmd.args)
 	}
@@ -323,7 +323,7 @@ func TestRedisStorageRetrieveImage(t *testing.T) {
 func TestRedisStorageRetrieveImagePrefixed(t *testing.T) {
 	conn := resultCommandConn{
 		fakeConn: &fakeConn{},
-		reply:    map[string]interface{}{"GET": []byte("server0")},
+		reply:    map[string]interface{}{"LRANGE": []interface{}{[]byte("server0")}},
 	}
 	var storage redisStorage
 	storage.pool = redis.NewPool(func() (redis.Conn, error) {
@@ -336,11 +336,11 @@ func TestRedisStorageRetrieveImagePrefixed(t *testing.T) {
 		t.Error(err)
 	}
 	cmd := conn.cmds[0]
-	expectedCmd := "GET"
+	expectedCmd := "LRANGE"
 	if cmd.cmd != expectedCmd {
 		t.Errorf("RetrieveImage(%q): want command %q. Got %q.", image, expectedCmd, cmd.cmd)
 	}
-	expectedArgs := []interface{}{"cluster:image:" + image}
+	expectedArgs := []interface{}{"cluster:image:" + image, 0, -1}
 	if !reflect.DeepEqual(cmd.args, expectedArgs) {
 		t.Errorf("RetrieveImage(%q): want args %#v. Got %#v.", image, expectedArgs, cmd.args)
 	}

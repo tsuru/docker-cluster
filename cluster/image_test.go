@@ -10,6 +10,7 @@ import (
 	"github.com/tsuru/tsuru/safe"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"regexp"
 	"testing"
 )
@@ -33,12 +34,17 @@ func TestRemoveImage(t *testing.T) {
 		t.Fatal(err)
 	}
 	name := "tsuru/python"
+	cluster.storage().StoreImage(name, "handler1")
 	err = cluster.RemoveImage(name)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !called {
 		t.Errorf("RemoveImage(%q): Did not call node HTTP server", name)
+	}
+	_, err = cluster.storage().RetrieveImage(name)
+	if err != docker.ErrNoSuchImage {
+		t.Errorf("RemoveImage(%q): wrong error. Want %#v. Got %#v.", name, docker.ErrNoSuchImage, err)
 	}
 }
 
@@ -93,6 +99,14 @@ func TestPullImage(t *testing.T) {
 	}
 	if r := buf.String(); r != alternatives[0] && r != alternatives[1] {
 		t.Errorf("Wrong output: Want %q. Got %q.", "Pulling from 1!Pulling from 2!", buf.String())
+	}
+	nodes, err := cluster.storage().RetrieveImage("tsuru/python")
+	if err != nil {
+		t.Fatal(err)
+	}
+	expected := []string{"handler0", "handler1"}
+	if !reflect.DeepEqual(nodes, expected) {
+		t.Errorf("Wrong output: Want %q. Got %q.", expected, nodes)
 	}
 }
 
@@ -194,7 +208,7 @@ func TestPushImage(t *testing.T) {
 	}))
 	defer server2.Close()
 	var buf safe.Buffer
-	cluster, err := New(nil, &mapStorage{iMap: map[string]string{"tsuru/ruby": "handler0"}},
+	cluster, err := New(nil, &mapStorage{iMap: map[string][]string{"tsuru/ruby": {"handler0"}}},
 		Node{ID: "handler0", Address: server1.URL},
 		Node{ID: "handler1", Address: server2.URL},
 	)
@@ -246,7 +260,7 @@ func TestPushImageWithStorage(t *testing.T) {
 		w.Write([]byte("pushed"))
 	}))
 	defer server2.Close()
-	storage := mapStorage{iMap: map[string]string{"tsuru/python": "handler1"}}
+	storage := mapStorage{iMap: map[string][]string{"tsuru/python": {"handler1"}}}
 	cluster, err := New(nil, &storage,
 		Node{ID: "handler0", Address: server1.URL},
 		Node{ID: "handler1", Address: server2.URL},

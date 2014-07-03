@@ -43,7 +43,7 @@ type ContainerStorage interface {
 // images and hosts.
 type ImageStorage interface {
 	StoreImage(image, host string) error
-	RetrieveImage(image string) (host string, err error)
+	RetrieveImage(image string) (host []string, err error)
 	RemoveImage(image string) error
 }
 

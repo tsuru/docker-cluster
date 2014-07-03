@@ -66,21 +66,26 @@ func (s *redisStorage) RemoveContainer(container string) error {
 func (s *redisStorage) StoreImage(image, host string) error {
 	conn := s.pool.Get()
 	defer conn.Close()
-	_, err := conn.Do("SET", s.key("image:"+image), host)
+	_, err := conn.Do("LPUSH", s.key("image:"+image), host)
 	return err
 }
 
-func (s *redisStorage) RetrieveImage(id string) (string, error) {
+func (s *redisStorage) RetrieveImage(id string) ([]string, error) {
 	conn := s.pool.Get()
 	defer conn.Close()
-	result, err := conn.Do("GET", s.key("image:"+id))
+	result, err := conn.Do("LRANGE", s.key("image:"+id), 0, -1)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	if result == nil {
-		return "", ErrNoSuchImage
+		return nil, ErrNoSuchImage
 	}
-	return string(result.([]byte)), nil
+	items := result.([]interface{})
+	images := make([]string, len(items))
+	for i, v := range items {
+		images[i] = string(v.([]byte))
+	}
+	return images, nil
 }
 
 func (s *redisStorage) RemoveImage(id string) error {

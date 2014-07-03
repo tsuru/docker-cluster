@@ -6,12 +6,24 @@ package cluster
 
 import "github.com/fsouza/go-dockerclient"
 
-// RemoveImage removes an image from all nodes in the cluster, returning an
+// RemoveImage removes an image from the nodes where this images exists, returning an
 // error in case of failure.
 func (c *Cluster) RemoveImage(name string) error {
-	_, err := c.runOnNodes(func(n node) (interface{}, error) {
+	nodes, err := c.getNodesForImage(name)
+	var nodesID []string
+	for _, node := range nodes {
+		nodesID = append(nodesID, node.id)
+	}
+	if err != nil {
+		return err
+	}
+	_, err = c.runOnNodes(func(n node) (interface{}, error) {
 		return nil, n.RemoveImage(name)
-	}, docker.ErrNoSuchImage, false)
+	}, docker.ErrNoSuchImage, false, nodesID...)
+	if err != nil {
+		return err
+	}
+	err = c.storage().RemoveImage(name)
 	return err
 }
 
@@ -22,6 +34,8 @@ func (c *Cluster) RemoveImage(name string) error {
 // given buffer is safe.
 func (c *Cluster) PullImage(opts docker.PullImageOptions, auth docker.AuthConfiguration, nodes ...string) error {
 	_, err := c.runOnNodes(func(n node) (interface{}, error) {
+		key := opts.Repository
+		c.storage().StoreImage(key, n.id)
 		return nil, n.PullImage(opts, auth)
 	}, docker.ErrNoSuchImage, true, nodes...)
 	return err
@@ -30,8 +44,10 @@ func (c *Cluster) PullImage(opts docker.PullImageOptions, auth docker.AuthConfig
 // PushImage pushes an image to a remote registry server, returning an error in
 // case of failure.
 func (c *Cluster) PushImage(opts docker.PushImageOptions, auth docker.AuthConfiguration) error {
-	if node, err := c.getNodeForImage(opts.Name); err == nil {
-		return node.PushImage(opts, auth)
+	if nodes, err := c.getNodesForImage(opts.Name); err == nil {
+		for _, node := range nodes {
+			return node.PushImage(opts, auth)
+		}
 	} else if err != errStorageDisabled {
 		return err
 	}
@@ -41,10 +57,24 @@ func (c *Cluster) PushImage(opts docker.PushImageOptions, auth docker.AuthConfig
 	return err
 }
 
-func (c *Cluster) getNodeForImage(image string) (node, error) {
-	return c.getNode(func(s Storage) (string, error) {
-		return s.RetrieveImage(image)
-	})
+func (c *Cluster) getNodesForImage(image string) ([]node, error) {
+	storage := c.storage()
+	if storage == nil {
+		return nil, errStorageDisabled
+	}
+	var nodes []node
+	hosts, err := storage.RetrieveImage(image)
+	if err != nil {
+		return nil, err
+	}
+	for _, host := range hosts {
+		node, err := c.getNode(func(s Storage) (string, error) { return host, nil })
+		if err != nil {
+			return nil, err
+		}
+		nodes = append(nodes, node)
+	}
+	return nodes, err
 }
 
 // ImportImage imports an image from a url or stdin

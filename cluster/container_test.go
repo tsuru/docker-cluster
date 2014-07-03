@@ -1338,7 +1338,7 @@ func TestCommitContainerWithStorage(t *testing.T) {
 	id := "abc123"
 	storage := mapStorage{
 		cMap: map[string]string{id: "handler1"},
-		iMap: map[string]string{},
+		iMap: map[string][]string{},
 	}
 	cluster, err := New(nil, &storage,
 		Node{ID: "handler0", Address: server1.URL},
@@ -1358,8 +1358,8 @@ func TestCommitContainerWithStorage(t *testing.T) {
 	if called {
 		t.Errorf("CommitContainer(%q): should not call the all node servers.", id)
 	}
-	if node := storage.iMap["tsuru/python"]; node != "handler1" {
-		t.Errorf("CommitContainer(%q): wrong image ID in the storage. Want %q. Got %q", id, "handler1", node)
+	if nodes := storage.iMap["tsuru/python"]; !reflect.DeepEqual(nodes, []string{"handler1"}) {
+		t.Errorf("CommitContainer(%q): wrong image ID in the storage. Want %q. Got %q", id, []string{"handler1"}, nodes)
 	}
 }
 
@@ -1371,7 +1371,7 @@ func TestCommitContainerWithStorageAndImageID(t *testing.T) {
 	id := "abc123"
 	storage := mapStorage{
 		cMap: map[string]string{id: "handler0"},
-		iMap: map[string]string{},
+		iMap: map[string][]string{},
 	}
 	cluster, err := New(nil, &storage, Node{ID: "handler0", Address: server.URL})
 	if err != nil {
@@ -1382,8 +1382,8 @@ func TestCommitContainerWithStorageAndImageID(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if node := storage.iMap[image.ID]; node != "handler0" {
-		t.Errorf("CommitContainer(%q): wrong image ID in the storage. Want %q. Got %q", id, "handler0", node)
+	if nodes := storage.iMap[image.ID]; !reflect.DeepEqual(nodes, []string{"handler0"}) {
+		t.Errorf("CommitContainer(%q): wrong image ID in the storage. Want %q. Got %q", id, []string{"handler0"}, nodes)
 	}
 }
 
