@@ -11,6 +11,21 @@ import (
 	"testing"
 )
 
+func TestRedisStorage(t *testing.T) {
+	redis := Redis("localhost:6379", "test-docker-cluster")
+	stor := redis.(*redisStorage)
+	conn := stor.pool.Get()
+	defer conn.Close()
+	result, err := conn.Do("KEYS", "test-docker-cluster*")
+	assertIsNil(err, t)
+	keys := result.([]interface{})
+	for _, key := range keys {
+		keyName := string(key.([]byte))
+		conn.Do("DEL", keyName)
+	}
+	runTestsForStorage(redis, t)
+}
+
 func TestRedisStorageStoreContainer(t *testing.T) {
 	conn := fakeConn{}
 	var storage redisStorage

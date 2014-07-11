@@ -7,15 +7,8 @@
 package storage
 
 import (
-	"errors"
 	"github.com/garyburd/redigo/redis"
 	"github.com/tsuru/docker-cluster/cluster"
-)
-
-var (
-	ErrNoSuchNode      = errors.New("No such node")
-	ErrNoSuchContainer = errors.New("No such container")
-	ErrNoSuchImage     = errors.New("No such image")
 )
 
 type redisStorage struct {
@@ -81,6 +74,9 @@ func (s *redisStorage) RetrieveImage(id string) ([]string, error) {
 		return nil, ErrNoSuchImage
 	}
 	items := result.([]interface{})
+	if len(items) == 0 {
+		return nil, ErrNoSuchImage
+	}
 	images := make([]string, len(items))
 	for i, v := range items {
 		images[i] = string(v.([]byte))
