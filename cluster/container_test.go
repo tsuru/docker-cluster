@@ -1189,6 +1189,7 @@ func TestLogs(t *testing.T) {
 	defer server1.Close()
 	server2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		called = true
+		w.Write([]byte{1, 0, 0, 0, 0, 0, 0, 18})
 		w.Write([]byte("something happened"))
 	}))
 	defer server2.Close()
