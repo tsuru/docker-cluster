@@ -27,14 +27,14 @@ func TestRemoveImage(t *testing.T) {
 	}))
 	defer server2.Close()
 	cluster, err := New(nil, &mapStorage{},
-		Node{ID: "handler0", Address: server1.URL},
-		Node{ID: "handler1", Address: server2.URL},
+		Node{Address: server1.URL},
+		Node{Address: server2.URL},
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
 	name := "tsuru/python"
-	cluster.storage().StoreImage(name, "handler1")
+	cluster.storage().StoreImage(name, server2.URL)
 	err = cluster.RemoveImage(name)
 	if err != nil {
 		t.Fatal(err)
@@ -58,8 +58,8 @@ func TestRemoveImageNotFound(t *testing.T) {
 	}))
 	defer server2.Close()
 	cluster, err := New(nil, &mapStorage{},
-		Node{ID: "handler0", Address: server1.URL},
-		Node{ID: "handler1", Address: server2.URL},
+		Node{Address: server1.URL},
+		Node{Address: server2.URL},
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -82,8 +82,8 @@ func TestPullImage(t *testing.T) {
 	defer server2.Close()
 	var buf safe.Buffer
 	cluster, err := New(nil, &mapStorage{},
-		Node{ID: "handler0", Address: server1.URL},
-		Node{ID: "handler1", Address: server2.URL},
+		Node{Address: server1.URL},
+		Node{Address: server2.URL},
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -104,7 +104,7 @@ func TestPullImage(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	expected := []string{"handler0", "handler1"}
+	expected := []string{server1.URL, server2.URL}
 	if !reflect.DeepEqual(nodes, expected) {
 		t.Errorf("Wrong output: Want %q. Got %q.", expected, nodes)
 	}
@@ -120,8 +120,8 @@ func TestPullImageNotFound(t *testing.T) {
 	}))
 	defer server2.Close()
 	cluster, err := New(nil, &mapStorage{},
-		Node{ID: "handler0", Address: server1.URL},
-		Node{ID: "handler1", Address: server2.URL},
+		Node{Address: server1.URL},
+		Node{Address: server2.URL},
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -145,14 +145,14 @@ func TestPullImageSpecifyNode(t *testing.T) {
 	defer server2.Close()
 	var buf safe.Buffer
 	cluster, err := New(nil, &mapStorage{},
-		Node{ID: "handler0", Address: server1.URL},
-		Node{ID: "handler1", Address: server2.URL},
+		Node{Address: server1.URL},
+		Node{Address: server2.URL},
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
 	opts := docker.PullImageOptions{Repository: "tsuru/python", OutputStream: &buf}
-	err = cluster.PullImage(opts, docker.AuthConfiguration{}, "handler1")
+	err = cluster.PullImage(opts, docker.AuthConfiguration{}, server2.URL)
 	if err != nil {
 		t.Error(err)
 	}
@@ -177,15 +177,15 @@ func TestPullImageSpecifyMultipleNodes(t *testing.T) {
 	defer server3.Close()
 	var buf safe.Buffer
 	cluster, err := New(nil, &mapStorage{},
-		Node{ID: "handler0", Address: server1.URL},
-		Node{ID: "handler1", Address: server2.URL},
-		Node{ID: "handler2", Address: server3.URL},
+		Node{Address: server1.URL},
+		Node{Address: server2.URL},
+		Node{Address: server3.URL},
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
 	opts := docker.PullImageOptions{Repository: "tsuru/python", OutputStream: &buf}
-	err = cluster.PullImage(opts, docker.AuthConfiguration{}, "handler1", "handler2")
+	err = cluster.PullImage(opts, docker.AuthConfiguration{}, server2.URL, server3.URL)
 	if err != nil {
 		t.Error(err)
 	}
@@ -208,9 +208,9 @@ func TestPushImage(t *testing.T) {
 	}))
 	defer server2.Close()
 	var buf safe.Buffer
-	cluster, err := New(nil, &mapStorage{iMap: map[string][]string{"tsuru/ruby": {"handler0"}}},
-		Node{ID: "handler0", Address: server1.URL},
-		Node{ID: "handler1", Address: server2.URL},
+	cluster, err := New(nil, &mapStorage{iMap: map[string][]string{"tsuru/ruby": {server1.URL}}},
+		Node{Address: server1.URL},
+		Node{Address: server2.URL},
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -236,8 +236,8 @@ func TestPushImageNotFound(t *testing.T) {
 	}))
 	defer server2.Close()
 	cluster, err := New(nil, &mapStorage{},
-		Node{ID: "handler0", Address: server1.URL},
-		Node{ID: "handler1", Address: server2.URL},
+		Node{Address: server1.URL},
+		Node{Address: server2.URL},
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -260,10 +260,10 @@ func TestPushImageWithStorage(t *testing.T) {
 		w.Write([]byte("pushed"))
 	}))
 	defer server2.Close()
-	storage := mapStorage{iMap: map[string][]string{"tsuru/python": {"handler1"}}}
+	storage := mapStorage{iMap: map[string][]string{"tsuru/python": {server2.URL}}}
 	cluster, err := New(nil, &storage,
-		Node{ID: "handler0", Address: server1.URL},
-		Node{ID: "handler1", Address: server2.URL},
+		Node{Address: server1.URL},
+		Node{Address: server2.URL},
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -289,8 +289,8 @@ func TestImportImage(t *testing.T) {
 	}))
 	defer server2.Close()
 	cluster, err := New(nil, &mapStorage{},
-		Node{ID: "handler0", Address: server1.URL},
-		Node{ID: "handler1", Address: server2.URL},
+		Node{Address: server1.URL},
+		Node{Address: server2.URL},
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -321,8 +321,8 @@ func TestImportImageWithAbsentFile(t *testing.T) {
 	}))
 	defer server2.Close()
 	cluster, err := New(nil, &mapStorage{},
-		Node{ID: "handler0", Address: server1.URL},
-		Node{ID: "handler1", Address: server2.URL},
+		Node{Address: server1.URL},
+		Node{Address: server2.URL},
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -344,7 +344,7 @@ func TestBuildImage(t *testing.T) {
 	}))
 	defer server1.Close()
 	cluster, err := New(nil, &mapStorage{},
-		Node{ID: "handler0", Address: server1.URL},
+		Node{Address: server1.URL},
 	)
 	if err != nil {
 		t.Fatal(err)

@@ -12,7 +12,7 @@ func (c *Cluster) RemoveImage(name string) error {
 	nodes, err := c.getNodesForImage(name)
 	var nodesID []string
 	for _, node := range nodes {
-		nodesID = append(nodesID, node.id)
+		nodesID = append(nodesID, node.addr)
 	}
 	if err != nil {
 		return err
@@ -35,7 +35,7 @@ func (c *Cluster) RemoveImage(name string) error {
 func (c *Cluster) PullImage(opts docker.PullImageOptions, auth docker.AuthConfiguration, nodes ...string) error {
 	_, err := c.runOnNodes(func(n node) (interface{}, error) {
 		key := opts.Repository
-		c.storage().StoreImage(key, n.id)
+		c.storage().StoreImage(key, n.addr)
 		return nil, n.PullImage(opts, auth)
 	}, docker.ErrNoSuchImage, true, nodes...)
 	return err
@@ -44,26 +44,19 @@ func (c *Cluster) PullImage(opts docker.PullImageOptions, auth docker.AuthConfig
 // PushImage pushes an image to a remote registry server, returning an error in
 // case of failure.
 func (c *Cluster) PushImage(opts docker.PushImageOptions, auth docker.AuthConfiguration) error {
-	if nodes, err := c.getNodesForImage(opts.Name); err == nil {
-		for _, node := range nodes {
-			return node.PushImage(opts, auth)
-		}
-	} else if err != errStorageDisabled {
+	nodes, err := c.getNodesForImage(opts.Name)
+	if err != nil {
 		return err
 	}
-	_, err := c.runOnNodes(func(n node) (interface{}, error) {
-		return nil, n.PushImage(opts, auth)
-	}, docker.ErrNoSuchImage, false)
-	return err
+	for _, node := range nodes {
+		return node.PushImage(opts, auth)
+	}
+	return nil
 }
 
 func (c *Cluster) getNodesForImage(image string) ([]node, error) {
-	storage := c.storage()
-	if storage == nil {
-		return nil, errStorageDisabled
-	}
 	var nodes []node
-	hosts, err := storage.RetrieveImage(image)
+	hosts, err := c.storage().RetrieveImage(image)
 	if err != nil {
 		return nil, err
 	}
@@ -91,9 +84,9 @@ func (c *Cluster) BuildImage(buildOptions docker.BuildImageOptions) error {
 	if err != nil {
 		return err
 	}
-	nodeID := nodes[0].ID
+	nodeAddress := nodes[0].Address
 	node, err := c.getNode(func(Storage) (string, error) {
-		return nodeID, nil
+		return nodeAddress, nil
 	})
 	if err != nil {
 		return err
@@ -102,5 +95,5 @@ func (c *Cluster) BuildImage(buildOptions docker.BuildImageOptions) error {
 	if err != nil {
 		return err
 	}
-	return c.storage().StoreImage(buildOptions.Name, nodeID)
+	return c.storage().StoreImage(buildOptions.Name, nodeAddress)
 }

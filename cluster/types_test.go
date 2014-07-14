@@ -95,27 +95,29 @@ func (s *mapStorage) StoreNode(node Node) error {
 	return nil
 }
 
-func (s *mapStorage) RetrieveNode(id string) (string, error) {
-	s.nMut.Lock()
-	defer s.nMut.Unlock()
-	for _, node := range s.nodes {
-		if node.ID == id {
-			return node.Address, nil
-		}
-	}
-	return "", errors.New("no such node")
-}
-
 func (s *mapStorage) RetrieveNodes() ([]Node, error) {
 	return s.nodes, nil
 }
 
-func (s *mapStorage) RemoveNode(id string) error {
+func (s *mapStorage) RetrieveNodesByMetadata(metadata map[string]string) ([]Node, error) {
+	filteredNodes := []Node{}
+	for _, node := range s.nodes {
+		for key, value := range metadata {
+			nodeVal, ok := node.Metadata[key]
+			if ok && nodeVal == value {
+				filteredNodes = append(filteredNodes, node)
+			}
+		}
+	}
+	return filteredNodes, nil
+}
+
+func (s *mapStorage) RemoveNode(addr string) error {
 	s.nMut.Lock()
 	defer s.nMut.Unlock()
 	index := -1
 	for i, node := range s.nodes {
-		if node.ID == id {
+		if node.Address == addr {
 			index = i
 		}
 	}
@@ -127,58 +129,59 @@ func (s *mapStorage) RemoveNode(id string) error {
 	return nil
 }
 
+type failingStorage struct{}
+
+func (failingStorage) StoreContainer(container, host string) error {
+	return errors.New("storage error")
+}
+func (failingStorage) RetrieveContainer(container string) (string, error) {
+	return "", errors.New("storage error")
+}
+func (failingStorage) RemoveContainer(container string) error {
+	return errors.New("storage error")
+}
+func (failingStorage) StoreImage(image, host string) error {
+	return errors.New("storage error")
+}
+func (failingStorage) RetrieveImage(image string) ([]string, error) {
+	return nil, errors.New("storage error")
+}
+func (failingStorage) RemoveImage(image string) error {
+	return errors.New("storage error")
+}
+func (failingStorage) StoreNode(node Node) error {
+	return errors.New("storage error")
+}
+func (failingStorage) RetrieveNodesByMetadata(metadata map[string]string) ([]Node, error) {
+	return nil, errors.New("storage error")
+}
+func (failingStorage) RetrieveNodes() ([]Node, error) {
+	return nil, errors.New("storage error")
+}
+func (failingStorage) RemoveNode(address string) error {
+	return errors.New("storage error")
+}
+
 type fakeScheduler struct{}
 
-func (fakeScheduler) Schedule(opts docker.CreateContainerOptions, schedulerOpts SchedulerOptions) (Node, error) {
+func (fakeScheduler) Schedule(c *Cluster, opts docker.CreateContainerOptions, schedulerOpts SchedulerOptions) (Node, error) {
 	return Node{}, nil
-}
-
-func (fakeScheduler) Nodes() ([]Node, error) {
-	return nil, nil
-}
-
-func (s fakeScheduler) NodesForOptions(schedulerOpts SchedulerOptions) ([]Node, error) {
-	return s.Nodes()
 }
 
 type failingScheduler struct{}
 
-func (failingScheduler) Schedule(opts docker.CreateContainerOptions, schedulerOpts SchedulerOptions) (Node, error) {
+func (failingScheduler) Schedule(c *Cluster, opts docker.CreateContainerOptions, schedulerOpts SchedulerOptions) (Node, error) {
 	return Node{}, errors.New("Cannot schedule")
-}
-
-func (failingScheduler) Nodes() ([]Node, error) {
-	return nil, errors.New("Cannot retrieve list of nodes")
-}
-
-func (s failingScheduler) NodesForOptions(schedulerOpts SchedulerOptions) ([]Node, error) {
-	return s.Nodes()
 }
 
 type optsScheduler struct {
 	roundRobin
 }
 
-func (s optsScheduler) Schedule(opts docker.CreateContainerOptions, schedulerOpts SchedulerOptions) (Node, error) {
+func (s optsScheduler) Schedule(c *Cluster, opts docker.CreateContainerOptions, schedulerOpts SchedulerOptions) (Node, error) {
 	optStr := schedulerOpts.(string)
 	if optStr != "myOpt" {
 		return Node{}, fmt.Errorf("Invalid option %s", optStr)
 	}
-	return s.roundRobin.Schedule(opts, schedulerOpts)
-}
-
-func (s optsScheduler) Nodes() ([]Node, error) {
-	return s.roundRobin.Nodes()
-}
-
-func (s optsScheduler) NodesForOptions(schedulerOpts SchedulerOptions) ([]Node, error) {
-	return s.roundRobin.NodesForOptions(schedulerOpts)
-}
-
-func (s optsScheduler) Register(params map[string]string) error {
-	return s.roundRobin.Register(params)
-}
-
-func (s optsScheduler) Unregister(params map[string]string) error {
-	return s.roundRobin.Unregister(params)
+	return s.roundRobin.Schedule(c, opts, schedulerOpts)
 }

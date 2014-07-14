@@ -19,15 +19,15 @@ func TestNewCluster(t *testing.T) {
 		fail  bool
 	}{
 		{
-			[]Node{{ID: "something", Address: "http://localhost:8083"}},
+			[]Node{{Address: "http://localhost:8083"}},
 			false,
 		},
 		{
-			[]Node{{ID: "something", Address: ""}, {ID: "otherthing", Address: "http://localhost:8083"}},
+			[]Node{{Address: ""}, {Address: "http://localhost:8083"}},
 			true,
 		},
 		{
-			[]Node{{ID: "something", Address: "http://localhost:8083"}},
+			[]Node{{Address: "http://localhost:8083"}},
 			false,
 		},
 	}
@@ -39,43 +39,38 @@ func TestNewCluster(t *testing.T) {
 	}
 }
 
-func TestRegister(t *testing.T) {
-	scheduler := &roundRobin{stor: &mapStorage{}}
-	cluster, err := New(scheduler, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = cluster.Register(map[string]string{"ID": "abcdef", "address": "http://localhost:4243"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	node := scheduler.next()
-	if node.ID != "abcdef" {
-		t.Errorf("Register failed. Got wrong ID. Want %q. Got %q.", "abcdef", node.ID)
-	}
-	err = cluster.Register(map[string]string{"ID": "abcdefg", "address": "http://localhost:4243"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	node = scheduler.next()
-	if node.ID != "abcdefg" {
-		t.Errorf("Register failed. Got wrong ID. Want %q. Got %q.", "abcdefg", node.ID)
-	}
-	node = scheduler.next()
-	if node.ID != "abcdef" {
-		t.Errorf("Register failed. Got wrong ID. Want %q. Got %q.", "abcdef", node.ID)
+func TestNewFailure(t *testing.T) {
+	_, err := New(&roundRobin{}, nil)
+	if err != errStorageMandatory {
+		t.Fatalf("expected errStorageMandatory error, got: %#v", err)
 	}
 }
 
-func TestRegisterSchedulerUnableToRegister(t *testing.T) {
-	var scheduler fakeScheduler
+func TestRegister(t *testing.T) {
+	scheduler := &roundRobin{}
 	cluster, err := New(scheduler, &mapStorage{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = cluster.Register(map[string]string{"ID": "abcdef", "address": ""})
-	if err != ErrImmutableCluster {
-		t.Error(err)
+	err = cluster.Register("http://localhost1:4243", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	node := scheduler.next(cluster)
+	if node.Address != "http://localhost1:4243" {
+		t.Errorf("Register failed. Got wrong Address. Want %q. Got %q.", "http://localhost1:4243", node.Address)
+	}
+	err = cluster.Register("http://localhost2:4243", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	node = scheduler.next(cluster)
+	if node.Address != "http://localhost2:4243" {
+		t.Errorf("Register failed. Got wrong ID. Want %q. Got %q.", "http://localhost2:4243", node.Address)
+	}
+	node = scheduler.next(cluster)
+	if node.Address != "http://localhost1:4243" {
+		t.Errorf("Register failed. Got wrong ID. Want %q. Got %q.", "http://localhost1:4243", node.Address)
 	}
 }
 
@@ -84,59 +79,71 @@ func TestRegisterFailure(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = cluster.Register(map[string]string{"ID": "abcdef", "address": ""})
+	err = cluster.Register("", nil)
 	if err == nil {
 		t.Error("Expected non-nil error, got <nil>.")
 	}
 }
 
 func TestUnregister(t *testing.T) {
-	scheduler := &roundRobin{stor: &mapStorage{}}
-	cluster, err := New(scheduler, nil)
+	scheduler := &roundRobin{}
+	cluster, err := New(scheduler, &mapStorage{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = cluster.Register(map[string]string{"ID": "abcdef", "address": "http://localhost:4243"})
+	err = cluster.Register("http://localhost1:4243", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = cluster.Unregister(map[string]string{"ID": "abcdef", "address": "http://localhost:4243"})
+	err = cluster.Unregister("http://localhost1:4243")
 	defer func() {
 		if r := recover(); r == nil {
 			t.Fatal("Should have recovered scheduler.next() panic.")
 		}
 	}()
-	scheduler.next()
+	scheduler.next(cluster)
 }
 
-func TestUnregisterUnableToRegister(t *testing.T) {
-	var scheduler fakeScheduler
-	cluster, err := New(scheduler, &mapStorage{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = cluster.Unregister(map[string]string{"ID": "abcdef", "address": ""})
-	if err != ErrImmutableCluster {
-		t.Error(err)
-	}
-}
-
-func TestNodesShouldGetSchedulerNodes(t *testing.T) {
+func TestNodesShouldGetClusterNodes(t *testing.T) {
 	cluster, err := New(nil, &mapStorage{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	params := map[string]string{"ID": "abcdef", "address": "http://localhost:4243"}
-	err = cluster.Register(params)
+	err = cluster.Register("http://localhost:4243", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer cluster.Unregister(params)
+	defer cluster.Unregister("http://localhost:4243")
 	nodes, err := cluster.Nodes()
 	if err != nil {
 		t.Fatal(err)
 	}
-	expected := []Node{{ID: "abcdef", Address: "http://localhost:4243"}}
+	expected := []Node{{Address: "http://localhost:4243"}}
+	if !reflect.DeepEqual(nodes, expected) {
+		t.Errorf("Expected nodes to be equal %q, got %q", expected, nodes)
+	}
+}
+
+func TestNodesForMetadataShouldGetClusterNodesWithMetadata(t *testing.T) {
+	cluster, err := New(nil, &mapStorage{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = cluster.Register("http://server1:4243", map[string]string{"key1": "val1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = cluster.Register("http://server2:4243", map[string]string{"key1": "val2"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cluster.Unregister("http://server1:4243")
+	defer cluster.Unregister("http://server2:4243")
+	nodes, err := cluster.NodesForMetadata(map[string]string{"key1": "val2"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	expected := []Node{{Address: "http://server2:4243", Metadata: map[string]string{"key1": "val2"}}}
 	if !reflect.DeepEqual(nodes, expected) {
 		t.Errorf("Expected nodes to be equal %q, got %q", expected, nodes)
 	}
@@ -166,8 +173,8 @@ func TestRunOnNodesStress(t *testing.T) {
 	}))
 	defer server.Close()
 	id := "e90302"
-	storage := &mapStorage{cMap: map[string]string{id: "server0"}}
-	cluster, err := New(nil, storage, Node{ID: "server0", Address: server.URL})
+	storage := &mapStorage{cMap: map[string]string{id: server.URL}}
+	cluster, err := New(nil, storage, Node{Address: server.URL})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -182,5 +189,49 @@ func TestRunOnNodesStress(t *testing.T) {
 		if container.Path != "date" {
 			t.Errorf("InspectContainer(%q): Wrong Path. Want %q. Got %q.", id, "date", container.Path)
 		}
+	}
+}
+
+func TestClusterNodes(t *testing.T) {
+	c, err := New(&roundRobin{}, &mapStorage{})
+	if err != nil {
+		t.Fatalf("unexpected error %s", err.Error())
+	}
+	nodes := []Node{
+		{Address: "http://localhost:8080"},
+		{Address: "http://localhost:8081"},
+	}
+	for _, n := range nodes {
+		c.Register(n.Address, nil)
+	}
+	got, err := c.Nodes()
+	if err != nil {
+		t.Error(err)
+	}
+	if !reflect.DeepEqual(got, nodes) {
+		t.Errorf("roundRobin.Nodes(): wrong result. Want %#v. Got %#v.", nodes, got)
+	}
+}
+
+func TestClusterNodesUnregister(t *testing.T) {
+	c, err := New(&roundRobin{}, &mapStorage{})
+	if err != nil {
+		t.Fatalf("unexpected error %s", err.Error())
+	}
+	nodes := []Node{
+		{Address: "http://localhost:8080"},
+		{Address: "http://localhost:8081"},
+	}
+	for _, n := range nodes {
+		c.Register(n.Address, nil)
+	}
+	c.Unregister(nodes[0].Address)
+	got, err := c.Nodes()
+	if err != nil {
+		t.Error(err)
+	}
+	expected := []Node{{Address: "http://localhost:8081"}}
+	if !reflect.DeepEqual(got, expected) {
+		t.Errorf("roundRobin.Nodes(): wrong result. Want %#v. Got %#v.", nodes, got)
 	}
 }

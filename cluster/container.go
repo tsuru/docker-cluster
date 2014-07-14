@@ -21,32 +21,32 @@ func (c *Cluster) CreateContainer(opts docker.CreateContainerOptions, nodes ...s
 // the scheduler.
 func (c *Cluster) CreateContainerSchedulerOpts(opts docker.CreateContainerOptions, schedulerOpts SchedulerOptions, nodes ...string) (string, *docker.Container, error) {
 	var (
-		id        string
+		addr      string
 		container *docker.Container
 		err       error
 	)
 	if len(nodes) > 0 {
-		id = nodes[0]
+		addr = nodes[0]
 	} else {
-		node, err := c.scheduler.Schedule(opts, schedulerOpts)
+		node, err := c.scheduler.Schedule(c, opts, schedulerOpts)
 		if err != nil {
-			return id, container, err
+			return addr, container, err
 		}
-		id = node.ID
+		addr = node.Address
 	}
-	container, err = c.createContainerInNode(opts, id)
+	container, err = c.createContainerInNode(opts, addr)
 	if err != nil {
-		return id, container, err
+		return addr, container, err
 	}
 	if storage := c.storage(); storage != nil {
-		storage.StoreContainer(container.ID, id)
+		storage.StoreContainer(container.ID, addr)
 	}
-	return id, container, err
+	return addr, container, err
 }
 
-func (c *Cluster) createContainerInNode(opts docker.CreateContainerOptions, nodeID string) (*docker.Container, error) {
+func (c *Cluster) createContainerInNode(opts docker.CreateContainerOptions, nodeAddress string) (*docker.Container, error) {
 	node, err := c.getNode(func(Storage) (string, error) {
-		return nodeID, nil
+		return nodeAddress, nil
 	})
 	if err != nil {
 		return nil, err
@@ -58,38 +58,26 @@ func (c *Cluster) createContainerInNode(opts docker.CreateContainerOptions, node
 // InspectContainer returns information about a container by its ID, getting
 // the information from the right node.
 func (c *Cluster) InspectContainer(id string) (*docker.Container, error) {
-	if node, err := c.getNodeForContainer(id); err == nil {
-		return node.InspectContainer(id)
-	} else if err != errStorageDisabled {
-		return nil, err
-	}
-	container, err := c.runOnNodes(func(n node) (interface{}, error) {
-		return n.InspectContainer(id)
-	}, &docker.NoSuchContainer{ID: id}, false)
-
+	node, err := c.getNodeForContainer(id)
 	if err != nil {
 		return nil, err
 	}
-	return container.(*docker.Container), err
+	return node.InspectContainer(id)
 }
 
 // KillContainer kills a container, returning an error in case of failure.
 func (c *Cluster) KillContainer(opts docker.KillContainerOptions) error {
-	if node, err := c.getNodeForContainer(opts.ID); err == nil {
-		return node.KillContainer(opts)
-	} else if err != errStorageDisabled {
+	node, err := c.getNodeForContainer(opts.ID)
+	if err != nil {
 		return err
 	}
-	_, err := c.runOnNodes(func(n node) (interface{}, error) {
-		return nil, n.KillContainer(opts)
-	}, &docker.NoSuchContainer{ID: opts.ID}, false)
-	return err
+	return node.KillContainer(opts)
 }
 
 // ListContainers returns a slice of all containers in the cluster matching the
 // given criteria.
 func (c *Cluster) ListContainers(opts docker.ListContainersOptions) ([]docker.APIContainers, error) {
-	nodes, err := c.scheduler.Nodes()
+	nodes, err := c.Nodes()
 	if err != nil {
 		return nil, err
 	}
@@ -106,7 +94,7 @@ func (c *Cluster) ListContainers(opts docker.ListContainersOptions) ([]docker.AP
 			} else {
 				result <- containers
 			}
-		}(node{id: n.ID, Client: client})
+		}(node{addr: n.Address, Client: client})
 	}
 	wg.Wait()
 	var group []docker.APIContainers
@@ -123,165 +111,110 @@ func (c *Cluster) ListContainers(opts docker.ListContainersOptions) ([]docker.AP
 
 // RemoveContainer removes a container from the cluster.
 func (c *Cluster) RemoveContainer(opts docker.RemoveContainerOptions) error {
-	err := c.removeFromStorage(opts)
-	if err != errStorageDisabled {
-		return err
-	}
-	_, err = c.runOnNodes(func(n node) (interface{}, error) {
-		return nil, n.RemoveContainer(opts)
-	}, &docker.NoSuchContainer{ID: opts.ID}, false)
-
-	return err
+	return c.removeFromStorage(opts)
 }
 
 func (c *Cluster) removeFromStorage(opts docker.RemoveContainerOptions) error {
-	if node, err := c.getNodeForContainer(opts.ID); err == nil {
-		err = node.RemoveContainer(opts)
-		if err == nil {
-			c.storage().RemoveContainer(opts.ID)
-		}
-		return err
-	} else if err != errStorageDisabled {
+	node, err := c.getNodeForContainer(opts.ID)
+	if err != nil {
 		return err
 	}
-	return errStorageDisabled
+	err = node.RemoveContainer(opts)
+	if err != nil {
+		return err
+	}
+	return c.storage().RemoveContainer(opts.ID)
 }
 
 func (c *Cluster) StartContainer(id string, hostConfig *docker.HostConfig) error {
-	if node, err := c.getNodeForContainer(id); err == nil {
-		return node.StartContainer(id, hostConfig)
-	} else if err != errStorageDisabled {
+	node, err := c.getNodeForContainer(id)
+	if err != nil {
 		return err
 	}
-	_, err := c.runOnNodes(func(n node) (interface{}, error) {
-		return nil, n.StartContainer(id, hostConfig)
-	}, &docker.NoSuchContainer{ID: id}, false)
-
-	return err
+	return node.StartContainer(id, hostConfig)
 }
 
 // StopContainer stops a container, killing it after the given timeout, if it
 // fails to stop nicely.
 func (c *Cluster) StopContainer(id string, timeout uint) error {
-	if node, err := c.getNodeForContainer(id); err == nil {
-		return node.StopContainer(id, timeout)
-	} else if err != errStorageDisabled {
+	node, err := c.getNodeForContainer(id)
+	if err != nil {
 		return err
 	}
-	_, err := c.runOnNodes(func(n node) (interface{}, error) {
-		return nil, n.StopContainer(id, timeout)
-	}, &docker.NoSuchContainer{ID: id}, false)
-
-	return err
+	return node.StopContainer(id, timeout)
 }
 
 // RestartContainer restarts a container, killing it after the given timeout,
 // if it fails to stop nicely.
 func (c *Cluster) RestartContainer(id string, timeout uint) error {
-	if node, err := c.getNodeForContainer(id); err == nil {
-		return node.RestartContainer(id, timeout)
-	} else if err != errStorageDisabled {
+	node, err := c.getNodeForContainer(id)
+	if err != nil {
 		return err
 	}
-	_, err := c.runOnNodes(func(n node) (interface{}, error) {
-		return nil, n.RestartContainer(id, timeout)
-	}, &docker.NoSuchContainer{ID: id}, false)
-	return err
+	return node.RestartContainer(id, timeout)
 }
 
 // PauseContainer changes the container to the paused state.
 func (c *Cluster) PauseContainer(id string) error {
-	if node, err := c.getNodeForContainer(id); err == nil {
-		return node.PauseContainer(id)
-	} else if err != errStorageDisabled {
+	node, err := c.getNodeForContainer(id)
+	if err != nil {
 		return err
 	}
-	_, err := c.runOnNodes(func(n node) (interface{}, error) {
-		return nil, n.PauseContainer(id)
-	}, &docker.NoSuchContainer{ID: id}, false)
-	return err
+	return node.PauseContainer(id)
 }
 
 // UnpauseContainer removes the container from the paused state.
 func (c *Cluster) UnpauseContainer(id string) error {
-	if node, err := c.getNodeForContainer(id); err == nil {
-		return node.UnpauseContainer(id)
-	} else if err != errStorageDisabled {
+	node, err := c.getNodeForContainer(id)
+	if err != nil {
 		return err
 	}
-	_, err := c.runOnNodes(func(n node) (interface{}, error) {
-		return nil, n.UnpauseContainer(id)
-	}, &docker.NoSuchContainer{ID: id}, false)
-	return err
+	return node.UnpauseContainer(id)
 }
 
 // WaitContainer blocks until the given container stops, returning the exit
 // code of the container command.
 func (c *Cluster) WaitContainer(id string) (int, error) {
-	if node, err := c.getNodeForContainer(id); err == nil {
-		return node.WaitContainer(id)
-	} else if err != errStorageDisabled {
-		return -1, err
-	}
-	exit, err := c.runOnNodes(func(n node) (interface{}, error) {
-		return n.WaitContainer(id)
-	}, &docker.NoSuchContainer{ID: id}, false)
-
+	node, err := c.getNodeForContainer(id)
 	if err != nil {
 		return -1, err
 	}
-	return exit.(int), nil
+	return node.WaitContainer(id)
 }
 
 // AttachToContainer attaches to a container, using the given options.
 func (c *Cluster) AttachToContainer(opts docker.AttachToContainerOptions) error {
-	if node, err := c.getNodeForContainer(opts.Container); err == nil {
-		return node.AttachToContainer(opts)
-	} else if err != errStorageDisabled {
+	node, err := c.getNodeForContainer(opts.Container)
+	if err != nil {
 		return err
 	}
-	_, err := c.runOnNodes(func(n node) (interface{}, error) {
-		return nil, n.AttachToContainer(opts)
-	}, &docker.NoSuchContainer{ID: opts.Container}, false)
-	return err
+	return node.AttachToContainer(opts)
 }
 
 // Logs retrieves the logs of the specified container.
 func (c *Cluster) Logs(opts docker.LogsOptions) error {
-	if node, err := c.getNodeForContainer(opts.Container); err == nil {
-		return node.Logs(opts)
-	} else if err != errStorageDisabled {
+	node, err := c.getNodeForContainer(opts.Container)
+	if err != nil {
 		return err
 	}
-	_, err := c.runOnNodes(func(n node) (interface{}, error) {
-		return nil, n.Logs(opts)
-	}, &docker.NoSuchContainer{ID: opts.Container}, false)
-	return err
+	return node.Logs(opts)
 }
 
 // CommitContainer commits a container and returns the image id.
 func (c *Cluster) CommitContainer(opts docker.CommitContainerOptions) (*docker.Image, error) {
-	if node, err := c.getNodeForContainer(opts.Container); err == nil {
-		image, err := node.CommitContainer(opts)
-		if err == nil {
-			key := opts.Repository
-			if key == "" {
-				key = image.ID
-			}
-			c.storage().StoreImage(key, node.id)
-		}
-		return image, err
-	} else if err != errStorageDisabled {
-		return nil, err
-	}
-	image, err := c.runOnNodes(func(n node) (interface{}, error) {
-		return n.CommitContainer(opts)
-	}, &docker.NoSuchContainer{ID: opts.Container}, false)
-
+	node, err := c.getNodeForContainer(opts.Container)
 	if err != nil {
 		return nil, err
 	}
-	return image.(*docker.Image), nil
+	image, err := node.CommitContainer(opts)
+	if err != nil {
+		return nil, err
+	}
+	key := opts.Repository
+	if key == "" {
+		key = image.ID
+	}
+	return image, c.storage().StoreImage(key, node.addr)
 }
 
 // ExportContainer exports a container as a tar and writes

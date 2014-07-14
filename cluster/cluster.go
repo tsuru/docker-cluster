@@ -21,11 +21,7 @@ var (
 	// the cluster.
 	ErrUnknownNode = errors.New("Unknown node")
 
-	// ErrImmutableCluster is the error returned by Register when the cluster is
-	// immutable, meaning that no new nodes can be registered.
-	ErrImmutableCluster = errors.New("Immutable cluster")
-
-	errStorageDisabled = errors.New("Storage is disabled")
+	errStorageMandatory = errors.New("Storage parameter is mandatory")
 )
 
 // ContainerStorage provides methods to store and retrieve information about
@@ -49,9 +45,9 @@ type ImageStorage interface {
 
 type NodeStorage interface {
 	StoreNode(node Node) error
-	RetrieveNode(id string) (string, error)
+	RetrieveNodesByMetadata(metadata map[string]string) ([]Node, error)
 	RetrieveNodes() ([]Node, error)
-	RemoveNode(id string) error
+	RemoveNode(address string) error
 }
 
 type Storage interface {
@@ -63,8 +59,8 @@ type Storage interface {
 // Node represents a host running Docker. Each node has an ID and an address
 // (in the form <scheme>://<host>:<port>/).
 type Node struct {
-	ID      string
-	Address string
+	Address  string
+	Metadata map[string]string
 }
 
 // Cluster is the basic type of the package. It manages internal nodes, and
@@ -72,30 +68,30 @@ type Node struct {
 // which creates a container in one node of the cluster.
 type Cluster struct {
 	scheduler Scheduler
-
-	stor  Storage
-	mutex sync.RWMutex
+	stor      Storage
 }
 
-// New creates a new Cluster, composed by the given nodes.
+// New creates a new Cluster, initially composed by the given nodes.
 //
-// The parameter Scheduler defines the scheduling strategy, and cannot change.
-// It is optional, when set to nil, the cluster will use a round robin strategy
-// defined internaly.
-// The parameter storage is the storage the cluster instance will use.
+// The scheduler parameter defines the scheduling strategy. It defaults
+// to round robin if nil.
+// The storage parameter is the storage the cluster instance will use.
 func New(scheduler Scheduler, storage Storage, nodes ...Node) (*Cluster, error) {
 	var (
 		c   Cluster
 		err error
 	)
+	if storage == nil {
+		return nil, errStorageMandatory
+	}
 	c.stor = storage
 	c.scheduler = scheduler
 	if scheduler == nil {
-		c.scheduler = &roundRobin{lastUsed: -1, stor: storage}
+		c.scheduler = &roundRobin{lastUsed: -1}
 	}
 	if len(nodes) > 0 {
 		for _, n := range nodes {
-			err = c.Register(map[string]string{"address": n.Address, "ID": n.ID})
+			err = c.Register(n.Address, n.Metadata)
 			if err != nil {
 				return &c, err
 			}
@@ -105,39 +101,38 @@ func New(scheduler Scheduler, storage Storage, nodes ...Node) (*Cluster, error) 
 }
 
 // Register adds new nodes to the cluster.
-func (c *Cluster) Register(params map[string]string) error {
-	if r, ok := c.scheduler.(Registrable); ok {
-		return r.Register(params)
+func (c *Cluster) Register(address string, metadata map[string]string) error {
+	if address == "" {
+		return errors.New("Invalid address")
 	}
-	return ErrImmutableCluster
+	node := Node{
+		Address:  address,
+		Metadata: metadata,
+	}
+	return c.storage().StoreNode(node)
 }
 
 // Unregister removes nodes from the cluster.
-func (c *Cluster) Unregister(params map[string]string) error {
-	if r, ok := c.scheduler.(Registrable); ok {
-		return r.Unregister(params)
-	}
-	return ErrImmutableCluster
+func (c *Cluster) Unregister(address string) error {
+	return c.storage().RemoveNode(address)
 }
 
 func (c *Cluster) Nodes() ([]Node, error) {
-	return c.scheduler.Nodes()
+	return c.storage().RetrieveNodes()
 }
 
-func (c *Cluster) NodesForOptions(schedulerOpts SchedulerOptions) ([]Node, error) {
-	return c.scheduler.NodesForOptions(schedulerOpts)
+func (c *Cluster) NodesForMetadata(metadata map[string]string) ([]Node, error) {
+	return c.storage().RetrieveNodesByMetadata(metadata)
 }
 
 func (c *Cluster) storage() Storage {
-	c.mutex.RLock()
-	defer c.mutex.RUnlock()
 	return c.stor
 }
 
 type nodeFunc func(node) (interface{}, error)
 
 func (c *Cluster) runOnNodes(fn nodeFunc, errNotFound error, wait bool, nodeIDs ...string) (interface{}, error) {
-	nodes, err := c.scheduler.Nodes()
+	nodes, err := c.Nodes()
 	if err != nil {
 		return nil, err
 	}
@@ -161,7 +156,7 @@ func (c *Cluster) runOnNodes(fn nodeFunc, errNotFound error, wait bool, nodeIDs 
 			} else if !reflect.DeepEqual(err, errNotFound) {
 				errChan <- err
 			}
-		}(node{id: n.ID, Client: client})
+		}(node{addr: n.Address, Client: client})
 	}
 	if wait {
 		wg.Wait()
@@ -197,7 +192,7 @@ func (c *Cluster) filterNodes(nodes []Node, ids []string) []Node {
 	filteredNodes := make([]Node, 0, len(nodes))
 	for _, node := range nodes {
 		for _, id := range ids {
-			if node.ID == id {
+			if node.Address == id {
 				filteredNodes = append(filteredNodes, node)
 				break
 			}
@@ -209,21 +204,18 @@ func (c *Cluster) filterNodes(nodes []Node, ids []string) []Node {
 func (c *Cluster) getNode(retrieveFn func(Storage) (string, error)) (node, error) {
 	var n node
 	storage := c.storage()
-	if storage == nil {
-		return n, errStorageDisabled
-	}
-	id, err := retrieveFn(storage)
+	address, err := retrieveFn(storage)
 	if err != nil {
 		return n, err
 	}
-	nodes, err := c.scheduler.Nodes()
+	nodes, err := c.Nodes()
 	if err != nil {
 		return n, err
 	}
 	for _, nd := range nodes {
-		if nd.ID == id {
+		if nd.Address == address {
 			client, _ := docker.NewClient(nd.Address)
-			return node{id: nd.ID, Client: client, edp: nd.Address}, nil
+			return node{addr: nd.Address, Client: client}, nil
 		}
 	}
 	return n, ErrUnknownNode

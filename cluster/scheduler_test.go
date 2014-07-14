@@ -6,78 +6,46 @@ package cluster
 
 import (
 	"github.com/fsouza/go-dockerclient"
-	"reflect"
 	"testing"
 )
 
 func TestRoundRobinSchedule(t *testing.T) {
-	scheduler := &roundRobin{stor: &mapStorage{}}
-	scheduler.Register(map[string]string{"ID": "node0", "address": "url1"})
-	scheduler.Register(map[string]string{"ID": "node1", "address": "url2"})
+	c, err := New(&roundRobin{}, &mapStorage{})
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err.Error())
+	}
+	c.Register("url1", nil)
+	c.Register("url2", nil)
 	opts := docker.CreateContainerOptions{Config: &docker.Config{}}
-	node, err := scheduler.Schedule(opts, nil)
+	node, err := c.scheduler.Schedule(c, opts, nil)
 	if err != nil {
 		t.Error(err)
 	}
-	if node.ID != "node0" {
-		t.Errorf("roundRobin.Schedule(): wrong node ID. Want %q. Got %q.", "node0", node.ID)
+	if node.Address != "url1" {
+		t.Errorf("roundRobin.Schedule(): wrong node ID. Want %q. Got %q.", "url1", node.Address)
 	}
-	node, _ = scheduler.Schedule(opts, nil)
-	if node.ID != "node1" {
-		t.Errorf("roundRobin.Schedule(): wrong node ID. Want %q. Got %q.", "node1", node.ID)
+	node, _ = c.scheduler.Schedule(c, opts, nil)
+	if node.Address != "url2" {
+		t.Errorf("roundRobin.Schedule(): wrong node ID. Want %q. Got %q.", "url2", node.Address)
 	}
-	node, _ = scheduler.Schedule(opts, nil)
-	if node.ID != "node0" {
-		t.Errorf("roundRobin.Schedule(): wrong node ID. Want %q. Got %q.", "node0", node.ID)
+	node, _ = c.scheduler.Schedule(c, opts, nil)
+	if node.Address != "url1" {
+		t.Errorf("roundRobin.Schedule(): wrong node ID. Want %q. Got %q.", "url1", node.Address)
 	}
 }
 
-func TestNextEmpty(t *testing.T) {
+func TestScheduleEmpty(t *testing.T) {
 	defer func() {
 		expected := "No nodes available"
 		r := recover().(string)
 		if r != expected {
-			t.Fatalf("next(): wrong panic message. Want %q. Got %q.", expected, r)
+			t.Fatalf("Schedule(): wrong panic message. Want %q. Got %q.", expected, r)
 		}
 	}()
-	scheduler := &roundRobin{stor: &mapStorage{}}
-	scheduler.next()
-}
-
-func TestRoundRobinNodes(t *testing.T) {
-	nodes := []Node{
-		{ID: "server0", Address: "http://localhost:8080"},
-		{ID: "server1", Address: "http://localhost:8081"},
-	}
-	scheduler := &roundRobin{stor: &mapStorage{}}
-	for _, n := range nodes {
-		scheduler.Register(map[string]string{"address": n.Address, "ID": n.ID})
-	}
-	got, err := scheduler.Nodes()
+	c, err := New(&roundRobin{}, &mapStorage{})
 	if err != nil {
-		t.Error(err)
+		t.Fatalf("unexpected error: %s", err.Error())
 	}
-	if !reflect.DeepEqual(got, nodes) {
-		t.Errorf("roundRobin.Nodes(): wrong result. Want %#v. Got %#v.", nodes, got)
-	}
-}
-
-func TestRoundRobinNodesUnregister(t *testing.T) {
-	nodes := []Node{
-		{ID: "server0", Address: "http://localhost:8080"},
-		{ID: "server1", Address: "http://localhost:8081"},
-	}
-	scheduler := &roundRobin{stor: &mapStorage{}}
-	for _, n := range nodes {
-		scheduler.Register(map[string]string{"address": n.Address, "ID": n.ID})
-	}
-	scheduler.Unregister(map[string]string{"address": nodes[0].Address, "ID": nodes[0].ID})
-	got, err := scheduler.Nodes()
-	if err != nil {
-		t.Error(err)
-	}
-	expected := []Node{{ID: "server1", Address: "http://localhost:8081"}}
-	if !reflect.DeepEqual(got, expected) {
-		t.Errorf("roundRobin.Nodes(): wrong result. Want %#v. Got %#v.", nodes, got)
-	}
+	opts := docker.CreateContainerOptions{Config: &docker.Config{}}
+	c.scheduler.Schedule(c, opts, nil)
 }
