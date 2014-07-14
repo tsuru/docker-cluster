@@ -8,3 +8,6 @@ install:
   - go get github.com/tsuru/tsuru/safe
 script:
   - go test -race ./...
+services:
+  - redis-server
+  - mongodb
