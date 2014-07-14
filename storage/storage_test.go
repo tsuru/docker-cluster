@@ -106,7 +106,7 @@ func testStorageStoreRetrieveNodes(storage cluster.Storage, t *testing.T) {
 	if !reflect.DeepEqual(node2.Metadata, nodes[1].Metadata) {
 		t.Errorf("unexpected node metadata. expected: %#v got: %#v", node2.Metadata, nodes[1].Metadata)
 	}
-	if nodes[0].Metadata != nil && !reflect.DeepEqual(nodes[0].Metadata, map[string]string{}) {
+	if !reflect.DeepEqual(nodes[0].Metadata, map[string]string{}) {
 		t.Errorf("unexpected node metadata. expected: %#v got: %#v", node1.Metadata, nodes[0].Metadata)
 	}
 }
