@@ -573,63 +573,35 @@ func TestRedisStorageStoreNode(t *testing.T) {
 	storage.pool = redis.NewPool(func() (redis.Conn, error) {
 		return &conn, nil
 	}, 3)
-	id := "server01"
 	address := "http://docker-node01.com:4243"
-	err := storage.StoreNode(cluster.Node{ID: id, Address: address})
+	err := storage.StoreNode(cluster.Node{Address: address})
 	if err != nil {
 		t.Errorf("Got unexpected %s error", err.Error)
 	}
-	cmd := conn.cmds[1]
-	expectedCmd := "SET"
+	cmd := conn.cmds[0]
+	expectedCmd := "LPUSH"
 	if cmd.cmd != expectedCmd {
-		t.Errorf("StoreNode(%q, %q): want command %q. Got %q.", id, address, expectedCmd, cmd.cmd)
+		t.Errorf("StoreNode(%q): want command %q. Got %q.", address, expectedCmd, cmd.cmd)
 	}
-	expectedArgs := []interface{}{"node:" + id, address}
+	expectedArgs := []interface{}{"nodes", address}
 	if !reflect.DeepEqual(cmd.args, expectedArgs) {
-		t.Errorf("StoreNode(%q, %q): want args %#v. Got %#v.", id, address, expectedArgs, cmd.args)
+		t.Errorf("StoreNode(%q): want args %#v. Got %#v.", address, expectedArgs, cmd.args)
 	}
-}
-
-func TestRedisStorageRetrieveNode(t *testing.T) {
-	conn := resultCommandConn{
-		fakeConn: &fakeConn{},
-		reply:    map[string]interface{}{"GET": []byte("http://docker-node01.com:4243")},
-	}
-	var storage redisStorage
-	storage.pool = redis.NewPool(func() (redis.Conn, error) {
-		return &conn, nil
-	}, 3)
-	id := "server0"
-	address := "http://docker-node01.com:4243"
-	err := storage.StoreNode(cluster.Node{ID: id, Address: address})
-	if err != nil {
-		t.Errorf("Got unexpected %s error", err.Error)
-	}
-	node, err := storage.RetrieveNode(id)
-	if err != nil {
-		t.Errorf("Got unexpected %s error", err.Error)
-	}
-	if node != address {
-		t.Errorf("Expected %q, got %q", address, node)
-	}
-
 }
 
 func TestRedisStorageRetrieveNodes(t *testing.T) {
 	conn := resultCommandConn{
 		fakeConn: &fakeConn{},
 		reply: map[string]interface{}{
-			"LRANGE": []interface{}{[]byte("server01")},
-			"GET":    []byte("http://docker-node01.com:4243"),
+			"LRANGE": []interface{}{[]byte("http://docker-node01.com:4243")},
 		},
 	}
 	var storage redisStorage
 	storage.pool = redis.NewPool(func() (redis.Conn, error) {
 		return &conn, nil
 	}, 3)
-	id := "server01"
 	address := "http://docker-node01.com:4243"
-	err := storage.StoreNode(cluster.Node{ID: id, Address: address})
+	err := storage.StoreNode(cluster.Node{Address: address})
 	if err != nil {
 		t.Errorf("Got unexpected %s error", err.Error)
 	}
@@ -638,7 +610,7 @@ func TestRedisStorageRetrieveNodes(t *testing.T) {
 		t.Errorf("Got unexpected %s error", err.Error)
 	}
 	expected := []cluster.Node{
-		{ID: "server01", Address: "http://docker-node01.com:4243"},
+		{Address: "http://docker-node01.com:4243"},
 	}
 	if !reflect.DeepEqual(nodes, expected) {
 		t.Errorf("Expected nodes to be equal %q, got %q", expected, nodes)
@@ -648,25 +620,25 @@ func TestRedisStorageRetrieveNodes(t *testing.T) {
 func TestRedisStorageRemoveNode(t *testing.T) {
 	conn := resultCommandConn{
 		fakeConn: &fakeConn{},
-		reply:    map[string]interface{}{"DEL": int64(1)},
+		reply:    map[string]interface{}{"LREM": int64(1)},
 	}
 	var storage redisStorage
 	storage.pool = redis.NewPool(func() (redis.Conn, error) {
 		return &conn, nil
 	}, 3)
-	id := "server01"
-	err := storage.RemoveNode(id)
+	addr := "server01"
+	err := storage.RemoveNode(addr)
 	if err != nil {
 		t.Errorf("Got unexpected %s error", err.Error)
 	}
-	cmd := conn.cmds[1]
-	expectedCmd := "DEL"
+	cmd := conn.cmds[0]
+	expectedCmd := "LREM"
 	if cmd.cmd != expectedCmd {
-		t.Errorf("RemoveNode(%q): want command %q. Got %q.", id, expectedCmd, cmd.cmd)
+		t.Errorf("RemoveNode(%q): want command %q. Got %q.", addr, expectedCmd, cmd.cmd)
 	}
-	expectedArgs := []interface{}{"node:" + id}
+	expectedArgs := []interface{}{"nodes", 0, addr}
 	if !reflect.DeepEqual(cmd.args, expectedArgs) {
-		t.Errorf("RemoveNode(%q): want args %#v. Got %#v.", id, expectedArgs, cmd.args)
+		t.Errorf("RemoveNode(%q): want args %#v. Got %#v.", addr, expectedArgs, cmd.args)
 	}
 }
 
@@ -685,18 +657,18 @@ func TestRedisStorageRemoveNodeFailure(t *testing.T) {
 func TestRedisStorageRemoveNodeNoSuchNode(t *testing.T) {
 	conn := resultCommandConn{
 		fakeConn: &fakeConn{},
-		reply:    map[string]interface{}{"DEL": int64(0)},
+		reply:    map[string]interface{}{"LREM": int64(0)},
 	}
 	var storage redisStorage
 	storage.pool = redis.NewPool(func() (redis.Conn, error) {
 		return &conn, nil
 	}, 3)
-	id := "server01"
-	err := storage.RemoveNode(id)
+	addr := "server01"
+	err := storage.RemoveNode(addr)
 	if err == nil {
 		t.Errorf("Got unexpected <nil> error")
 	}
 	if err != ErrNoSuchNode {
-		t.Errorf("RemoveNode(%q): wrong error. Want %#v. Got %#v.", id, ErrNoSuchNode, err)
+		t.Errorf("RemoveNode(%q): wrong error. Want %#v. Got %#v.", addr, ErrNoSuchNode, err)
 	}
 }

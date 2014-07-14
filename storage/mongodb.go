@@ -78,49 +78,60 @@ func (s *mongodbStorage) RemoveImage(image string) error {
 func (s *mongodbStorage) StoreNode(node cluster.Node) error {
 	coll := s.getColl("nodes")
 	defer coll.Database.Session.Close()
-	_, err := coll.UpsertId(node.ID, bson.M{"$set": bson.M{"address": node.Address}})
+	_, err := coll.UpsertId(node.Address, bson.M{"$set": bson.M{"metadata": node.Metadata}})
 	return err
 }
 
-func (s *mongodbStorage) RetrieveNode(id string) (string, error) {
+type dbNode struct {
+	Address  string `bson:"_id"`
+	Metadata map[string]string
+}
+
+func toClusterNode(dbNodes []dbNode) []cluster.Node {
+	nodes := make([]cluster.Node, len(dbNodes))
+	for i, node := range dbNodes {
+		nodes[i] = cluster.Node{
+			Address:  node.Address,
+			Metadata: node.Metadata,
+		}
+	}
+	return nodes
+}
+
+func (s *mongodbStorage) RetrieveNodesByMetadata(metadata map[string]string) ([]cluster.Node, error) {
 	coll := s.getColl("nodes")
 	defer coll.Database.Session.Close()
-	var node cluster.Node
-	err := coll.Find(bson.M{"_id": id}).One(&node)
-	if err != nil {
-		if err == mgo.ErrNotFound {
-			return "", ErrNoSuchNode
-		}
-		return "", err
+	query := bson.M{}
+	for key, value := range metadata {
+		query["metadata."+key] = value
 	}
-	return node.Address, nil
+	var dbNodes []dbNode
+	err := coll.Find(query).All(&dbNodes)
+	if err != nil {
+		return nil, err
+	}
+	return toClusterNode(dbNodes), nil
 }
 
 func (s *mongodbStorage) RetrieveNodes() ([]cluster.Node, error) {
 	coll := s.getColl("nodes")
 	defer coll.Database.Session.Close()
-	dbNodes := []struct {
-		ID      string `bson:"_id"`
-		Address string
-	}{}
+	var dbNodes []dbNode
 	err := coll.Find(nil).All(&dbNodes)
 	if err != nil {
 		return nil, err
 	}
-	nodes := make([]cluster.Node, len(dbNodes))
-	for i, node := range dbNodes {
-		nodes[i] = cluster.Node{
-			ID:      node.ID,
-			Address: node.Address,
-		}
-	}
-	return nodes, nil
+	return toClusterNode(dbNodes), nil
 }
 
-func (s *mongodbStorage) RemoveNode(id string) error {
+func (s *mongodbStorage) RemoveNode(address string) error {
 	coll := s.getColl("nodes")
 	defer coll.Database.Session.Close()
-	return coll.Remove(bson.M{"_id": id})
+	err := coll.Remove(bson.M{"_id": address})
+	if err == mgo.ErrNotFound {
+		return ErrNoSuchNode
+	}
+	return err
 }
 
 func (s *mongodbStorage) getColl(name string) *mgo.Collection {

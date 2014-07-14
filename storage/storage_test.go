@@ -19,6 +19,12 @@ func assertIsNil(val interface{}, t *testing.T) {
 	}
 }
 
+type NodeList []cluster.Node
+
+func (a NodeList) Len() int           { return len(a) }
+func (a NodeList) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a NodeList) Less(i, j int) bool { return a[i].Address < a[j].Address }
+
 func testStorageStoreRetrieveContainer(storage cluster.Storage, t *testing.T) {
 	err := storage.StoreContainer("container-1", "host-1")
 	assertIsNil(err, t)
@@ -82,36 +88,81 @@ func testStorageStoreRemoveImage(storage cluster.Storage, t *testing.T) {
 	}
 }
 
-func testStorageStoreRetrieveNode(storage cluster.Storage, t *testing.T) {
-	node1 := cluster.Node{ID: "id-1", Address: "my-addr-1"}
-	defer storage.RemoveNode("id-1")
+func testStorageStoreRetrieveNodes(storage cluster.Storage, t *testing.T) {
+	node1 := cluster.Node{Address: "my-addr-1"}
+	defer storage.RemoveNode("my-addr-1")
 	err := storage.StoreNode(node1)
 	assertIsNil(err, t)
-	node2 := cluster.Node{ID: "id-2", Address: "my-addr-2"}
-	defer storage.RemoveNode("id-2")
+	node2 := cluster.Node{Address: "my-addr-2", Metadata: map[string]string{"foo": "bar"}}
+	defer storage.RemoveNode("my-addr-2")
 	err = storage.StoreNode(node2)
 	assertIsNil(err, t)
-	addr, err := storage.RetrieveNode("id-1")
-	assertIsNil(err, t)
-	if addr != "my-addr-1" {
-		t.Errorf("addr should be my-addr-1, returned: %s", addr)
-	}
 	nodes, err := storage.RetrieveNodes()
 	assertIsNil(err, t)
-	if !((nodes[0] == node1 || nodes[0] == node2) && (nodes[1] == node1 || nodes[1] == node2)) {
+	sort.Sort(NodeList(nodes))
+	if nodes[0].Address != node1.Address || nodes[1].Address != node2.Address {
 		t.Errorf("unexpected nodes: %#v", nodes)
+	}
+	if !reflect.DeepEqual(node2.Metadata, nodes[1].Metadata) {
+		t.Errorf("unexpected node metadata. expected: %#v got: %#v", node2.Metadata, nodes[1].Metadata)
+	}
+	if nodes[0].Metadata != nil && !reflect.DeepEqual(nodes[0].Metadata, map[string]string{}) {
+		t.Errorf("unexpected node metadata. expected: %#v got: %#v", node1.Metadata, nodes[0].Metadata)
+	}
+}
+
+func testStorageStoreRetrieveNodesForMetadaa(storage cluster.Storage, t *testing.T) {
+	node1 := cluster.Node{Address: "my-addr-1", Metadata: map[string]string{
+		"region": "reg1",
+		"foo":    "bar",
+	}}
+	err := storage.StoreNode(node1)
+	assertIsNil(err, t)
+	defer storage.RemoveNode("my-addr-1")
+	node2 := cluster.Node{Address: "my-addr-2", Metadata: map[string]string{
+		"region": "reg2",
+		"foo":    "bar",
+	}}
+	err = storage.StoreNode(node2)
+	assertIsNil(err, t)
+	defer storage.RemoveNode("my-addr-2")
+	nodes, err := storage.RetrieveNodesByMetadata(map[string]string{"region": "reg2"})
+	assertIsNil(err, t)
+	if len(nodes) != 1 {
+		t.Fatalf("unexpected nodes len: %d", len(nodes))
+	}
+	if nodes[0].Address != node2.Address {
+		t.Errorf("unexpected node: %s", nodes[0].Address)
+	}
+	if !reflect.DeepEqual(node2.Metadata, nodes[0].Metadata) {
+		t.Errorf("unexpected node metadata. expected: %#v got: %#v", node2.Metadata, nodes[0].Metadata)
+	}
+	nodes, err = storage.RetrieveNodesByMetadata(map[string]string{"foo": "bar"})
+	assertIsNil(err, t)
+	if len(nodes) != 2 {
+		t.Fatalf("unexpected nodes len: %d", len(nodes))
+	}
+	sort.Sort(NodeList(nodes))
+	if nodes[0].Address != node1.Address || nodes[1].Address != node2.Address {
+		t.Errorf("unexpected nodes: %#v", nodes)
+	}
+	if !reflect.DeepEqual(node1.Metadata, nodes[0].Metadata) {
+		t.Errorf("unexpected node metadata. expected: %#v got: %#v", node1.Metadata, nodes[0].Metadata)
+	}
+	if !reflect.DeepEqual(node2.Metadata, nodes[1].Metadata) {
+		t.Errorf("unexpected node metadata. expected: %#v got: %#v", node2.Metadata, nodes[1].Metadata)
 	}
 }
 
 func testStorageStoreRemoveNode(storage cluster.Storage, t *testing.T) {
-	node1 := cluster.Node{ID: "id-1", Address: "my-addr-1"}
+	node1 := cluster.Node{Address: "my-addr-1"}
 	err := storage.StoreNode(node1)
 	assertIsNil(err, t)
-	err = storage.RemoveNode("id-1")
+	err = storage.RemoveNode("my-addr-1")
 	assertIsNil(err, t)
-	_, err = storage.RetrieveNode("id-1")
+	err = storage.RemoveNode("my-addr-1")
 	if err != ErrNoSuchNode {
-		t.Errorf("Error should be ErrNoSuchNode, received: %s", err)
+		t.Errorf("ErrNoSuchNode was expected, got: %s", err)
 	}
 	nodes, err := storage.RetrieveNodes()
 	assertIsNil(err, t)
@@ -125,6 +176,7 @@ func runTestsForStorage(storage cluster.Storage, t *testing.T) {
 	testStorageStoreRemoveContainer(storage, t)
 	testStorageStoreRetrieveImage(storage, t)
 	testStorageStoreRemoveImage(storage, t)
-	testStorageStoreRetrieveNode(storage, t)
+	testStorageStoreRetrieveNodes(storage, t)
 	testStorageStoreRemoveNode(storage, t)
+	testStorageStoreRetrieveNodesForMetadaa(storage, t)
 }
