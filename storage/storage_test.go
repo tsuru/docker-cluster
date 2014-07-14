@@ -111,6 +111,16 @@ func testStorageStoreRetrieveNodes(storage cluster.Storage, t *testing.T) {
 	}
 }
 
+func testStorageStoreRepeatedNodes(storage cluster.Storage, t *testing.T) {
+	defer storage.RemoveNode("my-addr-1")
+	err := storage.StoreNode(cluster.Node{Address: "my-addr-1"})
+	assertIsNil(err, t)
+	err = storage.StoreNode(cluster.Node{Address: "my-addr-1"})
+	if err != cluster.ErrDuplicatedNodeAddress {
+		t.Fatalf("Expected error ErrDuplicatedNodeAddress, got: %#v", err)
+	}
+}
+
 func testStorageStoreRetrieveNodesForMetadaa(storage cluster.Storage, t *testing.T) {
 	node1 := cluster.Node{Address: "my-addr-1", Metadata: map[string]string{
 		"region": "reg1",
@@ -177,6 +187,7 @@ func runTestsForStorage(storage cluster.Storage, t *testing.T) {
 	testStorageStoreRetrieveImage(storage, t)
 	testStorageStoreRemoveImage(storage, t)
 	testStorageStoreRetrieveNodes(storage, t)
+	testStorageStoreRepeatedNodes(storage, t)
 	testStorageStoreRemoveNode(storage, t)
 	testStorageStoreRetrieveNodesForMetadaa(storage, t)
 }

@@ -75,13 +75,6 @@ func (s *mongodbStorage) RemoveImage(image string) error {
 	return coll.Remove(bson.M{"_id": image})
 }
 
-func (s *mongodbStorage) StoreNode(node cluster.Node) error {
-	coll := s.getColl("nodes")
-	defer coll.Database.Session.Close()
-	_, err := coll.UpsertId(node.Address, bson.M{"$set": bson.M{"metadata": node.Metadata}})
-	return err
-}
-
 type dbNode struct {
 	Address  string `bson:"_id"`
 	Metadata map[string]string
@@ -96,6 +89,16 @@ func toClusterNode(dbNodes []dbNode) []cluster.Node {
 		}
 	}
 	return nodes
+}
+
+func (s *mongodbStorage) StoreNode(node cluster.Node) error {
+	coll := s.getColl("nodes")
+	defer coll.Database.Session.Close()
+	err := coll.Insert(dbNode{Address: node.Address, Metadata: node.Metadata})
+	if mgo.IsDup(err) {
+		return cluster.ErrDuplicatedNodeAddress
+	}
+	return err
 }
 
 func (s *mongodbStorage) RetrieveNodesByMetadata(metadata map[string]string) ([]cluster.Node, error) {

@@ -568,7 +568,12 @@ func TestRedisStorageAuthenticationFailure(t *testing.T) {
 }
 
 func TestRedisStorageStoreNode(t *testing.T) {
-	conn := fakeConn{}
+	conn := resultCommandConn{
+		fakeConn: &fakeConn{},
+		reply: map[string]interface{}{
+			"SISMEMBER": interface{}(int64(0)),
+		},
+	}
 	var storage redisStorage
 	storage.pool = redis.NewPool(func() (redis.Conn, error) {
 		return &conn, nil
@@ -578,8 +583,8 @@ func TestRedisStorageStoreNode(t *testing.T) {
 	if err != nil {
 		t.Errorf("Got unexpected %s error", err.Error)
 	}
-	cmd := conn.cmds[0]
-	expectedCmd := "LPUSH"
+	cmd := conn.cmds[1]
+	expectedCmd := "SADD"
 	if cmd.cmd != expectedCmd {
 		t.Errorf("StoreNode(%q): want command %q. Got %q.", address, expectedCmd, cmd.cmd)
 	}
@@ -593,7 +598,8 @@ func TestRedisStorageRetrieveNodes(t *testing.T) {
 	conn := resultCommandConn{
 		fakeConn: &fakeConn{},
 		reply: map[string]interface{}{
-			"LRANGE": []interface{}{[]byte("http://docker-node01.com:4243")},
+			"SISMEMBER": interface{}(int64(0)),
+			"SMEMBERS":  []interface{}{[]byte("http://docker-node01.com:4243")},
 		},
 	}
 	var storage redisStorage
@@ -620,7 +626,7 @@ func TestRedisStorageRetrieveNodes(t *testing.T) {
 func TestRedisStorageRemoveNode(t *testing.T) {
 	conn := resultCommandConn{
 		fakeConn: &fakeConn{},
-		reply:    map[string]interface{}{"LREM": int64(1)},
+		reply:    map[string]interface{}{"SREM": int64(1)},
 	}
 	var storage redisStorage
 	storage.pool = redis.NewPool(func() (redis.Conn, error) {
@@ -632,11 +638,11 @@ func TestRedisStorageRemoveNode(t *testing.T) {
 		t.Errorf("Got unexpected %s error", err.Error)
 	}
 	cmd := conn.cmds[0]
-	expectedCmd := "LREM"
+	expectedCmd := "SREM"
 	if cmd.cmd != expectedCmd {
 		t.Errorf("RemoveNode(%q): want command %q. Got %q.", addr, expectedCmd, cmd.cmd)
 	}
-	expectedArgs := []interface{}{"nodes", 0, addr}
+	expectedArgs := []interface{}{"nodes", addr}
 	if !reflect.DeepEqual(cmd.args, expectedArgs) {
 		t.Errorf("RemoveNode(%q): want args %#v. Got %#v.", addr, expectedArgs, cmd.args)
 	}
@@ -657,7 +663,7 @@ func TestRedisStorageRemoveNodeFailure(t *testing.T) {
 func TestRedisStorageRemoveNodeNoSuchNode(t *testing.T) {
 	conn := resultCommandConn{
 		fakeConn: &fakeConn{},
-		reply:    map[string]interface{}{"LREM": int64(0)},
+		reply:    map[string]interface{}{"SREM": int64(0)},
 	}
 	var storage redisStorage
 	storage.pool = redis.NewPool(func() (redis.Conn, error) {

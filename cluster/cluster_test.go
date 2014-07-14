@@ -74,6 +74,21 @@ func TestRegister(t *testing.T) {
 	}
 }
 
+func TestRegisterDoesNotAllowRepeatedAddresses(t *testing.T) {
+	cluster, err := New(nil, &mapStorage{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = cluster.Register("http://localhost1:4243", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = cluster.Register("http://localhost1:4243", nil)
+	if err != ErrDuplicatedNodeAddress {
+		t.Fatalf("Expected error ErrDuplicatedNodeAddress, got: %#v", err)
+	}
+}
+
 func TestRegisterFailure(t *testing.T) {
 	cluster, err := New(nil, &mapStorage{})
 	if err != nil {

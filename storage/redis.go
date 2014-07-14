@@ -100,7 +100,14 @@ func (s *redisStorage) RemoveImage(id string) error {
 func (s *redisStorage) StoreNode(node cluster.Node) error {
 	conn := s.pool.Get()
 	defer conn.Close()
-	_, err := conn.Do("LPUSH", s.key("nodes"), node.Address)
+	result, err := conn.Do("SISMEMBER", s.key("nodes"), node.Address)
+	if err != nil {
+		return err
+	}
+	if result.(int64) != 0 {
+		return cluster.ErrDuplicatedNodeAddress
+	}
+	_, err = conn.Do("SADD", s.key("nodes"), node.Address)
 	if err != nil {
 		return err
 	}
@@ -120,7 +127,7 @@ func (s *redisStorage) StoreNode(node cluster.Node) error {
 func (s *redisStorage) RetrieveNodes() ([]cluster.Node, error) {
 	conn := s.pool.Get()
 	defer conn.Close()
-	result, err := conn.Do("LRANGE", s.key("nodes"), 0, -1)
+	result, err := conn.Do("SMEMBERS", s.key("nodes"))
 	if err != nil {
 		return nil, err
 	}
@@ -166,7 +173,7 @@ func (s *redisStorage) RetrieveNodesByMetadata(metadata map[string]string) ([]cl
 func (s *redisStorage) RemoveNode(id string) error {
 	conn := s.pool.Get()
 	defer conn.Close()
-	result, err := conn.Do("LREM", s.key("nodes"), 0, id)
+	result, err := conn.Do("SREM", s.key("nodes"), id)
 	if err != nil {
 		return err
 	}

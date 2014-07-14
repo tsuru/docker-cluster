@@ -91,6 +91,11 @@ func (s *mapStorage) RemoveImage(imageID string) error {
 func (s *mapStorage) StoreNode(node Node) error {
 	s.nMut.Lock()
 	defer s.nMut.Unlock()
+	for _, n := range s.nodes {
+		if n.Address == node.Address {
+			return ErrDuplicatedNodeAddress
+		}
+	}
 	s.nodes = append(s.nodes, node)
 	return nil
 }

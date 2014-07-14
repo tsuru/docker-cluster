@@ -16,6 +16,8 @@ import (
 )
 
 var (
+	ErrDuplicatedNodeAddress = errors.New("Node address shouldn't repeat")
+
 	errStorageMandatory = errors.New("Storage parameter is mandatory")
 )
 
