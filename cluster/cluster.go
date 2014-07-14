@@ -16,11 +16,6 @@ import (
 )
 
 var (
-	// ErrUnknownNode is the error returned when an unknown node is stored in the
-	// storage. This error means some kind of inconsistence between the storage and
-	// the cluster.
-	ErrUnknownNode = errors.New("Unknown node")
-
 	errStorageMandatory = errors.New("Storage parameter is mandatory")
 )
 
@@ -131,13 +126,13 @@ func (c *Cluster) storage() Storage {
 
 type nodeFunc func(node) (interface{}, error)
 
-func (c *Cluster) runOnNodes(fn nodeFunc, errNotFound error, wait bool, nodeIDs ...string) (interface{}, error) {
+func (c *Cluster) runOnNodes(fn nodeFunc, errNotFound error, wait bool, nodeAddresses ...string) (interface{}, error) {
 	nodes, err := c.Nodes()
 	if err != nil {
 		return nil, err
 	}
-	if len(nodeIDs) > 0 {
-		nodes = c.filterNodes(nodes, nodeIDs)
+	if len(nodeAddresses) > 0 {
+		nodes = c.filterNodes(nodes, nodeAddresses)
 	}
 	var wg sync.WaitGroup
 	finish := make(chan int8, len(nodes))
@@ -188,11 +183,11 @@ func (c *Cluster) runOnNodes(fn nodeFunc, errNotFound error, wait bool, nodeIDs 
 	}
 }
 
-func (c *Cluster) filterNodes(nodes []Node, ids []string) []Node {
+func (c *Cluster) filterNodes(nodes []Node, addresses []string) []Node {
 	filteredNodes := make([]Node, 0, len(nodes))
 	for _, node := range nodes {
-		for _, id := range ids {
-			if node.Address == id {
+		for _, addr := range addresses {
+			if node.Address == addr {
 				filteredNodes = append(filteredNodes, node)
 				break
 			}
@@ -208,15 +203,9 @@ func (c *Cluster) getNode(retrieveFn func(Storage) (string, error)) (node, error
 	if err != nil {
 		return n, err
 	}
-	nodes, err := c.Nodes()
+	client, err := docker.NewClient(address)
 	if err != nil {
 		return n, err
 	}
-	for _, nd := range nodes {
-		if nd.Address == address {
-			client, _ := docker.NewClient(nd.Address)
-			return node{addr: nd.Address, Client: client}, nil
-		}
-	}
-	return n, ErrUnknownNode
+	return node{addr: address, Client: client}, nil
 }

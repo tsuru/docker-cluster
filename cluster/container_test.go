@@ -214,9 +214,6 @@ func TestCreateContainerSpecifyUnknownNode(t *testing.T) {
 	}
 	opts := docker.CreateContainerOptions{Config: &docker.Config{Memory: 67108864}}
 	nodeAddr, container, err := cluster.CreateContainer(opts, "invalid.addr")
-	if err != ErrUnknownNode {
-		t.Errorf("Got unexpected error. Want %#v. Got %#v.", ErrUnknownNode, err)
-	}
 	if nodeAddr != "invalid.addr" {
 		t.Errorf("Got wrong node ID. Want %q. Got %q.", "invalid.addr", nodeAddr)
 	}
@@ -1473,11 +1470,14 @@ func TestGetNode(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = cluster.getNodeForContainer("e90302")
-	if err != ErrUnknownNode {
-		t.Errorf("cluster.getNode(%q): wrong error. Want %#v. Got %#v.", "e90302", ErrUnknownNode, err)
+	node, err := cluster.getNodeForContainer("e90302")
+	if err != nil {
+		t.Error(err)
 	}
-	node, err := cluster.getNodeForContainer("e90301")
+	if node.addr != "http://another" {
+		t.Errorf("cluster.getNode(%q): wrong node. Want %q. Got %q.", "e90302", "http://another", node.addr)
+	}
+	node, err = cluster.getNodeForContainer("e90301")
 	if err != nil {
 		t.Error(err)
 	}
