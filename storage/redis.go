@@ -120,6 +120,9 @@ func (s *redisStorage) StoreNode(node cluster.Node) error {
 	for key, value := range node.Metadata {
 		args = append(args, key, value)
 	}
+	if len(args) == 1 {
+		return nil
+	}
 	_, err = conn.Do("HMSET", args...)
 	return err
 }
