@@ -17,15 +17,12 @@ import (
 
 func TestCreateContainer(t *testing.T) {
 	body := `{"Id":"e90302"}`
-	handler := []bool{false, false}
 	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		handler[0] = true
 		w.Header().Set("Content-Type", "application/json")
 		w.Write([]byte(body))
 	}))
 	defer server1.Close()
 	server2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		handler[1] = true
 		w.Header().Set("Content-Type", "application/json")
 		w.Write([]byte(body))
 	}))
@@ -37,7 +34,7 @@ func TestCreateContainer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	config := docker.Config{Memory: 67108864}
+	config := docker.Config{Memory: 67108864, Image: "myimg"}
 	nodeAddr, container, err := cluster.CreateContainer(docker.CreateContainerOptions{Config: &config})
 	if err != nil {
 		t.Fatal(err)
@@ -48,19 +45,26 @@ func TestCreateContainer(t *testing.T) {
 	if container.ID != "e90302" {
 		t.Errorf("CreateContainer: wrong container ID. Want %q. Got %q.", "e90302", container.ID)
 	}
+	imageHosts, err := cluster.storage().RetrieveImage("myimg")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(imageHosts) != 1 {
+		t.Fatal("CreateContainer: should store image in host, none found")
+	}
+	if imageHosts[0] != server1.URL {
+		t.Fatalf("CreateContainer: should store image in host, found %s", imageHosts[0])
+	}
 }
 
 func TestCreateContainerOptions(t *testing.T) {
 	body := `{"Id":"e90302"}`
-	handler := []bool{false, false}
 	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		handler[0] = true
 		w.Header().Set("Content-Type", "application/json")
 		w.Write([]byte(body))
 	}))
 	defer server1.Close()
 	server2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		handler[1] = true
 		w.Header().Set("Content-Type", "application/json")
 		w.Write([]byte(body))
 	}))
@@ -72,7 +76,7 @@ func TestCreateContainerOptions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	config := docker.Config{Memory: 67108864}
+	config := docker.Config{Memory: 67108864, Image: "myimg"}
 	opts := docker.CreateContainerOptions{Name: "name", Config: &config}
 	nodeAddr, container, err := cluster.CreateContainer(opts)
 	if err != nil {
@@ -88,15 +92,12 @@ func TestCreateContainerOptions(t *testing.T) {
 
 func TestCreateContainerSchedulerOpts(t *testing.T) {
 	body := `{"Id":"e90302"}`
-	handler := []bool{false, false}
 	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		handler[0] = true
 		w.Header().Set("Content-Type", "application/json")
 		w.Write([]byte(body))
 	}))
 	defer server1.Close()
 	server2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		handler[1] = true
 		w.Header().Set("Content-Type", "application/json")
 		w.Write([]byte(body))
 	}))
@@ -109,7 +110,7 @@ func TestCreateContainerSchedulerOpts(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	config := docker.Config{Memory: 67108864}
+	config := docker.Config{Memory: 67108864, Image: "myimg"}
 	opts := docker.CreateContainerOptions{Name: "name", Config: &config}
 	schedulerOpts := "myOpt"
 	nodeAddr, container, err := cluster.CreateContainerSchedulerOpts(opts, schedulerOpts)
@@ -224,15 +225,12 @@ func TestCreateContainerSpecifyUnknownNode(t *testing.T) {
 
 func TestCreateContainerWithStorage(t *testing.T) {
 	body := `{"Id":"e90302"}`
-	handler := []bool{false, false}
 	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		handler[0] = true
 		w.Header().Set("Content-Type", "application/json")
 		w.Write([]byte(body))
 	}))
 	defer server1.Close()
 	server2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		handler[1] = true
 		w.Header().Set("Content-Type", "application/json")
 		w.Write([]byte(body))
 	}))
@@ -245,7 +243,7 @@ func TestCreateContainerWithStorage(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	config := docker.Config{Memory: 67108864}
+	config := docker.Config{Memory: 67108864, Image: "myimg"}
 	_, _, err = cluster.CreateContainer(docker.CreateContainerOptions{Config: &config})
 	if err != nil {
 		t.Fatal(err)

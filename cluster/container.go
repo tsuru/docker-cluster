@@ -38,20 +38,23 @@ func (c *Cluster) CreateContainerSchedulerOpts(opts docker.CreateContainerOption
 	if err != nil {
 		return addr, container, err
 	}
-	if storage := c.storage(); storage != nil {
-		storage.StoreContainer(container.ID, addr)
-	}
+	err = c.storage().StoreContainer(container.ID, addr)
 	return addr, container, err
 }
 
 func (c *Cluster) createContainerInNode(opts docker.CreateContainerOptions, nodeAddress string) (*docker.Container, error) {
+	err := c.PullImage(docker.PullImageOptions{
+		Repository: opts.Config.Image,
+	}, docker.AuthConfiguration{}, nodeAddress)
+	if err != nil {
+		return nil, err
+	}
 	node, err := c.getNode(func(Storage) (string, error) {
 		return nodeAddress, nil
 	})
 	if err != nil {
 		return nil, err
 	}
-	node.PullImage(docker.PullImageOptions{Repository: opts.Config.Image}, docker.AuthConfiguration{})
 	return node.CreateContainer(opts)
 }
 
