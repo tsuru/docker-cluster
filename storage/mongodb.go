@@ -49,7 +49,7 @@ func (s *mongodbStorage) RemoveContainer(container string) error {
 func (s *mongodbStorage) StoreImage(image, host string) error {
 	coll := s.getColl("images")
 	defer coll.Database.Session.Close()
-	_, err := coll.UpsertId(image, bson.M{"$push": bson.M{"hosts": host}})
+	_, err := coll.UpsertId(image, bson.M{"$addToSet": bson.M{"hosts": host}})
 	return err
 }
 

@@ -59,14 +59,14 @@ func (s *redisStorage) RemoveContainer(container string) error {
 func (s *redisStorage) StoreImage(image, host string) error {
 	conn := s.pool.Get()
 	defer conn.Close()
-	_, err := conn.Do("LPUSH", s.key("image:"+image), host)
+	_, err := conn.Do("SADD", s.key("image:"+image), host)
 	return err
 }
 
 func (s *redisStorage) RetrieveImage(id string) ([]string, error) {
 	conn := s.pool.Get()
 	defer conn.Close()
-	result, err := conn.Do("LRANGE", s.key("image:"+id), 0, -1)
+	result, err := conn.Do("SMEMBERS", s.key("image:"+id))
 	if err != nil {
 		return nil, err
 	}

@@ -61,6 +61,8 @@ func testStorageStoreRemoveContainer(storage cluster.Storage, t *testing.T) {
 }
 
 func testStorageStoreRetrieveImage(storage cluster.Storage, t *testing.T) {
+	defer storage.RemoveImage("img-1")
+	defer storage.RemoveImage("img-2")
 	err := storage.StoreImage("img-1", "host-1")
 	assertIsNil(err, t)
 	err = storage.StoreImage("img-1", "host-2")
@@ -72,6 +74,22 @@ func testStorageStoreRetrieveImage(storage cluster.Storage, t *testing.T) {
 	sort.Strings(hosts)
 	if !reflect.DeepEqual(hosts, []string{"host-1", "host-2"}) {
 		t.Errorf("unexpected array %#v", hosts)
+	}
+}
+
+func testStorageStoreImageIgnoreDups(storage cluster.Storage, t *testing.T) {
+	defer storage.RemoveImage("img-x")
+	err := storage.StoreImage("img-x", "host-1")
+	assertIsNil(err, t)
+	err = storage.StoreImage("img-x", "host-1")
+	assertIsNil(err, t)
+	hosts, err := storage.RetrieveImage("img-x")
+	assertIsNil(err, t)
+	if len(hosts) != 1 {
+		t.Fatalf("Expected host list to have len 1, got: %d", len(hosts))
+	}
+	if hosts[0] != "host-1" {
+		t.Fatalf("Expected host list to have value host-1, got: %s", hosts[0])
 	}
 }
 
@@ -215,6 +233,7 @@ func runTestsForStorage(storage cluster.Storage, t *testing.T) {
 	testStorageStoreRetrieveContainer(storage, t)
 	testStorageStoreRemoveContainer(storage, t)
 	testStorageStoreRetrieveImage(storage, t)
+	testStorageStoreImageIgnoreDups(storage, t)
 	testStorageStoreRemoveImage(storage, t)
 	testStorageStoreRetrieveNodes(storage, t)
 	testStorageStoreRepeatedNodes(storage, t)
