@@ -133,7 +133,25 @@ func testStorageStoreRepeatedNodes(storage cluster.Storage, t *testing.T) {
 	}
 }
 
-func testStorageStoreRetrieveNodesForMetadaa(storage cluster.Storage, t *testing.T) {
+func testStorageStoreClearMetadata(storage cluster.Storage, t *testing.T) {
+	defer storage.RemoveNode("my-addr-1")
+	err := storage.StoreNode(cluster.Node{Address: "my-addr-1", Metadata: map[string]string{"pool": "p1"}})
+	assertIsNil(err, t)
+	err = storage.RemoveNode("my-addr-1")
+	assertIsNil(err, t)
+	err = storage.StoreNode(cluster.Node{Address: "my-addr-1"})
+	assertIsNil(err, t)
+	nodes, err := storage.RetrieveNodes()
+	assertIsNil(err, t)
+	if len(nodes) != 1 || nodes[0].Address != "my-addr-1" {
+		t.Errorf("unexpected nodes: %#v", nodes)
+	}
+	if !reflect.DeepEqual(nodes[0].Metadata, map[string]string{}) {
+		t.Errorf("unexpected node metadata. expected empty map, got: %#v", nodes[0].Metadata)
+	}
+}
+
+func testStorageStoreRetrieveNodesForMetadata(storage cluster.Storage, t *testing.T) {
 	node1 := cluster.Node{Address: "my-addr-1", Metadata: map[string]string{
 		"region": "reg1",
 		"foo":    "bar",
@@ -201,6 +219,7 @@ func runTestsForStorage(storage cluster.Storage, t *testing.T) {
 	testStorageStoreRetrieveNodes(storage, t)
 	testStorageStoreRepeatedNodes(storage, t)
 	testStorageStoreRemoveNode(storage, t)
-	testStorageStoreRetrieveNodesForMetadaa(storage, t)
+	testStorageStoreRetrieveNodesForMetadata(storage, t)
 	testStorageStoreEmptyMetadata(storage, t)
+	testStorageStoreClearMetadata(storage, t)
 }

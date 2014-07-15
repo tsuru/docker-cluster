@@ -173,17 +173,18 @@ func (s *redisStorage) RetrieveNodesByMetadata(metadata map[string]string) ([]cl
 	return filteredNodes, nil
 }
 
-func (s *redisStorage) RemoveNode(id string) error {
+func (s *redisStorage) RemoveNode(address string) error {
 	conn := s.pool.Get()
 	defer conn.Close()
-	result, err := conn.Do("SREM", s.key("nodes"), id)
+	result, err := conn.Do("SREM", s.key("nodes"), address)
 	if err != nil {
 		return err
 	}
 	if result.(int64) < 1 {
 		return ErrNoSuchNode
 	}
-	return nil
+	_, err = conn.Do("DEL", s.key("node:metadata:"+address))
+	return err
 }
 
 // Redis returns a storage instance that uses Redis to store nodes and
