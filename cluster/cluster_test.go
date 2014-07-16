@@ -5,6 +5,7 @@
 package cluster
 
 import (
+	"github.com/tsuru/docker-cluster/storage"
 	"math/rand"
 	"net/http"
 	"net/http/httptest"
@@ -32,7 +33,7 @@ func TestNewCluster(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		_, err := New(nil, &mapStorage{}, tt.input...)
+		_, err := New(nil, &MapStorage{}, tt.input...)
 		if tt.fail && err == nil || !tt.fail && err != nil {
 			t.Errorf("cluster.New() for input %#v. Expect failure: %v. Got: %v.", tt.input, tt.fail, err)
 		}
@@ -48,7 +49,7 @@ func TestNewFailure(t *testing.T) {
 
 func TestRegister(t *testing.T) {
 	scheduler := &roundRobin{}
-	cluster, err := New(scheduler, &mapStorage{})
+	cluster, err := New(scheduler, &MapStorage{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -75,7 +76,7 @@ func TestRegister(t *testing.T) {
 }
 
 func TestRegisterDoesNotAllowRepeatedAddresses(t *testing.T) {
-	cluster, err := New(nil, &mapStorage{})
+	cluster, err := New(nil, &MapStorage{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -84,13 +85,13 @@ func TestRegisterDoesNotAllowRepeatedAddresses(t *testing.T) {
 		t.Fatal(err)
 	}
 	err = cluster.Register("http://localhost1:4243", nil)
-	if err != ErrDuplicatedNodeAddress {
+	if err != storage.ErrDuplicatedNodeAddress {
 		t.Fatalf("Expected error ErrDuplicatedNodeAddress, got: %#v", err)
 	}
 }
 
 func TestRegisterFailure(t *testing.T) {
-	cluster, err := New(nil, &mapStorage{})
+	cluster, err := New(nil, &MapStorage{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -102,7 +103,7 @@ func TestRegisterFailure(t *testing.T) {
 
 func TestUnregister(t *testing.T) {
 	scheduler := &roundRobin{}
-	cluster, err := New(scheduler, &mapStorage{})
+	cluster, err := New(scheduler, &MapStorage{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -120,7 +121,7 @@ func TestUnregister(t *testing.T) {
 }
 
 func TestNodesShouldGetClusterNodes(t *testing.T) {
-	cluster, err := New(nil, &mapStorage{})
+	cluster, err := New(nil, &MapStorage{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -133,14 +134,14 @@ func TestNodesShouldGetClusterNodes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	expected := []Node{{Address: "http://localhost:4243"}}
+	expected := []Node{{Address: "http://localhost:4243", Metadata: map[string]string{}}}
 	if !reflect.DeepEqual(nodes, expected) {
 		t.Errorf("Expected nodes to be equal %q, got %q", expected, nodes)
 	}
 }
 
 func TestNodesForMetadataShouldGetClusterNodesWithMetadata(t *testing.T) {
-	cluster, err := New(nil, &mapStorage{})
+	cluster, err := New(nil, &MapStorage{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -165,7 +166,7 @@ func TestNodesForMetadataShouldGetClusterNodesWithMetadata(t *testing.T) {
 }
 
 func TestNodesShouldReturnEmptyListWhenNoNodeIsFound(t *testing.T) {
-	cluster, err := New(nil, &mapStorage{})
+	cluster, err := New(nil, &MapStorage{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -188,8 +189,12 @@ func TestRunOnNodesStress(t *testing.T) {
 	}))
 	defer server.Close()
 	id := "e90302"
-	storage := &mapStorage{cMap: map[string]string{id: server.URL}}
-	cluster, err := New(nil, storage, Node{Address: server.URL})
+	stor := &MapStorage{}
+	err := stor.StoreContainer(id, server.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cluster, err := New(nil, stor, Node{Address: server.URL})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -208,13 +213,13 @@ func TestRunOnNodesStress(t *testing.T) {
 }
 
 func TestClusterNodes(t *testing.T) {
-	c, err := New(&roundRobin{}, &mapStorage{})
+	c, err := New(&roundRobin{}, &MapStorage{})
 	if err != nil {
 		t.Fatalf("unexpected error %s", err.Error())
 	}
 	nodes := []Node{
-		{Address: "http://localhost:8080"},
-		{Address: "http://localhost:8081"},
+		{Address: "http://localhost:8080", Metadata: map[string]string{}},
+		{Address: "http://localhost:8081", Metadata: map[string]string{}},
 	}
 	for _, n := range nodes {
 		c.Register(n.Address, nil)
@@ -229,7 +234,7 @@ func TestClusterNodes(t *testing.T) {
 }
 
 func TestClusterNodesUnregister(t *testing.T) {
-	c, err := New(&roundRobin{}, &mapStorage{})
+	c, err := New(&roundRobin{}, &MapStorage{})
 	if err != nil {
 		t.Fatalf("unexpected error %s", err.Error())
 	}
@@ -245,7 +250,7 @@ func TestClusterNodesUnregister(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	expected := []Node{{Address: "http://localhost:8081"}}
+	expected := []Node{{Address: "http://localhost:8081", Metadata: map[string]string{}}}
 	if !reflect.DeepEqual(got, expected) {
 		t.Errorf("roundRobin.Nodes(): wrong result. Want %#v. Got %#v.", nodes, got)
 	}

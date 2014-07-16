@@ -2,11 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package storage
+package redis
 
 import (
 	"github.com/garyburd/redigo/redis"
 	"github.com/tsuru/docker-cluster/cluster"
+	cstorage "github.com/tsuru/docker-cluster/storage"
+	storageTesting "github.com/tsuru/docker-cluster/storage/testing"
 	"reflect"
 	"testing"
 )
@@ -17,13 +19,15 @@ func TestRedisStorage(t *testing.T) {
 	conn := stor.pool.Get()
 	defer conn.Close()
 	result, err := conn.Do("KEYS", "test-docker-cluster*")
-	assertIsNil(err, t)
+	if err != nil {
+		t.Fatal(err)
+	}
 	keys := result.([]interface{})
 	for _, key := range keys {
 		keyName := string(key.([]byte))
 		conn.Do("DEL", keyName)
 	}
-	runTestsForStorage(redis, t)
+	storageTesting.RunTestsForStorage(redis, t)
 }
 
 func TestRedisStorageStoreContainer(t *testing.T) {
@@ -164,8 +168,8 @@ func TestRedisStorageRetrieveNoSuchContainer(t *testing.T) {
 	}, 3)
 	container := "affe3022"
 	_, err := storage.RetrieveContainer(container)
-	if err != ErrNoSuchContainer {
-		t.Errorf("RetrieveContainer(%q): wrong error. Want %#v. Got %#v.", container, ErrNoSuchContainer, err)
+	if err != cstorage.ErrNoSuchContainer {
+		t.Errorf("RetrieveContainer(%q): wrong error. Want %#v. Got %#v.", container, cstorage.ErrNoSuchContainer, err)
 	}
 }
 
@@ -240,8 +244,8 @@ func TestRedisRemoveNoSuchContainer(t *testing.T) {
 	}, 3)
 	container := "affe3022"
 	err := storage.RemoveContainer(container)
-	if err != ErrNoSuchContainer {
-		t.Errorf("RemoveContainer(%q): wrong error. Want %#v. Got %#v.", container, ErrNoSuchContainer, err)
+	if err != cstorage.ErrNoSuchContainer {
+		t.Errorf("RemoveContainer(%q): wrong error. Want %#v. Got %#v.", container, cstorage.ErrNoSuchContainer, err)
 	}
 }
 
@@ -371,8 +375,8 @@ func TestRedisStorageRetrieveNoSuchImage(t *testing.T) {
 	}, 3)
 	image := "tsuru/python"
 	_, err := storage.RetrieveImage(image)
-	if err != ErrNoSuchImage {
-		t.Errorf("RetrieveImage(%q): wrong error. Want %#v. Got %#v.", image, ErrNoSuchImage, err)
+	if err != cstorage.ErrNoSuchImage {
+		t.Errorf("RetrieveImage(%q): wrong error. Want %#v. Got %#v.", image, cstorage.ErrNoSuchImage, err)
 	}
 }
 
@@ -481,12 +485,12 @@ func TestRedisNoAuthentication(t *testing.T) {
 	container := "affe3022"
 	host := "server0"
 	_, err = storage.RetrieveContainer(container)
-	if err != ErrNoSuchContainer {
-		t.Errorf("RetrieveContainer(%q): wrong error. Want %#v. Got %#v", container, ErrNoSuchContainer, err)
+	if err != cstorage.ErrNoSuchContainer {
+		t.Errorf("RetrieveContainer(%q): wrong error. Want %#v. Got %#v", container, cstorage.ErrNoSuchContainer, err)
 	}
 	err = storage.RemoveContainer(container)
-	if err != ErrNoSuchContainer {
-		t.Errorf("RemoveContainer(%q): wrong error. Want %#v. Got %#v", container, ErrNoSuchContainer, err)
+	if err != cstorage.ErrNoSuchContainer {
+		t.Errorf("RemoveContainer(%q): wrong error. Want %#v. Got %#v", container, cstorage.ErrNoSuchContainer, err)
 	}
 	err = storage.StoreContainer(container, host)
 	if err != nil {
@@ -525,12 +529,12 @@ func TestRedisStorageAuthentication(t *testing.T) {
 	container := "affe3022"
 	host := "server0"
 	_, err = storage.RetrieveContainer(container)
-	if err != ErrNoSuchContainer {
-		t.Errorf("RetrieveContainer(%q): wrong error. Want %#v. Got %#v", container, ErrNoSuchContainer, err)
+	if err != cstorage.ErrNoSuchContainer {
+		t.Errorf("RetrieveContainer(%q): wrong error. Want %#v. Got %#v", container, cstorage.ErrNoSuchContainer, err)
 	}
 	err = storage.RemoveContainer(container)
-	if err != ErrNoSuchContainer {
-		t.Errorf("RemoveContainer(%q): wrong error. Want %#v. Got %#v", container, ErrNoSuchContainer, err)
+	if err != cstorage.ErrNoSuchContainer {
+		t.Errorf("RemoveContainer(%q): wrong error. Want %#v. Got %#v", container, cstorage.ErrNoSuchContainer, err)
 	}
 	err = storage.StoreContainer(container, host)
 	if err != nil {
@@ -673,7 +677,7 @@ func TestRedisStorageRemoveNodeNoSuchNode(t *testing.T) {
 	if err == nil {
 		t.Errorf("Got unexpected <nil> error")
 	}
-	if err != ErrNoSuchNode {
-		t.Errorf("RemoveNode(%q): wrong error. Want %#v. Got %#v.", addr, ErrNoSuchNode, err)
+	if err != cstorage.ErrNoSuchNode {
+		t.Errorf("RemoveNode(%q): wrong error. Want %#v. Got %#v.", addr, cstorage.ErrNoSuchNode, err)
 	}
 }

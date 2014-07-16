@@ -2,12 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package storage provides some implementations of the Storage interface,
-// defined in the cluster package.
-package storage
+package mongodb
 
 import (
 	"github.com/tsuru/docker-cluster/cluster"
+	"github.com/tsuru/docker-cluster/storage"
 	"labix.org/v2/mgo"
 	"labix.org/v2/mgo/bson"
 )
@@ -33,7 +32,7 @@ func (s *mongodbStorage) RetrieveContainer(container string) (string, error) {
 	err := coll.Find(bson.M{"_id": container}).One(&dbContainer)
 	if err != nil {
 		if err == mgo.ErrNotFound {
-			return "", ErrNoSuchContainer
+			return "", storage.ErrNoSuchContainer
 		}
 		return "", err
 	}
@@ -62,7 +61,7 @@ func (s *mongodbStorage) RetrieveImage(image string) ([]string, error) {
 	err := coll.Find(bson.M{"_id": image}).One(&dbImage)
 	if err != nil {
 		if err == mgo.ErrNotFound {
-			return nil, ErrNoSuchImage
+			return nil, storage.ErrNoSuchImage
 		}
 		return nil, err
 	}
@@ -96,7 +95,7 @@ func (s *mongodbStorage) StoreNode(node cluster.Node) error {
 	defer coll.Database.Session.Close()
 	err := coll.Insert(dbNode{Address: node.Address, Metadata: node.Metadata})
 	if mgo.IsDup(err) {
-		return cluster.ErrDuplicatedNodeAddress
+		return storage.ErrDuplicatedNodeAddress
 	}
 	return err
 }
@@ -132,7 +131,7 @@ func (s *mongodbStorage) RemoveNode(address string) error {
 	defer coll.Database.Session.Close()
 	err := coll.Remove(bson.M{"_id": address})
 	if err == mgo.ErrNotFound {
-		return ErrNoSuchNode
+		return storage.ErrNoSuchNode
 	}
 	return err
 }

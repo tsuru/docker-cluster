@@ -10,7 +10,7 @@ import (
 )
 
 func TestRoundRobinSchedule(t *testing.T) {
-	c, err := New(&roundRobin{}, &mapStorage{})
+	c, err := New(&roundRobin{}, &MapStorage{})
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err.Error())
 	}
@@ -42,7 +42,7 @@ func TestScheduleEmpty(t *testing.T) {
 			t.Fatalf("Schedule(): wrong panic message. Want %q. Got %q.", expected, r)
 		}
 	}()
-	c, err := New(&roundRobin{}, &mapStorage{})
+	c, err := New(&roundRobin{}, &MapStorage{})
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err.Error())
 	}

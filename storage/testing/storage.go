@@ -2,10 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package storage
+package testing
 
 import (
 	"github.com/tsuru/docker-cluster/cluster"
+	cstorage "github.com/tsuru/docker-cluster/storage"
 	"reflect"
 	"runtime/debug"
 	"sort"
@@ -55,8 +56,8 @@ func testStorageStoreRemoveContainer(storage cluster.Storage, t *testing.T) {
 	err = storage.RemoveContainer("container-1")
 	assertIsNil(err, t)
 	_, err = storage.RetrieveContainer("container-1")
-	if err != ErrNoSuchContainer {
-		t.Errorf("Error should be ErrNoSuchContainer, received: %s", err)
+	if err != cstorage.ErrNoSuchContainer {
+		t.Errorf("Error should be cstorage.ErrNoSuchContainer, received: %s", err)
 	}
 }
 
@@ -101,8 +102,8 @@ func testStorageStoreRemoveImage(storage cluster.Storage, t *testing.T) {
 	err = storage.RemoveImage("img-1")
 	assertIsNil(err, t)
 	_, err = storage.RetrieveImage("img-1")
-	if err != ErrNoSuchImage {
-		t.Errorf("Error should be ErrNoSuchImage, received: %s", err)
+	if err != cstorage.ErrNoSuchImage {
+		t.Errorf("Error should be cstorage.ErrNoSuchImage, received: %s", err)
 	}
 }
 
@@ -125,7 +126,7 @@ func testStorageStoreRetrieveNodes(storage cluster.Storage, t *testing.T) {
 		t.Errorf("unexpected node metadata. expected: %#v got: %#v", node2.Metadata, nodes[1].Metadata)
 	}
 	if !reflect.DeepEqual(nodes[0].Metadata, map[string]string{}) {
-		t.Errorf("unexpected node metadata. expected: %#v got: %#v", node1.Metadata, nodes[0].Metadata)
+		t.Errorf("unexpected node metadata. expected empty map got: %#v", nodes[0].Metadata)
 	}
 }
 
@@ -146,8 +147,8 @@ func testStorageStoreRepeatedNodes(storage cluster.Storage, t *testing.T) {
 	err := storage.StoreNode(cluster.Node{Address: "my-addr-1"})
 	assertIsNil(err, t)
 	err = storage.StoreNode(cluster.Node{Address: "my-addr-1"})
-	if err != cluster.ErrDuplicatedNodeAddress {
-		t.Fatalf("Expected error ErrDuplicatedNodeAddress, got: %#v", err)
+	if err != cstorage.ErrDuplicatedNodeAddress {
+		t.Fatalf("Expected error cstorage.ErrDuplicatedNodeAddress, got: %#v", err)
 	}
 }
 
@@ -219,8 +220,8 @@ func testStorageStoreRemoveNode(storage cluster.Storage, t *testing.T) {
 	err = storage.RemoveNode("my-addr-1")
 	assertIsNil(err, t)
 	err = storage.RemoveNode("my-addr-1")
-	if err != ErrNoSuchNode {
-		t.Errorf("ErrNoSuchNode was expected, got: %s", err)
+	if err != cstorage.ErrNoSuchNode {
+		t.Errorf("cstorage.ErrNoSuchNode was expected, got: %s", err)
 	}
 	nodes, err := storage.RetrieveNodes()
 	assertIsNil(err, t)
@@ -229,7 +230,7 @@ func testStorageStoreRemoveNode(storage cluster.Storage, t *testing.T) {
 	}
 }
 
-func runTestsForStorage(storage cluster.Storage, t *testing.T) {
+func RunTestsForStorage(storage cluster.Storage, t *testing.T) {
 	testStorageStoreRetrieveContainer(storage, t)
 	testStorageStoreRemoveContainer(storage, t)
 	testStorageStoreRetrieveImage(storage, t)

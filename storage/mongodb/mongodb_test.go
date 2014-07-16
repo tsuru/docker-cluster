@@ -2,17 +2,22 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package storage
+package mongodb
 
 import (
+	storageTesting "github.com/tsuru/docker-cluster/storage/testing"
 	"testing"
 )
 
 func TestMongodbStorage(t *testing.T) {
 	mongo, err := Mongodb("mongodb://localhost", "test-docker-cluster")
-	assertIsNil(err, t)
+	if err != nil {
+		t.Fatal(err)
+	}
 	stor := mongo.(*mongodbStorage)
 	err = stor.session.DB("test-docker-cluster").DropDatabase()
-	assertIsNil(err, t)
-	runTestsForStorage(mongo, t)
+	if err != nil {
+		t.Fatal(err)
+	}
+	storageTesting.RunTestsForStorage(mongo, t)
 }

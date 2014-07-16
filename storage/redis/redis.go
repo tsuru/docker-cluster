@@ -2,13 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package storage provides some implementations of the Storage interface,
-// defined in the cluster package.
-package storage
+package redis
 
 import (
 	"github.com/garyburd/redigo/redis"
 	"github.com/tsuru/docker-cluster/cluster"
+	"github.com/tsuru/docker-cluster/storage"
 )
 
 type redisStorage struct {
@@ -38,7 +37,7 @@ func (s *redisStorage) RetrieveContainer(container string) (string, error) {
 		return "", err
 	}
 	if result == nil {
-		return "", ErrNoSuchContainer
+		return "", storage.ErrNoSuchContainer
 	}
 	return string(result.([]byte)), nil
 }
@@ -51,7 +50,7 @@ func (s *redisStorage) RemoveContainer(container string) error {
 		return err
 	}
 	if result.(int64) < 1 {
-		return ErrNoSuchContainer
+		return storage.ErrNoSuchContainer
 	}
 	return nil
 }
@@ -71,11 +70,11 @@ func (s *redisStorage) RetrieveImage(id string) ([]string, error) {
 		return nil, err
 	}
 	if result == nil {
-		return nil, ErrNoSuchImage
+		return nil, storage.ErrNoSuchImage
 	}
 	items := result.([]interface{})
 	if len(items) == 0 {
-		return nil, ErrNoSuchImage
+		return nil, storage.ErrNoSuchImage
 	}
 	images := make([]string, len(items))
 	for i, v := range items {
@@ -92,7 +91,7 @@ func (s *redisStorage) RemoveImage(id string) error {
 		return err
 	}
 	if result.(int64) < 1 {
-		return ErrNoSuchImage
+		return storage.ErrNoSuchImage
 	}
 	return nil
 }
@@ -105,7 +104,7 @@ func (s *redisStorage) StoreNode(node cluster.Node) error {
 		return err
 	}
 	if result.(int64) != 0 {
-		return cluster.ErrDuplicatedNodeAddress
+		return storage.ErrDuplicatedNodeAddress
 	}
 	_, err = conn.Do("SADD", s.key("nodes"), node.Address)
 	if err != nil {
@@ -181,13 +180,13 @@ func (s *redisStorage) RemoveNode(address string) error {
 		return err
 	}
 	if result.(int64) < 1 {
-		return ErrNoSuchNode
+		return storage.ErrNoSuchNode
 	}
 	_, err = conn.Do("DEL", s.key("node:metadata:"+address))
 	return err
 }
 
-// Redis returns a storage instance that uses Redis to store nodes and
+// Redis returns a cluster.storage instance that uses Redis to store nodes and
 // containers relation.
 //
 // The addres must be in the format <host>:<port>. For servers that require
