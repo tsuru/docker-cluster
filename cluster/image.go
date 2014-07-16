@@ -4,7 +4,10 @@
 
 package cluster
 
-import "github.com/fsouza/go-dockerclient"
+import (
+	"fmt"
+	"github.com/fsouza/go-dockerclient"
+)
 
 // RemoveImage removes an image from the nodes where this images exists, returning an
 // error in case of failure.
@@ -14,7 +17,11 @@ func (c *Cluster) RemoveImage(name string) error {
 		return err
 	}
 	_, err = c.runOnNodes(func(n node) (interface{}, error) {
-		return nil, n.RemoveImage(name)
+		err := n.RemoveImage(name)
+		if err != nil {
+			return nil, fmt.Errorf("Error removing image %s from %s: %s", name, n.addr, err.Error())
+		}
+		return nil, nil
 	}, docker.ErrNoSuchImage, false, hosts...)
 	if err != nil {
 		return err
