@@ -43,12 +43,9 @@ func (c *Cluster) CreateContainerSchedulerOpts(opts docker.CreateContainerOption
 }
 
 func (c *Cluster) createContainerInNode(opts docker.CreateContainerOptions, nodeAddress string) (*docker.Container, error) {
-	err := c.PullImage(docker.PullImageOptions{
+	c.PullImage(docker.PullImageOptions{
 		Repository: opts.Config.Image,
 	}, docker.AuthConfiguration{}, nodeAddress)
-	if err != nil {
-		return nil, err
-	}
 	node, err := c.getNode(func(Storage) (string, error) {
 		return nodeAddress, nil
 	})
