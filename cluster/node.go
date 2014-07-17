@@ -60,14 +60,20 @@ func (n *Node) Status() string {
 	return NodeStatusDisabled
 }
 
+func (n *Node) FailureCount() int {
+	if n.Metadata == nil {
+		return 0
+	}
+	metaFail, _ := n.Metadata["Failures"]
+	failures, _ := strconv.Atoi(metaFail)
+	return failures
+}
+
 func (n *Node) updateError(lastErr error, disabledUntil time.Time) {
 	if n.Metadata == nil {
 		n.Metadata = make(map[string]string)
 	}
-	metaFail, _ := n.Metadata["Failures"]
-	failures, _ := strconv.Atoi(metaFail)
-	failures++
-	n.Metadata["Failures"] = strconv.Itoa(failures)
+	n.Metadata["Failures"] = strconv.Itoa(n.FailureCount() + 1)
 	n.Metadata["DisabledUntil"] = disabledUntil.Format(time.RFC3339)
 	n.Metadata["LastError"] = lastErr.Error()
 }

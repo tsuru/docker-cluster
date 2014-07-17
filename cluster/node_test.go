@@ -136,6 +136,17 @@ func TestNodeIsEnabled(t *testing.T) {
 	}
 }
 
+func TestNodeFailureCount(t *testing.T) {
+	node := Node{}
+	if node.FailureCount() != 0 {
+		t.Fatal("Expected failure count 0, got: %d", node.FailureCount())
+	}
+	node = Node{Metadata: map[string]string{"Failures": "3"}}
+	if node.FailureCount() != 3 {
+		t.Fatal("Expected failure count 3, got: %d", node.FailureCount())
+	}
+}
+
 func TestNodeListFilterDisabled(t *testing.T) {
 	nodes := []Node{{Address: "a1"}, {Address: "a2"}, {Address: "a3"}}
 	until := time.Now().Add(1 * time.Minute).Format(time.RFC3339)

@@ -60,6 +60,7 @@ type Storage interface {
 type Cluster struct {
 	scheduler Scheduler
 	stor      Storage
+	healer    Healer
 }
 
 // New creates a new Cluster, initially composed by the given nodes.
@@ -77,6 +78,7 @@ func New(scheduler Scheduler, storage Storage, nodes ...Node) (*Cluster, error) 
 	}
 	c.stor = storage
 	c.scheduler = scheduler
+	c.healer = DefaultHealer{}
 	if scheduler == nil {
 		c.scheduler = &roundRobin{lastUsed: -1}
 	}
@@ -89,6 +91,10 @@ func New(scheduler Scheduler, storage Storage, nodes ...Node) (*Cluster, error) 
 		}
 	}
 	return &c, err
+}
+
+func (c *Cluster) SetHealer(healer Healer) {
+	c.healer = healer
 }
 
 // Register adds new nodes to the cluster.
@@ -133,7 +139,8 @@ func (c *Cluster) handleNodeError(addr string, lastErr error) error {
 	if err != nil {
 		return err
 	}
-	node.updateError(lastErr, time.Now().Add(5*time.Minute))
+	duration := c.healer.HandleError(node)
+	node.updateError(lastErr, time.Now().Add(duration))
 	return c.storage().UpdateNode(node)
 }
 
