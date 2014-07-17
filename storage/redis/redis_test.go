@@ -619,7 +619,7 @@ func TestRedisStorageRetrieveNodes(t *testing.T) {
 		t.Errorf("Got unexpected %s error", err.Error)
 	}
 	expected := []cluster.Node{
-		{Address: "http://docker-node01.com:4243"},
+		{Address: "http://docker-node01.com:4243", Metadata: map[string]string{}},
 	}
 	if !reflect.DeepEqual(nodes, expected) {
 		t.Errorf("Expected nodes to be equal %q, got %q", expected, nodes)

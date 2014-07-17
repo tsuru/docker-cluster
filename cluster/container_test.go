@@ -6,6 +6,7 @@ package cluster
 
 import (
 	"bytes"
+	"fmt"
 	"github.com/fsouza/go-dockerclient"
 	cstorage "github.com/tsuru/docker-cluster/storage"
 	"github.com/tsuru/tsuru/safe"
@@ -142,8 +143,9 @@ func TestCreateContainerFailure(t *testing.T) {
 	}
 	config := docker.Config{Memory: 67108864}
 	_, _, err = cluster.CreateContainer(docker.CreateContainerOptions{Config: &config})
-	if err == nil {
-		t.Error("Got unexpected <nil> error")
+	expected := "No nodes available"
+	if err == nil || err.Error() != expected {
+		t.Errorf("Expected error %q, got: %#v", expected, err)
 	}
 }
 
@@ -252,6 +254,56 @@ func TestCreateContainerWithStorage(t *testing.T) {
 	host, _ := storage.RetrieveContainer("e90302")
 	if host != server1.URL {
 		t.Errorf("Cluster.CreateContainer() with storage: wrong data. Want %#v. Got %#v.", server1.URL, host)
+	}
+}
+
+type firstNodeScheduler struct{}
+
+func (firstNodeScheduler) Schedule(c *Cluster, opts docker.CreateContainerOptions, schedulerOpts SchedulerOptions) (Node, error) {
+	var node Node
+	nodes, err := c.Nodes()
+	if err != nil {
+		return node, err
+	}
+	if len(nodes) == 0 {
+		return node, fmt.Errorf("no nodes in scheduler")
+	}
+	return nodes[0], nil
+}
+
+func TestCreateContainerTryAnotherNodeInFailure(t *testing.T) {
+	body := `{"Id":"e90302"}`
+	called1 := false
+	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called1 = true
+		http.Error(w, "NoSuchImage", http.StatusNotFound)
+	}))
+	defer server1.Close()
+	server2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(body))
+	}))
+	defer server2.Close()
+	cluster, err := New(firstNodeScheduler{}, &MapStorage{},
+		Node{Address: server1.URL},
+		Node{Address: server2.URL},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	config := docker.Config{Memory: 67108864, Image: "myimg"}
+	nodeAddr, container, err := cluster.CreateContainer(docker.CreateContainerOptions{Config: &config})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if called1 != true {
+		t.Error("CreateContainer: server1 should've been called.")
+	}
+	if nodeAddr != server2.URL {
+		t.Errorf("CreateContainer: wrong node  ID. Want %q. Got %q.", server2.URL, nodeAddr)
+	}
+	if container.ID != "e90302" {
+		t.Errorf("CreateContainer: wrong container ID. Want %q. Got %q.", "e90302", container.ID)
 	}
 }
 

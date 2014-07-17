@@ -5,12 +5,15 @@
 package cluster
 
 import (
+	"errors"
+	"github.com/fsouza/go-dockerclient"
 	"github.com/tsuru/docker-cluster/storage"
 	"math/rand"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
 	"runtime"
+	"sort"
 	"testing"
 )
 
@@ -57,7 +60,11 @@ func TestRegister(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	node := scheduler.next(cluster)
+	opts := docker.CreateContainerOptions{}
+	node, err := scheduler.Schedule(cluster, opts, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if node.Address != "http://localhost1:4243" {
 		t.Errorf("Register failed. Got wrong Address. Want %q. Got %q.", "http://localhost1:4243", node.Address)
 	}
@@ -65,11 +72,17 @@ func TestRegister(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	node = scheduler.next(cluster)
+	node, err = scheduler.Schedule(cluster, opts, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if node.Address != "http://localhost2:4243" {
 		t.Errorf("Register failed. Got wrong ID. Want %q. Got %q.", "http://localhost2:4243", node.Address)
 	}
-	node = scheduler.next(cluster)
+	node, err = scheduler.Schedule(cluster, opts, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if node.Address != "http://localhost1:4243" {
 		t.Errorf("Register failed. Got wrong ID. Want %q. Got %q.", "http://localhost1:4243", node.Address)
 	}
@@ -112,12 +125,14 @@ func TestUnregister(t *testing.T) {
 		t.Fatal(err)
 	}
 	err = cluster.Unregister("http://localhost1:4243")
-	defer func() {
-		if r := recover(); r == nil {
-			t.Fatal("Should have recovered scheduler.next() panic.")
-		}
-	}()
-	scheduler.next(cluster)
+	if err != nil {
+		t.Fatal(err)
+	}
+	opts := docker.CreateContainerOptions{}
+	_, err = scheduler.Schedule(cluster, opts, nil)
+	if err == nil || err.Error() != "No nodes available" {
+		t.Fatal("Expected no nodes available error")
+	}
 }
 
 func TestNodesShouldGetClusterNodes(t *testing.T) {
@@ -135,6 +150,70 @@ func TestNodesShouldGetClusterNodes(t *testing.T) {
 		t.Fatal(err)
 	}
 	expected := []Node{{Address: "http://localhost:4243", Metadata: map[string]string{}}}
+	if !reflect.DeepEqual(nodes, expected) {
+		t.Errorf("Expected nodes to be equal %q, got %q", expected, nodes)
+	}
+}
+
+func TestNodesShouldGetClusterNodesWithoutDisabledNodes(t *testing.T) {
+	cluster, err := New(nil, &MapStorage{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cluster.Unregister("http://server1:4243")
+	defer cluster.Unregister("http://server2:4243")
+	err = cluster.Register("http://server1:4243", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = cluster.Register("http://server2:4243", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = cluster.handleNodeError("http://server1:4243", errors.New("some err"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	nodes, err := cluster.Nodes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	expected := []Node{
+		{Address: "http://server2:4243", Metadata: map[string]string{}},
+	}
+	if !reflect.DeepEqual(nodes, expected) {
+		t.Errorf("Expected nodes to be equal %q, got %q", expected, nodes)
+	}
+}
+
+func TesteUnfilteredNodesReturnAllNodes(t *testing.T) {
+	cluster, err := New(nil, &MapStorage{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cluster.Unregister("http://server1:4243")
+	defer cluster.Unregister("http://server2:4243")
+	err = cluster.Register("http://server1:4243", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = cluster.Register("http://server2:4243", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = cluster.handleNodeError("http://server1:4243", errors.New("some err"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	nodes, err := cluster.UnfilteredNodes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	expected := []Node{
+		{Address: "http://server1:4243", Metadata: map[string]string{}},
+		{Address: "http://server2:4243", Metadata: map[string]string{}},
+	}
+	sort.Sort(NodeList(nodes))
 	if !reflect.DeepEqual(nodes, expected) {
 		t.Errorf("Expected nodes to be equal %q, got %q", expected, nodes)
 	}

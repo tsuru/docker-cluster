@@ -10,12 +10,13 @@ import (
 )
 
 type MapStorage struct {
-	cMap  map[string]string
-	iMap  map[string]map[string]bool
-	nodes []Node
-	cMut  sync.Mutex
-	iMut  sync.Mutex
-	nMut  sync.Mutex
+	cMap    map[string]string
+	iMap    map[string]map[string]bool
+	nodes   []Node
+	nodeMap map[string]*Node
+	cMut    sync.Mutex
+	iMut    sync.Mutex
+	nMut    sync.Mutex
 }
 
 func (s *MapStorage) StoreContainer(containerID, hostID string) error {
@@ -93,11 +94,38 @@ func (s *MapStorage) StoreNode(node Node) error {
 		node.Metadata = make(map[string]string)
 	}
 	s.nodes = append(s.nodes, node)
+	if s.nodeMap == nil {
+		s.nodeMap = make(map[string]*Node)
+	}
+	s.nodeMap[node.Address] = &s.nodes[len(s.nodes)-1]
 	return nil
 }
 
 func (s *MapStorage) RetrieveNodes() ([]Node, error) {
 	return s.nodes, nil
+}
+
+func (s *MapStorage) RetrieveNode(address string) (Node, error) {
+	if s.nodeMap == nil {
+		s.nodeMap = make(map[string]*Node)
+	}
+	node, ok := s.nodeMap[address]
+	if !ok {
+		return Node{}, storage.ErrNoSuchNode
+	}
+	return *node, nil
+}
+
+func (s *MapStorage) UpdateNode(node Node) error {
+	if s.nodeMap == nil {
+		s.nodeMap = make(map[string]*Node)
+	}
+	_, ok := s.nodeMap[node.Address]
+	if !ok {
+		return storage.ErrNoSuchNode
+	}
+	*s.nodeMap[node.Address] = node
+	return nil
 }
 
 func (s *MapStorage) RetrieveNodesByMetadata(metadata map[string]string) ([]Node, error) {
@@ -127,5 +155,9 @@ func (s *MapStorage) RemoveNode(addr string) error {
 	}
 	copy(s.nodes[index:], s.nodes[index+1:])
 	s.nodes = s.nodes[:len(s.nodes)-1]
+	if s.nodeMap == nil {
+		s.nodeMap = make(map[string]*Node)
+	}
+	delete(s.nodeMap, addr)
 	return nil
 }

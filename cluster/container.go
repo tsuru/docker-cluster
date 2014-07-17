@@ -5,6 +5,8 @@
 package cluster
 
 import (
+	"errors"
+	"fmt"
 	"github.com/fsouza/go-dockerclient"
 	"sync"
 )
@@ -25,18 +27,34 @@ func (c *Cluster) CreateContainerSchedulerOpts(opts docker.CreateContainerOption
 		container *docker.Container
 		err       error
 	)
-	if len(nodes) > 0 {
-		addr = nodes[0]
-	} else {
-		node, err := c.scheduler.Schedule(c, opts, schedulerOpts)
-		if err != nil {
-			return addr, container, err
+	useScheduler := len(nodes) == 0
+	maxTries := 5
+	for ; maxTries > 0; maxTries-- {
+		if useScheduler {
+			node, err := c.scheduler.Schedule(c, opts, schedulerOpts)
+			if err != nil {
+				return addr, nil, err
+			}
+			addr = node.Address
+		} else {
+			addr = nodes[0]
 		}
-		addr = node.Address
+		if addr == "" {
+			return addr, nil, errors.New("CreateContainer needs a non empty node addr")
+		}
+		container, err = c.createContainerInNode(opts, addr)
+		if err == nil {
+			c.handleNodeSuccess(addr)
+			break
+		} else {
+			c.handleNodeError(addr, err)
+			if !useScheduler {
+				return addr, nil, err
+			}
+		}
 	}
-	container, err = c.createContainerInNode(opts, addr)
 	if err != nil {
-		return addr, container, err
+		return addr, nil, fmt.Errorf("CreateContainer: maximum number of tries exceeded, last error: %s", err.Error())
 	}
 	err = c.storage().StoreContainer(container.ID, addr)
 	return addr, container, err

@@ -35,17 +35,14 @@ func TestRoundRobinSchedule(t *testing.T) {
 }
 
 func TestScheduleEmpty(t *testing.T) {
-	defer func() {
-		expected := "No nodes available"
-		r := recover().(string)
-		if r != expected {
-			t.Fatalf("Schedule(): wrong panic message. Want %q. Got %q.", expected, r)
-		}
-	}()
 	c, err := New(&roundRobin{}, &MapStorage{})
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err.Error())
 	}
+	expected := "No nodes available"
 	opts := docker.CreateContainerOptions{Config: &docker.Config{}}
-	c.scheduler.Schedule(c, opts, nil)
+	_, err = c.scheduler.Schedule(c, opts, nil)
+	if err == nil || err.Error() != expected {
+		t.Fatalf("Schedule(): wrong error message. Want %q. Got %q.", expected, err)
+	}
 }

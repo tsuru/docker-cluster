@@ -126,6 +126,22 @@ func (s *redisStorage) StoreNode(node cluster.Node) error {
 	return err
 }
 
+func (s *redisStorage) retrieveNode(conn redis.Conn, address string) (cluster.Node, error) {
+	result, err := conn.Do("HGETALL", s.key("node:metadata:"+address))
+	if err != nil {
+		return cluster.Node{}, err
+	}
+	metadata := make(map[string]string)
+	if result != nil {
+		metaItems := result.([]interface{})
+		for i := 0; i < len(metaItems); i += 2 {
+			key, value := string(metaItems[i].([]byte)), string(metaItems[i+1].([]byte))
+			metadata[key] = value
+		}
+	}
+	return cluster.Node{Address: address, Metadata: metadata}, nil
+}
+
 func (s *redisStorage) RetrieveNodes() ([]cluster.Node, error) {
 	conn := s.pool.Get()
 	defer conn.Close()
@@ -137,20 +153,10 @@ func (s *redisStorage) RetrieveNodes() ([]cluster.Node, error) {
 	nodes := make([]cluster.Node, len(items))
 	for i, v := range items {
 		address := string(v.([]byte))
-		result, err := conn.Do("HGETALL", s.key("node:metadata:"+address))
+		nodes[i], err = s.retrieveNode(conn, address)
 		if err != nil {
 			return nil, err
 		}
-		var metadata map[string]string
-		if result != nil {
-			metadata = make(map[string]string)
-			metaItems := result.([]interface{})
-			for i := 0; i < len(metaItems); i += 2 {
-				key, value := string(metaItems[i].([]byte)), string(metaItems[i+1].([]byte))
-				metadata[key] = value
-			}
-		}
-		nodes[i] = cluster.Node{Address: address, Metadata: metadata}
 	}
 	return nodes, nil
 }
@@ -184,6 +190,27 @@ func (s *redisStorage) RemoveNode(address string) error {
 	}
 	_, err = conn.Do("DEL", s.key("node:metadata:"+address))
 	return err
+}
+
+func (s *redisStorage) RetrieveNode(address string) (cluster.Node, error) {
+	conn := s.pool.Get()
+	defer conn.Close()
+	result, err := conn.Do("SISMEMBER", s.key("nodes"), address)
+	if err != nil {
+		return cluster.Node{}, err
+	}
+	if result.(int64) == 0 {
+		return cluster.Node{}, storage.ErrNoSuchNode
+	}
+	return s.retrieveNode(conn, address)
+}
+
+func (s *redisStorage) UpdateNode(node cluster.Node) error {
+	err := s.RemoveNode(node.Address)
+	if err != nil {
+		return err
+	}
+	return s.StoreNode(node)
 }
 
 // Redis returns a cluster.storage instance that uses Redis to store nodes and

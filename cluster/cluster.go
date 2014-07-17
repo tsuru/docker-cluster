@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"reflect"
 	"sync"
+	"time"
 )
 
 var (
@@ -42,6 +43,8 @@ type NodeStorage interface {
 	StoreNode(node Node) error
 	RetrieveNodesByMetadata(metadata map[string]string) ([]Node, error)
 	RetrieveNodes() ([]Node, error)
+	RetrieveNode(address string) (Node, error)
+	UpdateNode(node Node) error
 	RemoveNode(address string) error
 }
 
@@ -49,13 +52,6 @@ type Storage interface {
 	ContainerStorage
 	ImageStorage
 	NodeStorage
-}
-
-// Node represents a host running Docker. Each node has an ID and an address
-// (in the form <scheme>://<host>:<port>/).
-type Node struct {
-	Address  string
-	Metadata map[string]string
 }
 
 // Cluster is the basic type of the package. It manages internal nodes, and
@@ -112,12 +108,42 @@ func (c *Cluster) Unregister(address string) error {
 	return c.storage().RemoveNode(address)
 }
 
-func (c *Cluster) Nodes() ([]Node, error) {
+func (c *Cluster) UnfilteredNodes() ([]Node, error) {
 	return c.storage().RetrieveNodes()
 }
 
+func (c *Cluster) Nodes() ([]Node, error) {
+	nodes, err := c.storage().RetrieveNodes()
+	if err != nil {
+		return nil, err
+	}
+	return NodeList(nodes).filterDisabled(), nil
+}
+
 func (c *Cluster) NodesForMetadata(metadata map[string]string) ([]Node, error) {
-	return c.storage().RetrieveNodesByMetadata(metadata)
+	nodes, err := c.storage().RetrieveNodesByMetadata(metadata)
+	if err != nil {
+		return nil, err
+	}
+	return NodeList(nodes).filterDisabled(), nil
+}
+
+func (c *Cluster) handleNodeError(addr string, lastErr error) error {
+	node, err := c.storage().RetrieveNode(addr)
+	if err != nil {
+		return err
+	}
+	node.updateError(lastErr, time.Now().Add(5*time.Minute))
+	return c.storage().UpdateNode(node)
+}
+
+func (c *Cluster) handleNodeSuccess(addr string) error {
+	node, err := c.storage().RetrieveNode(addr)
+	if err != nil {
+		return err
+	}
+	node.updateSuccess()
+	return c.storage().UpdateNode(node)
 }
 
 func (c *Cluster) storage() Storage {

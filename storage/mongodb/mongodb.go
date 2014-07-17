@@ -126,6 +126,27 @@ func (s *mongodbStorage) RetrieveNodes() ([]cluster.Node, error) {
 	return toClusterNode(dbNodes), nil
 }
 
+func (s *mongodbStorage) RetrieveNode(address string) (cluster.Node, error) {
+	coll := s.getColl("nodes")
+	defer coll.Database.Session.Close()
+	var node dbNode
+	err := coll.FindId(address).One(&node)
+	if err == mgo.ErrNotFound {
+		return cluster.Node{}, storage.ErrNoSuchNode
+	}
+	return cluster.Node{Address: node.Address, Metadata: node.Metadata}, err
+}
+
+func (s *mongodbStorage) UpdateNode(node cluster.Node) error {
+	coll := s.getColl("nodes")
+	defer coll.Database.Session.Close()
+	err := coll.UpdateId(node.Address, dbNode{Address: node.Address, Metadata: node.Metadata})
+	if err == mgo.ErrNotFound {
+		return storage.ErrNoSuchNode
+	}
+	return err
+}
+
 func (s *mongodbStorage) RemoveNode(address string) error {
 	coll := s.getColl("nodes")
 	defer coll.Database.Session.Close()

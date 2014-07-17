@@ -5,6 +5,7 @@
 package cluster
 
 import (
+	"errors"
 	"github.com/fsouza/go-dockerclient"
 	"sync"
 )
@@ -33,15 +34,11 @@ type roundRobin struct {
 }
 
 func (s *roundRobin) Schedule(c *Cluster, opts docker.CreateContainerOptions, schedulerOpts SchedulerOptions) (Node, error) {
-	return s.next(c), nil
-}
-
-func (s *roundRobin) next(c *Cluster) Node {
 	s.mut.RLock()
 	defer s.mut.RUnlock()
 	nodes, _ := c.Nodes()
 	if len(nodes) == 0 {
-		panic("No nodes available")
+		return Node{}, errors.New("No nodes available")
 	}
 	if !s.init {
 		s.init = true
@@ -49,5 +46,5 @@ func (s *roundRobin) next(c *Cluster) Node {
 	}
 	s.lastUsed += int64(1)
 	index := s.lastUsed % int64(len(nodes))
-	return nodes[index]
+	return nodes[index], nil
 }

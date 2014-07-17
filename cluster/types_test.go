@@ -53,6 +53,12 @@ func (failingStorage) RetrieveNodesByMetadata(metadata map[string]string) ([]Nod
 func (failingStorage) RetrieveNodes() ([]Node, error) {
 	return nil, errors.New("storage error")
 }
+func (failingStorage) RetrieveNode(addr string) (Node, error) {
+	return Node{}, errors.New("storage error")
+}
+func (failingStorage) UpdateNode(node Node) error {
+	return errors.New("storage error")
+}
 func (failingStorage) RemoveNode(address string) error {
 	return errors.New("storage error")
 }
