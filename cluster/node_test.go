@@ -5,11 +5,67 @@
 package cluster
 
 import (
+	"encoding/json"
 	"errors"
+	"reflect"
 	"regexp"
 	"testing"
 	"time"
 )
+
+func TestNodeStatus(t *testing.T) {
+	node := Node{}
+	if node.Status() != NodeStatusWaiting {
+		t.Fatalf("Expected status NodeStatusWaiting, got %s", node.Status())
+	}
+	node = Node{Metadata: map[string]string{
+		"Failures": "1",
+	}}
+	if node.Status() != NodeStatusRetry {
+		t.Fatalf("Expected status NodeStatusRetry, got %s", node.Status())
+	}
+	node = Node{Metadata: map[string]string{
+		"LastSuccess": "xxx",
+	}}
+	if node.Status() != NodeStatusReady {
+		t.Fatalf("Expected status NodeStatusReady, got %s", node.Status())
+	}
+	node = Node{Metadata: map[string]string{
+		"DisabledUntil": time.Now().Add(1 * time.Minute).Format(time.RFC3339),
+		"Failures":      "1",
+	}}
+	if node.Status() != NodeStatusDisabled {
+		t.Fatalf("Expected status NodeStatusDisabled, got %s", node.Status())
+	}
+}
+
+func TestNodeMarshalJSON(t *testing.T) {
+	dt := time.Now().Add(1 * time.Minute).Format(time.RFC3339)
+	node := Node{Address: "addr1", Metadata: map[string]string{
+		"DisabledUntil": dt,
+		"Failures":      "1",
+	}}
+	bytes, err := json.Marshal(node)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var val map[string]interface{}
+	expected := map[string]interface{}{
+		"Address": "addr1",
+		"Metadata": map[string]interface{}{
+			"DisabledUntil": dt,
+			"Failures":      "1",
+		},
+		"Status": NodeStatusDisabled,
+	}
+	err = json.Unmarshal(bytes, &val)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(val, expected) {
+		t.Fatalf("Expected marshaled json to equal %#v, got: %#v", expected, val)
+	}
+}
 
 func TestNodeUpdateError(t *testing.T) {
 	node := Node{}

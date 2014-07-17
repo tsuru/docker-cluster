@@ -8,6 +8,7 @@
 package cluster
 
 import (
+	"encoding/json"
 	"strconv"
 	"time"
 )
@@ -22,9 +23,42 @@ type Node struct {
 
 type NodeList []Node
 
+const (
+	NodeStatusWaiting  = "waiting"
+	NodeStatusReady    = "ready"
+	NodeStatusRetry    = "ready for retry"
+	NodeStatusDisabled = "disabled"
+)
+
 func (a NodeList) Len() int           { return len(a) }
 func (a NodeList) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a NodeList) Less(i, j int) bool { return a[i].Address < a[j].Address }
+
+func (n Node) MarshalJSON() ([]byte, error) {
+	return json.Marshal(map[string]interface{}{
+		"Address":  n.Address,
+		"Metadata": n.Metadata,
+		"Status":   n.Status(),
+	})
+}
+
+func (n *Node) Status() string {
+	if n.Metadata == nil {
+		return NodeStatusWaiting
+	}
+	if n.isEnabled() {
+		_, hasFailures := n.Metadata["Failures"]
+		if hasFailures {
+			return NodeStatusRetry
+		}
+		_, hasSuccess := n.Metadata["LastSuccess"]
+		if !hasSuccess {
+			return NodeStatusWaiting
+		}
+		return NodeStatusReady
+	}
+	return NodeStatusDisabled
+}
 
 func (n *Node) updateError(lastErr error, disabledUntil time.Time) {
 	if n.Metadata == nil {
