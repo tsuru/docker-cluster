@@ -12,9 +12,11 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"regexp"
 	"runtime"
 	"sort"
 	"testing"
+	"time"
 )
 
 func TestNewCluster(t *testing.T) {
@@ -182,7 +184,7 @@ func TestNodesShouldGetClusterNodesWithoutDisabledNodes(t *testing.T) {
 		{Address: "http://server2:4243", Metadata: map[string]string{}},
 	}
 	if !reflect.DeepEqual(nodes, expected) {
-		t.Errorf("Expected nodes to be equal %q, got %q", expected, nodes)
+		t.Errorf("Expected nodes to be equal %#v, got %#v", expected, nodes)
 	}
 }
 
@@ -332,5 +334,105 @@ func TestClusterNodesUnregister(t *testing.T) {
 	expected := []Node{{Address: "http://localhost:8081", Metadata: map[string]string{}}}
 	if !reflect.DeepEqual(got, expected) {
 		t.Errorf("roundRobin.Nodes(): wrong result. Want %#v. Got %#v.", nodes, got)
+	}
+}
+
+type blockingHealer struct {
+	calls         int
+	disabledUntil string
+	failureCount  int
+	stop          <-chan bool
+	t             *testing.T
+}
+
+func (h *blockingHealer) HandleError(n Node) time.Duration {
+	h.calls++
+	h.failureCount = n.FailureCount()
+	h.disabledUntil = n.Metadata["DisabledUntil"]
+	<-h.stop
+	return 1 * time.Minute
+}
+
+func TestClusterHandleNodeErrorStress(t *testing.T) {
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(10))
+	c, err := New(&roundRobin{}, &MapStorage{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	stopChan := make(chan bool)
+	healer := &blockingHealer{stop: stopChan, t: t}
+	c.SetHealer(healer)
+	err = c.Register("addr-1", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	expectedErr := errors.New("some error")
+	for i := 0; i < 50; i++ {
+		go func() {
+			c.handleNodeError("addr-1", expectedErr)
+		}()
+	}
+	stopChan <- true
+	if healer.failureCount != 1 {
+		t.Errorf("Expected %d failures count, got: %d", 1, healer.failureCount)
+	}
+	if healer.calls != 1 {
+		t.Fatalf("Expected healer to have 1 call, got: %d", healer.calls)
+	}
+	done := make(chan bool)
+	go func() {
+		stopChan <- true
+		done <- true
+	}()
+	go func() {
+		for {
+			err := c.handleNodeError("addr-1", expectedErr)
+			if err == nil {
+				break
+			}
+		}
+	}()
+	select {
+	case <-done:
+	case <-time.After(1 * time.Second):
+		t.Fatal("Timed out waiting for another healer call")
+	}
+	if healer.calls != 2 {
+		t.Fatalf("Expected healer to have 2 calls, got: %d", healer.calls)
+	}
+	if healer.failureCount != 2 {
+		t.Errorf("Expected %d failures count, got: %d", 2, healer.failureCount)
+	}
+	now := time.Now().Add(1 * time.Minute).Format(time.RFC3339)
+	re := regexp.MustCompile(`(.*T\d{2}:\d{2}).*`)
+	disabledUntil := re.ReplaceAllString(healer.disabledUntil, "$1")
+	now = re.ReplaceAllString(now, "$1")
+	if disabledUntil != now {
+		t.Errorf("Expected DisabledUntil to be like %s, got: %s", now, disabledUntil)
+	}
+}
+
+func TestClusterHandleNodeSuccess(t *testing.T) {
+	c, err := New(&roundRobin{}, &MapStorage{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = c.Register("addr-1", map[string]string{"Failures": "10"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = c.handleNodeSuccess("addr-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	node, err := c.storage().RetrieveNode("addr-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if node.FailureCount() != 0 {
+		t.Errorf("Expected FailureCount to be 0, got: %d", node.FailureCount())
+	}
+	if node.Healing {
+		t.Error("Expected node.Healing to be false, got true")
 	}
 }

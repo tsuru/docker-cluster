@@ -242,19 +242,17 @@ func (s *redisStorage) UpdateNode(node cluster.Node) error {
 	return s.saveNode(node)
 }
 
-func (s *redisStorage) LockNodeForHealing(node cluster.Node) (bool, error) {
+func (s *redisStorage) LockNodeForHealing(address string) (bool, error) {
 	conn := s.pool.Get()
 	defer conn.Close()
-	result, err := conn.Do("SETNX", s.key("node:healing:"+node.Address), "1")
+	result, err := conn.Do("SETNX", s.key("node:healing:"+address), "1")
 	if err != nil {
 		return false, err
 	}
 	if result.(int64) == 0 {
 		return false, nil
 	}
-	node.Healing = true
-	err = s.UpdateNode(node)
-	return err == nil, err
+	return true, nil
 }
 
 // Redis returns a cluster.storage instance that uses Redis to store nodes and

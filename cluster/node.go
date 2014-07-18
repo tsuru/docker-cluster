@@ -29,6 +29,7 @@ const (
 	NodeStatusReady    = "ready"
 	NodeStatusRetry    = "ready for retry"
 	NodeStatusDisabled = "disabled"
+	NodeStatusHealing  = "healing"
 )
 
 func (a NodeList) Len() int           { return len(a) }
@@ -44,6 +45,9 @@ func (n Node) MarshalJSON() ([]byte, error) {
 }
 
 func (n *Node) Status() string {
+	if n.Healing {
+		return NodeStatusHealing
+	}
 	if n.Metadata == nil {
 		return NodeStatusWaiting
 	}
@@ -70,13 +74,19 @@ func (n *Node) FailureCount() int {
 	return failures
 }
 
-func (n *Node) updateError(lastErr error, disabledUntil time.Time) {
+func (n *Node) updateError(lastErr error) {
 	if n.Metadata == nil {
 		n.Metadata = make(map[string]string)
 	}
 	n.Metadata["Failures"] = strconv.Itoa(n.FailureCount() + 1)
-	n.Metadata["DisabledUntil"] = disabledUntil.Format(time.RFC3339)
 	n.Metadata["LastError"] = lastErr.Error()
+}
+
+func (n *Node) updateDisabled(disabledUntil time.Time) {
+	if n.Metadata == nil {
+		n.Metadata = make(map[string]string)
+	}
+	n.Metadata["DisabledUntil"] = disabledUntil.Format(time.RFC3339)
 }
 
 func (n *Node) updateSuccess() {
@@ -90,6 +100,9 @@ func (n *Node) updateSuccess() {
 }
 
 func (n *Node) isEnabled() bool {
+	if n.Healing {
+		return false
+	}
 	if n.Metadata == nil {
 		return true
 	}

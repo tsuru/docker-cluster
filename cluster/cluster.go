@@ -18,6 +18,7 @@ import (
 
 var (
 	errStorageMandatory = errors.New("Storage parameter is mandatory")
+	errHealerInProgress = errors.New("Healer already running")
 )
 
 // ContainerStorage provides methods to store and retrieve information about
@@ -46,7 +47,7 @@ type NodeStorage interface {
 	RetrieveNode(address string) (Node, error)
 	UpdateNode(node Node) error
 	RemoveNode(address string) error
-	LockNodeForHealing(node Node) (bool, error)
+	LockNodeForHealing(address string) (bool, error)
 }
 
 type Storage interface {
@@ -136,22 +137,45 @@ func (c *Cluster) NodesForMetadata(metadata map[string]string) ([]Node, error) {
 }
 
 func (c *Cluster) handleNodeError(addr string, lastErr error) error {
-	node, err := c.storage().RetrieveNode(addr)
+	locked, err := c.storage().LockNodeForHealing(addr)
 	if err != nil {
 		return err
 	}
-	duration := c.healer.HandleError(node)
-	node.updateError(lastErr, time.Now().Add(duration))
-	return c.storage().UpdateNode(node)
+	if !locked {
+		return errHealerInProgress
+	}
+	go func() {
+		node, err := c.storage().RetrieveNode(addr)
+		if err != nil {
+			return
+		}
+		node.Healing = false
+		defer c.storage().UpdateNode(node)
+		node.updateError(lastErr)
+		duration := c.healer.HandleError(node)
+		if duration > 0 {
+			node.updateDisabled(time.Now().Add(duration))
+		}
+	}()
+	return nil
 }
 
 func (c *Cluster) handleNodeSuccess(addr string) error {
+	locked, err := c.storage().LockNodeForHealing(addr)
+	if err != nil {
+		return err
+	}
+	if !locked {
+		return errHealerInProgress
+	}
 	node, err := c.storage().RetrieveNode(addr)
 	if err != nil {
 		return err
 	}
+	node.Healing = false
+	defer c.storage().UpdateNode(node)
 	node.updateSuccess()
-	return c.storage().UpdateNode(node)
+	return nil
 }
 
 func (c *Cluster) storage() Storage {

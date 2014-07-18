@@ -62,7 +62,7 @@ func (failingStorage) UpdateNode(node Node) error {
 func (failingStorage) RemoveNode(address string) error {
 	return errors.New("storage error")
 }
-func (failingStorage) LockNodeForHealing(node Node) (bool, error) {
+func (failingStorage) LockNodeForHealing(address string) (bool, error) {
 	return false, errors.New("storage error")
 }
 

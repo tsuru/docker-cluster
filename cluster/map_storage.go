@@ -82,6 +82,13 @@ func (s *MapStorage) RemoveImage(imageID string) error {
 	return nil
 }
 
+func (s *MapStorage) updateNodeMap() {
+	s.nodeMap = make(map[string]*Node)
+	for i := range s.nodes {
+		s.nodeMap[s.nodes[i].Address] = &s.nodes[i]
+	}
+}
+
 func (s *MapStorage) StoreNode(node Node) error {
 	s.nMut.Lock()
 	defer s.nMut.Unlock()
@@ -94,10 +101,7 @@ func (s *MapStorage) StoreNode(node Node) error {
 		node.Metadata = make(map[string]string)
 	}
 	s.nodes = append(s.nodes, node)
-	if s.nodeMap == nil {
-		s.nodeMap = make(map[string]*Node)
-	}
-	s.nodeMap[node.Address] = &s.nodes[len(s.nodes)-1]
+	s.updateNodeMap()
 	return nil
 }
 
@@ -117,6 +121,8 @@ func (s *MapStorage) RetrieveNode(address string) (Node, error) {
 }
 
 func (s *MapStorage) UpdateNode(node Node) error {
+	s.nMut.Lock()
+	defer s.nMut.Unlock()
 	if s.nodeMap == nil {
 		s.nodeMap = make(map[string]*Node)
 	}
@@ -155,21 +161,17 @@ func (s *MapStorage) RemoveNode(addr string) error {
 	}
 	copy(s.nodes[index:], s.nodes[index+1:])
 	s.nodes = s.nodes[:len(s.nodes)-1]
-	if s.nodeMap == nil {
-		s.nodeMap = make(map[string]*Node)
-	}
-	delete(s.nodeMap, addr)
+	s.updateNodeMap()
 	return nil
 }
 
-func (s *MapStorage) LockNodeForHealing(node Node) (bool, error) {
+func (s *MapStorage) LockNodeForHealing(address string) (bool, error) {
 	s.nMut.Lock()
 	defer s.nMut.Unlock()
-	n := s.nodeMap[node.Address]
-	if n.Healing {
+	n, present := s.nodeMap[address]
+	if !present || n.Healing {
 		return false, nil
 	}
-	node.Healing = true
-	*s.nodeMap[node.Address] = node
+	s.nodeMap[address].Healing = true
 	return true, nil
 }

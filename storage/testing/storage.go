@@ -264,9 +264,9 @@ func testStorageStoreRemoveNode(storage cluster.Storage, t *testing.T) {
 
 func testStorageLockNodeHealing(storage cluster.Storage, t *testing.T) {
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(10))
-	node := cluster.Node{Address: "addr-1", Metadata: map[string]string{}}
+	node := cluster.Node{Address: "addr-xyz"}
+	defer storage.RemoveNode("addr-xyz")
 	err := storage.StoreNode(node)
-	node.Metadata["something"] = "else"
 	assertIsNil(err, t)
 	successCount := 0
 	wg := sync.WaitGroup{}
@@ -274,7 +274,7 @@ func testStorageLockNodeHealing(storage cluster.Storage, t *testing.T) {
 	for i := 0; i < 50; i++ {
 		go func() {
 			defer wg.Done()
-			locked, err := storage.LockNodeForHealing(node)
+			locked, err := storage.LockNodeForHealing("addr-xyz")
 			assertIsNil(err, t)
 			if locked {
 				successCount++
@@ -285,13 +285,10 @@ func testStorageLockNodeHealing(storage cluster.Storage, t *testing.T) {
 	if successCount != 1 {
 		t.Fatalf("Expected success in only one goroutine, got: %d", successCount)
 	}
-	dbNode, err := storage.RetrieveNode("addr-1")
+	dbNode, err := storage.RetrieveNode("addr-xyz")
 	assertIsNil(err, t)
 	if !dbNode.Healing {
 		t.Fatal("Expected node healing to be true")
-	}
-	if dbNode.Metadata["something"] != "else" {
-		t.Fatal("Expected lock to store received node, got empty metadata.")
 	}
 }
 
