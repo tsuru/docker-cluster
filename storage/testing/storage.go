@@ -8,8 +8,10 @@ import (
 	"github.com/tsuru/docker-cluster/cluster"
 	cstorage "github.com/tsuru/docker-cluster/storage"
 	"reflect"
+	"runtime"
 	"runtime/debug"
 	"sort"
+	"sync"
 	"testing"
 )
 
@@ -260,6 +262,39 @@ func testStorageStoreRemoveNode(storage cluster.Storage, t *testing.T) {
 	}
 }
 
+func testStorageLockNodeHealing(storage cluster.Storage, t *testing.T) {
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(10))
+	node := cluster.Node{Address: "addr-1", Metadata: map[string]string{}}
+	err := storage.StoreNode(node)
+	node.Metadata["something"] = "else"
+	assertIsNil(err, t)
+	successCount := 0
+	wg := sync.WaitGroup{}
+	wg.Add(50)
+	for i := 0; i < 50; i++ {
+		go func() {
+			defer wg.Done()
+			locked, err := storage.LockNodeForHealing(node)
+			assertIsNil(err, t)
+			if locked {
+				successCount++
+			}
+		}()
+	}
+	wg.Wait()
+	if successCount != 1 {
+		t.Fatalf("Expected success in only one goroutine, got: %d", successCount)
+	}
+	dbNode, err := storage.RetrieveNode("addr-1")
+	assertIsNil(err, t)
+	if !dbNode.Healing {
+		t.Fatal("Expected node healing to be true")
+	}
+	if dbNode.Metadata["something"] != "else" {
+		t.Fatal("Expected lock to store received node, got empty metadata.")
+	}
+}
+
 func RunTestsForStorage(storage cluster.Storage, t *testing.T) {
 	testStorageStoreRetrieveContainer(storage, t)
 	testStorageStoreRemoveContainer(storage, t)
@@ -274,4 +309,5 @@ func RunTestsForStorage(storage cluster.Storage, t *testing.T) {
 	testStorageStoreClearMetadata(storage, t)
 	testStorageStoreRetrieveNode(storage, t)
 	testStorageStoreUpdateNode(storage, t)
+	testStorageLockNodeHealing(storage, t)
 }

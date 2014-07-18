@@ -96,17 +96,10 @@ func (s *redisStorage) RemoveImage(id string) error {
 	return nil
 }
 
-func (s *redisStorage) StoreNode(node cluster.Node) error {
+func (s *redisStorage) saveNode(node cluster.Node) error {
 	conn := s.pool.Get()
 	defer conn.Close()
-	result, err := conn.Do("SISMEMBER", s.key("nodes"), node.Address)
-	if err != nil {
-		return err
-	}
-	if result.(int64) != 0 {
-		return storage.ErrDuplicatedNodeAddress
-	}
-	_, err = conn.Do("SADD", s.key("nodes"), node.Address)
+	_, err := conn.Do("SADD", s.key("nodes"), node.Address)
 	if err != nil {
 		return err
 	}
@@ -122,8 +115,31 @@ func (s *redisStorage) StoreNode(node cluster.Node) error {
 	if len(args) == 1 {
 		return nil
 	}
+	_, err = conn.Do("DEL", args[0])
+	if err != nil {
+		return err
+	}
 	_, err = conn.Do("HMSET", args...)
+	if err != nil {
+		return err
+	}
+	if !node.Healing {
+		_, err = conn.Do("DEL", s.key("node:healing:"+node.Address))
+	}
 	return err
+}
+
+func (s *redisStorage) StoreNode(node cluster.Node) error {
+	conn := s.pool.Get()
+	defer conn.Close()
+	result, err := conn.Do("SISMEMBER", s.key("nodes"), node.Address)
+	if err != nil {
+		return err
+	}
+	if result.(int64) != 0 {
+		return storage.ErrDuplicatedNodeAddress
+	}
+	return s.saveNode(node)
 }
 
 func (s *redisStorage) retrieveNode(conn redis.Conn, address string) (cluster.Node, error) {
@@ -139,7 +155,15 @@ func (s *redisStorage) retrieveNode(conn redis.Conn, address string) (cluster.No
 			metadata[key] = value
 		}
 	}
-	return cluster.Node{Address: address, Metadata: metadata}, nil
+	node := cluster.Node{Address: address, Metadata: metadata}
+	result, err = conn.Do("GET", s.key("node:healing:"+address))
+	if err != nil {
+		return cluster.Node{}, err
+	}
+	if result != nil && string(result.([]byte)) == "1" {
+		node.Healing = true
+	}
+	return node, nil
 }
 
 func (s *redisStorage) RetrieveNodes() ([]cluster.Node, error) {
@@ -206,11 +230,31 @@ func (s *redisStorage) RetrieveNode(address string) (cluster.Node, error) {
 }
 
 func (s *redisStorage) UpdateNode(node cluster.Node) error {
-	err := s.RemoveNode(node.Address)
+	conn := s.pool.Get()
+	defer conn.Close()
+	result, err := conn.Do("SISMEMBER", s.key("nodes"), node.Address)
 	if err != nil {
 		return err
 	}
-	return s.StoreNode(node)
+	if result.(int64) == 0 {
+		return storage.ErrNoSuchNode
+	}
+	return s.saveNode(node)
+}
+
+func (s *redisStorage) LockNodeForHealing(node cluster.Node) (bool, error) {
+	conn := s.pool.Get()
+	defer conn.Close()
+	result, err := conn.Do("SETNX", s.key("node:healing:"+node.Address), "1")
+	if err != nil {
+		return false, err
+	}
+	if result.(int64) == 0 {
+		return false, nil
+	}
+	node.Healing = true
+	err = s.UpdateNode(node)
+	return err == nil, err
 }
 
 // Redis returns a cluster.storage instance that uses Redis to store nodes and

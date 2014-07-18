@@ -161,3 +161,15 @@ func (s *MapStorage) RemoveNode(addr string) error {
 	delete(s.nodeMap, addr)
 	return nil
 }
+
+func (s *MapStorage) LockNodeForHealing(node Node) (bool, error) {
+	s.nMut.Lock()
+	defer s.nMut.Unlock()
+	n := s.nodeMap[node.Address]
+	if n.Healing {
+		return false, nil
+	}
+	node.Healing = true
+	*s.nodeMap[node.Address] = node
+	return true, nil
+}

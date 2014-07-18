@@ -62,6 +62,9 @@ func (failingStorage) UpdateNode(node Node) error {
 func (failingStorage) RemoveNode(address string) error {
 	return errors.New("storage error")
 }
+func (failingStorage) LockNodeForHealing(node Node) (bool, error) {
+	return false, errors.New("storage error")
+}
 
 type fakeScheduler struct{}
 

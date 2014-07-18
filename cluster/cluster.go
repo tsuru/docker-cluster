@@ -46,6 +46,7 @@ type NodeStorage interface {
 	RetrieveNode(address string) (Node, error)
 	UpdateNode(node Node) error
 	RemoveNode(address string) error
+	LockNodeForHealing(node Node) (bool, error)
 }
 
 type Storage interface {

@@ -74,30 +74,25 @@ func (s *mongodbStorage) RemoveImage(image string) error {
 	return coll.Remove(bson.M{"_id": image})
 }
 
-type dbNode struct {
-	Address  string `bson:"_id"`
-	Metadata map[string]string
-}
-
-func toClusterNode(dbNodes []dbNode) []cluster.Node {
-	nodes := make([]cluster.Node, len(dbNodes))
-	for i, node := range dbNodes {
-		nodes[i] = cluster.Node{
-			Address:  node.Address,
-			Metadata: node.Metadata,
-		}
-	}
-	return nodes
-}
-
 func (s *mongodbStorage) StoreNode(node cluster.Node) error {
 	coll := s.getColl("nodes")
 	defer coll.Database.Session.Close()
-	err := coll.Insert(dbNode{Address: node.Address, Metadata: node.Metadata})
+	err := coll.Insert(node)
 	if mgo.IsDup(err) {
 		return storage.ErrDuplicatedNodeAddress
 	}
 	return err
+}
+
+func (s *mongodbStorage) LockNodeForHealing(node cluster.Node) (bool, error) {
+	coll := s.getColl("nodes")
+	defer coll.Database.Session.Close()
+	node.Healing = true
+	err := coll.Update(bson.M{"_id": node.Address, "healing": bson.M{"$in": []interface{}{false, nil}}}, node)
+	if err == mgo.ErrNotFound {
+		return false, nil
+	}
+	return err == nil, err
 }
 
 func (s *mongodbStorage) RetrieveNodesByMetadata(metadata map[string]string) ([]cluster.Node, error) {
@@ -107,40 +102,40 @@ func (s *mongodbStorage) RetrieveNodesByMetadata(metadata map[string]string) ([]
 	for key, value := range metadata {
 		query["metadata."+key] = value
 	}
-	var dbNodes []dbNode
-	err := coll.Find(query).All(&dbNodes)
+	var nodes []cluster.Node
+	err := coll.Find(query).All(&nodes)
 	if err != nil {
 		return nil, err
 	}
-	return toClusterNode(dbNodes), nil
+	return nodes, nil
 }
 
 func (s *mongodbStorage) RetrieveNodes() ([]cluster.Node, error) {
 	coll := s.getColl("nodes")
 	defer coll.Database.Session.Close()
-	var dbNodes []dbNode
-	err := coll.Find(nil).All(&dbNodes)
+	var nodes []cluster.Node
+	err := coll.Find(nil).All(&nodes)
 	if err != nil {
 		return nil, err
 	}
-	return toClusterNode(dbNodes), nil
+	return nodes, nil
 }
 
 func (s *mongodbStorage) RetrieveNode(address string) (cluster.Node, error) {
 	coll := s.getColl("nodes")
 	defer coll.Database.Session.Close()
-	var node dbNode
+	var node cluster.Node
 	err := coll.FindId(address).One(&node)
 	if err == mgo.ErrNotFound {
 		return cluster.Node{}, storage.ErrNoSuchNode
 	}
-	return cluster.Node{Address: node.Address, Metadata: node.Metadata}, err
+	return node, err
 }
 
 func (s *mongodbStorage) UpdateNode(node cluster.Node) error {
 	coll := s.getColl("nodes")
 	defer coll.Database.Session.Close()
-	err := coll.UpdateId(node.Address, dbNode{Address: node.Address, Metadata: node.Metadata})
+	err := coll.UpdateId(node.Address, node)
 	if err == mgo.ErrNotFound {
 		return storage.ErrNoSuchNode
 	}

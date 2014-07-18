@@ -17,8 +17,9 @@ import (
 // (in the form <scheme>://<host>:<port>/) and map with arbritary
 // metadata.
 type Node struct {
-	Address  string
+	Address  string `bson:"_id"`
 	Metadata map[string]string
+	Healing  bool
 }
 
 type NodeList []Node
