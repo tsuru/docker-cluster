@@ -84,12 +84,12 @@ func (s *mongodbStorage) StoreNode(node cluster.Node) error {
 	return err
 }
 
-func (s *mongodbStorage) LockNodeForHealing(address string) (bool, error) {
+func (s *mongodbStorage) LockNodeForHealing(address string, isFailure bool) (bool, error) {
 	coll := s.getColl("nodes")
 	defer coll.Database.Session.Close()
 	err := coll.Update(
-		bson.M{"_id": address, "healing": bson.M{"$in": []interface{}{false, nil}}},
-		bson.M{"$set": bson.M{"healing": true}},
+		bson.M{"_id": address, "healing.locked": bson.M{"$in": []interface{}{false, nil}}},
+		bson.M{"$set": bson.M{"healing": bson.M{"locked": true, "isfailure": isFailure}}},
 	)
 	if err == mgo.ErrNotFound {
 		return false, nil

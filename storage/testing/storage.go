@@ -274,7 +274,7 @@ func testStorageLockNodeHealing(storage cluster.Storage, t *testing.T) {
 	for i := 0; i < 50; i++ {
 		go func() {
 			defer wg.Done()
-			locked, err := storage.LockNodeForHealing("addr-xyz")
+			locked, err := storage.LockNodeForHealing("addr-xyz", true)
 			assertIsNil(err, t)
 			if locked {
 				successCount++
@@ -287,8 +287,22 @@ func testStorageLockNodeHealing(storage cluster.Storage, t *testing.T) {
 	}
 	dbNode, err := storage.RetrieveNode("addr-xyz")
 	assertIsNil(err, t)
-	if !dbNode.Healing {
-		t.Fatal("Expected node healing to be true")
+	if !dbNode.Healing.Locked {
+		t.Fatal("Expected node Healing.Locked to be true")
+	}
+	if !dbNode.Healing.IsFailure {
+		t.Fatal("Expected node healing.isFailure to be true")
+	}
+	dbNode.Healing = cluster.HealingData{}
+	err = storage.UpdateNode(dbNode)
+	assertIsNil(err, t)
+	dbNode, err = storage.RetrieveNode("addr-xyz")
+	assertIsNil(err, t)
+	if dbNode.Healing.Locked {
+		t.Fatal("Expected node Healing.Locked to be false")
+	}
+	if dbNode.Healing.IsFailure {
+		t.Fatal("Expected node Healing.IsFailure to be false")
 	}
 }
 

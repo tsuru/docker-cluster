@@ -47,7 +47,7 @@ type NodeStorage interface {
 	RetrieveNode(address string) (Node, error)
 	UpdateNode(node Node) error
 	RemoveNode(address string) error
-	LockNodeForHealing(address string) (bool, error)
+	LockNodeForHealing(address string, isFailure bool) (bool, error)
 }
 
 type Storage interface {
@@ -137,7 +137,7 @@ func (c *Cluster) NodesForMetadata(metadata map[string]string) ([]Node, error) {
 }
 
 func (c *Cluster) handleNodeError(addr string, lastErr error) error {
-	locked, err := c.storage().LockNodeForHealing(addr)
+	locked, err := c.storage().LockNodeForHealing(addr, true)
 	if err != nil {
 		return err
 	}
@@ -149,7 +149,7 @@ func (c *Cluster) handleNodeError(addr string, lastErr error) error {
 		if err != nil {
 			return
 		}
-		node.Healing = false
+		node.Healing = HealingData{}
 		defer c.storage().UpdateNode(node)
 		node.updateError(lastErr)
 		duration := c.healer.HandleError(node)
@@ -161,7 +161,7 @@ func (c *Cluster) handleNodeError(addr string, lastErr error) error {
 }
 
 func (c *Cluster) handleNodeSuccess(addr string) error {
-	locked, err := c.storage().LockNodeForHealing(addr)
+	locked, err := c.storage().LockNodeForHealing(addr, false)
 	if err != nil {
 		return err
 	}
@@ -172,7 +172,7 @@ func (c *Cluster) handleNodeSuccess(addr string) error {
 	if err != nil {
 		return err
 	}
-	node.Healing = false
+	node.Healing = HealingData{}
 	defer c.storage().UpdateNode(node)
 	node.updateSuccess()
 	return nil
@@ -261,6 +261,11 @@ func (c *Cluster) getNode(retrieveFn func(Storage) (string, error)) (node, error
 	if err != nil {
 		return n, err
 	}
+	return c.getNodeByAddr(address)
+}
+
+func (c *Cluster) getNodeByAddr(address string) (node, error) {
+	var n node
 	client, err := docker.NewClient(address)
 	if err != nil {
 		return n, err

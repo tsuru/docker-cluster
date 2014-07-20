@@ -103,6 +103,13 @@ func (s *redisStorage) saveNode(node cluster.Node) error {
 	if err != nil {
 		return err
 	}
+	if !node.Healing.Locked {
+		_, err = conn.Do("DEL", s.key("node:healing:"+node.Address))
+		if err != nil {
+			return err
+		}
+		_, err = conn.Do("DEL", s.key("node:healing:isfailure:"+node.Address))
+	}
 	if node.Metadata == nil {
 		return nil
 	}
@@ -122,9 +129,6 @@ func (s *redisStorage) saveNode(node cluster.Node) error {
 	_, err = conn.Do("HMSET", args...)
 	if err != nil {
 		return err
-	}
-	if !node.Healing {
-		_, err = conn.Do("DEL", s.key("node:healing:"+node.Address))
 	}
 	return err
 }
@@ -161,7 +165,14 @@ func (s *redisStorage) retrieveNode(conn redis.Conn, address string) (cluster.No
 		return cluster.Node{}, err
 	}
 	if result != nil && string(result.([]byte)) == "1" {
-		node.Healing = true
+		node.Healing.Locked = true
+	}
+	result, err = conn.Do("GET", s.key("node:healing:isfailure:"+address))
+	if err != nil {
+		return cluster.Node{}, err
+	}
+	if result != nil && string(result.([]byte)) == "1" {
+		node.Healing.IsFailure = true
 	}
 	return node, nil
 }
@@ -242,7 +253,7 @@ func (s *redisStorage) UpdateNode(node cluster.Node) error {
 	return s.saveNode(node)
 }
 
-func (s *redisStorage) LockNodeForHealing(address string) (bool, error) {
+func (s *redisStorage) LockNodeForHealing(address string, isFailure bool) (bool, error) {
 	conn := s.pool.Get()
 	defer conn.Close()
 	result, err := conn.Do("SETNX", s.key("node:healing:"+address), "1")
@@ -250,6 +261,13 @@ func (s *redisStorage) LockNodeForHealing(address string) (bool, error) {
 		return false, err
 	}
 	if result.(int64) == 0 {
+		return false, nil
+	}
+	if !isFailure {
+		return true, nil
+	}
+	_, err = conn.Do("SET", s.key("node:healing:isfailure:"+address), "1")
+	if err != nil {
 		return false, nil
 	}
 	return true, nil

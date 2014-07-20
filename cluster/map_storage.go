@@ -165,13 +165,14 @@ func (s *MapStorage) RemoveNode(addr string) error {
 	return nil
 }
 
-func (s *MapStorage) LockNodeForHealing(address string) (bool, error) {
+func (s *MapStorage) LockNodeForHealing(address string, isFailure bool) (bool, error) {
 	s.nMut.Lock()
 	defer s.nMut.Unlock()
 	n, present := s.nodeMap[address]
-	if !present || n.Healing {
+	if !present || n.Healing.Locked {
 		return false, nil
 	}
-	s.nodeMap[address].Healing = true
+	n.Healing.Locked = true
+	n.Healing.IsFailure = isFailure
 	return true, nil
 }

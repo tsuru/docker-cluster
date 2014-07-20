@@ -159,6 +159,8 @@ func TestNodesShouldGetClusterNodes(t *testing.T) {
 
 func TestNodesShouldGetClusterNodesWithoutDisabledNodes(t *testing.T) {
 	cluster, err := New(nil, &MapStorage{})
+	healer := &blockingHealer{stop: make(chan bool)}
+	cluster.SetHealer(healer)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -342,7 +344,6 @@ type blockingHealer struct {
 	disabledUntil string
 	failureCount  int
 	stop          <-chan bool
-	t             *testing.T
 }
 
 func (h *blockingHealer) HandleError(n Node) time.Duration {
@@ -360,7 +361,7 @@ func TestClusterHandleNodeErrorStress(t *testing.T) {
 		t.Fatal(err)
 	}
 	stopChan := make(chan bool)
-	healer := &blockingHealer{stop: stopChan, t: t}
+	healer := &blockingHealer{stop: stopChan}
 	c.SetHealer(healer)
 	err = c.Register("addr-1", nil)
 	if err != nil {
@@ -410,6 +411,17 @@ func TestClusterHandleNodeErrorStress(t *testing.T) {
 	if disabledUntil != now {
 		t.Errorf("Expected DisabledUntil to be like %s, got: %s", now, disabledUntil)
 	}
+	nodes, err := c.storage().RetrieveNodes()
+	node := nodes[0]
+	if err != nil {
+		t.Fatal(err)
+	}
+	if node.FailureCount() != 2 {
+		t.Errorf("Expected FailureCount to be 2, got: %d", node.FailureCount())
+	}
+	if node.Metadata["DisabledUntil"] != healer.disabledUntil {
+		t.Errorf("Expected DisabledUntil to be %s, got: %s", healer.disabledUntil, node.Metadata["DisabledUntil"])
+	}
 }
 
 func TestClusterHandleNodeSuccess(t *testing.T) {
@@ -432,7 +444,36 @@ func TestClusterHandleNodeSuccess(t *testing.T) {
 	if node.FailureCount() != 0 {
 		t.Errorf("Expected FailureCount to be 0, got: %d", node.FailureCount())
 	}
-	if node.Healing {
+	if node.Healing.Locked {
 		t.Error("Expected node.Healing to be false, got true")
+	}
+}
+
+func TestClusterHandleNodeSuccessStressShouldntBlockNodes(t *testing.T) {
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(10))
+	c, err := New(&roundRobin{}, &MapStorage{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = c.Register("addr-1", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 100; i++ {
+		go func() {
+			err = c.handleNodeSuccess("addr-1")
+			if err != nil && err != errHealerInProgress {
+				t.Fatal(err)
+			}
+		}()
+		go func() {
+			nodes, err := c.Nodes()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(nodes) != 1 {
+				t.Fatalf("Expected nodes len to be 1, got %d", len(nodes))
+			}
+		}()
 	}
 }

@@ -19,7 +19,12 @@ import (
 type Node struct {
 	Address  string `bson:"_id"`
 	Metadata map[string]string
-	Healing  bool
+	Healing  HealingData
+}
+
+type HealingData struct {
+	Locked    bool
+	IsFailure bool
 }
 
 type NodeList []Node
@@ -45,7 +50,7 @@ func (n Node) MarshalJSON() ([]byte, error) {
 }
 
 func (n *Node) Status() string {
-	if n.Healing {
+	if n.Healing.Locked && n.Healing.IsFailure {
 		return NodeStatusHealing
 	}
 	if n.Metadata == nil {
@@ -100,7 +105,7 @@ func (n *Node) updateSuccess() {
 }
 
 func (n *Node) isEnabled() bool {
-	if n.Healing {
+	if n.Healing.Locked && n.Healing.IsFailure {
 		return false
 	}
 	if n.Metadata == nil {
