@@ -60,9 +60,10 @@ type Storage interface {
 // provide methods for interaction with those nodes, like CreateContainer,
 // which creates a container in one node of the cluster.
 type Cluster struct {
-	scheduler Scheduler
-	stor      Storage
-	healer    Healer
+	scheduler      Scheduler
+	stor           Storage
+	healer         Healer
+	monitoringDone chan bool
 }
 
 // New creates a new Cluster, initially composed by the given nodes.
@@ -134,6 +135,45 @@ func (c *Cluster) NodesForMetadata(metadata map[string]string) ([]Node, error) {
 		return nil, err
 	}
 	return NodeList(nodes).filterDisabled(), nil
+}
+
+func (c *Cluster) runActiveMonitoring(updateInterval time.Duration) {
+	for {
+		var nodes []Node
+		var err error
+		nodes, err = c.UnfilteredNodes()
+		if err != nil {
+			// TODO: log error
+		}
+		for _, node := range nodes {
+			client, err := c.getNodeByAddr(node.Address)
+			if err != nil {
+				continue
+			}
+			err = client.Ping()
+			if err == nil {
+				c.handleNodeSuccess(node.Address)
+			} else {
+				c.handleNodeError(node.Address, err)
+			}
+		}
+		select {
+		case <-c.monitoringDone:
+			return
+		case <-time.After(updateInterval):
+		}
+	}
+}
+
+func (c *Cluster) StartActiveMonitoring(updateInterval time.Duration) {
+	c.monitoringDone = make(chan bool)
+	go c.runActiveMonitoring(updateInterval)
+}
+
+func (c *Cluster) StopActiveMonitoring() {
+	if c.monitoringDone != nil {
+		c.monitoringDone <- true
+	}
 }
 
 func (c *Cluster) handleNodeError(addr string, lastErr error) error {

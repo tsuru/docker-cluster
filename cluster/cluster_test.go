@@ -477,3 +477,65 @@ func TestClusterHandleNodeSuccessStressShouldntBlockNodes(t *testing.T) {
 		}()
 	}
 }
+
+func TestClusterStartActiveMonitoring(t *testing.T) {
+	c, err := New(&roundRobin{}, &MapStorage{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	callCount := make([]int, 2)
+	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		callCount[0]++
+		w.WriteHeader(http.StatusOK)
+	}))
+	server2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		callCount[1]++
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	err = c.Register(server1.URL, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = c.Register(server2.URL, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c.StartActiveMonitoring(100 * time.Millisecond)
+	time.Sleep(200 * time.Millisecond)
+	if callCount[0] == 0 {
+		t.Fatal("Expected server1 to be called")
+	}
+	if callCount[1] == 0 {
+		t.Fatal("Expected server2 to be called")
+	}
+	nodes, err := c.Nodes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(nodes) != 1 {
+		t.Errorf("Expected nodes to have len 1, got: %d", len(nodes))
+	}
+	if nodes[0].Address != server1.URL {
+		t.Errorf("Expected node to have address %s, got: %s", server1.URL, nodes[0].Address)
+	}
+	nodes, err = c.UnfilteredNodes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(nodes) != 2 {
+		t.Errorf("Expected unfiltered nodes to have len 2, got: %d", len(nodes))
+	}
+	sort.Sort(NodeList(nodes))
+	if !nodes[0].isEnabled() {
+		t.Error("Expected nodes[0] to be enabled")
+	}
+	if nodes[1].isEnabled() {
+		t.Error("Expected nodes[1] to be disabled")
+	}
+	c.StopActiveMonitoring()
+	oldCallCount := callCount[0]
+	time.Sleep(200 * time.Millisecond)
+	if callCount[0] != oldCallCount {
+		t.Errorf("Expected stop monitoring to stop calls to server, previous: %d current: %d", oldCallCount, callCount[0])
+	}
+}
