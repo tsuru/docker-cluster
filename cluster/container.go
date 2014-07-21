@@ -139,7 +139,10 @@ func (c *Cluster) removeFromStorage(opts docker.RemoveContainerOptions) error {
 	}
 	err = node.RemoveContainer(opts)
 	if err != nil {
-		return err
+		_, isNoSuchContainer := err.(*docker.NoSuchContainer)
+		if !isNoSuchContainer {
+			return err
+		}
 	}
 	return c.storage().RemoveContainer(opts.ID)
 }

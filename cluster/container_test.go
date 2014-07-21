@@ -691,6 +691,70 @@ func TestRemoveContainerNotFoundWithStorage(t *testing.T) {
 	}
 }
 
+func TestRemoveContainerNotFoundInServer(t *testing.T) {
+	var called bool
+	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		http.Error(w, "No such container", http.StatusNotFound)
+	}))
+	defer server1.Close()
+	id := "abc123"
+	storage := MapStorage{}
+	err := storage.StoreContainer(id, server1.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cluster, err := New(nil, &storage,
+		Node{Address: server1.URL},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = cluster.RemoveContainer(docker.RemoveContainerOptions{ID: id})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !called {
+		t.Errorf("RemoveContainer(%q): Did not call node HTTP server", id)
+	}
+	_, err = storage.RetrieveContainer(id)
+	if err == nil {
+		t.Errorf("RemoveContainer(%q): should remove the container from the storage", id)
+	}
+}
+
+func TestRemoveContainerServerError(t *testing.T) {
+	var called bool
+	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		http.Error(w, "Random server error", http.StatusInternalServerError)
+	}))
+	defer server1.Close()
+	id := "abc123"
+	storage := MapStorage{}
+	err := storage.StoreContainer(id, server1.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cluster, err := New(nil, &storage,
+		Node{Address: server1.URL},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = cluster.RemoveContainer(docker.RemoveContainerOptions{ID: id})
+	if err == nil {
+		t.Errorf("RemoveContainer(%q): should not remove the container from the storage", id)
+	}
+	if !called {
+		t.Errorf("RemoveContainer(%q): Did not call node HTTP server", id)
+	}
+	addr, err := storage.RetrieveContainer(id)
+	if err != nil || addr != server1.URL {
+		t.Errorf("RemoveContainer(%q): should not remove the container from the storage", id)
+	}
+}
+
 func TestStartContainer(t *testing.T) {
 	var called bool
 	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
