@@ -105,11 +105,28 @@ func (s *MapStorage) StoreNode(node Node) error {
 	return nil
 }
 
+func deepCopyNode(n Node) Node {
+	newMap := map[string]string{}
+	for k, v := range n.Metadata {
+		newMap[k] = v
+	}
+	n.Metadata = newMap
+	return n
+}
+
 func (s *MapStorage) RetrieveNodes() ([]Node, error) {
-	return s.nodes, nil
+	s.nMut.Lock()
+	defer s.nMut.Unlock()
+	dst := make([]Node, len(s.nodes))
+	for i := range s.nodes {
+		dst[i] = deepCopyNode(s.nodes[i])
+	}
+	return dst, nil
 }
 
 func (s *MapStorage) RetrieveNode(address string) (Node, error) {
+	s.nMut.Lock()
+	defer s.nMut.Unlock()
 	if s.nodeMap == nil {
 		s.nodeMap = make(map[string]*Node)
 	}
@@ -117,7 +134,7 @@ func (s *MapStorage) RetrieveNode(address string) (Node, error) {
 	if !ok {
 		return Node{}, storage.ErrNoSuchNode
 	}
-	return *node, nil
+	return deepCopyNode(*node), nil
 }
 
 func (s *MapStorage) UpdateNode(node Node) error {

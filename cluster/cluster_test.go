@@ -15,6 +15,7 @@ import (
 	"regexp"
 	"runtime"
 	"sort"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -461,7 +462,7 @@ func TestClusterHandleNodeSuccessStressShouldntBlockNodes(t *testing.T) {
 	}
 	for i := 0; i < 100; i++ {
 		go func() {
-			err = c.handleNodeSuccess("addr-1")
+			err := c.handleNodeSuccess("addr-1")
 			if err != nil && err != errHealerInProgress {
 				t.Fatal(err)
 			}
@@ -483,13 +484,14 @@ func TestClusterStartActiveMonitoring(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	callCount := make([]int, 2)
+	callCount1 := int32(0)
+	callCount2 := int32(0)
 	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		callCount[0]++
+		atomic.AddInt32(&callCount1, 1)
 		w.WriteHeader(http.StatusOK)
 	}))
 	server2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		callCount[1]++
+		atomic.AddInt32(&callCount2, 1)
 		w.WriteHeader(http.StatusInternalServerError)
 	}))
 	err = c.Register(server1.URL, nil)
@@ -502,10 +504,10 @@ func TestClusterStartActiveMonitoring(t *testing.T) {
 	}
 	c.StartActiveMonitoring(100 * time.Millisecond)
 	time.Sleep(200 * time.Millisecond)
-	if callCount[0] == 0 {
+	if atomic.LoadInt32(&callCount1) == 0 {
 		t.Fatal("Expected server1 to be called")
 	}
-	if callCount[1] == 0 {
+	if atomic.LoadInt32(&callCount2) == 0 {
 		t.Fatal("Expected server2 to be called")
 	}
 	nodes, err := c.Nodes()
@@ -533,9 +535,10 @@ func TestClusterStartActiveMonitoring(t *testing.T) {
 		t.Error("Expected nodes[1] to be disabled")
 	}
 	c.StopActiveMonitoring()
-	oldCallCount := callCount[0]
+	oldCallCount := atomic.LoadInt32(&callCount1)
 	time.Sleep(200 * time.Millisecond)
-	if callCount[0] != oldCallCount {
-		t.Errorf("Expected stop monitoring to stop calls to server, previous: %d current: %d", oldCallCount, callCount[0])
+	currentCallCount := atomic.LoadInt32(&callCount1)
+	if currentCallCount != oldCallCount {
+		t.Errorf("Expected stop monitoring to stop calls to server, previous: %d current: %d", oldCallCount, currentCallCount)
 	}
 }
