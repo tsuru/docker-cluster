@@ -542,3 +542,42 @@ func TestClusterStartActiveMonitoring(t *testing.T) {
 		t.Errorf("Expected stop monitoring to stop calls to server, previous: %d current: %d", oldCallCount, currentCallCount)
 	}
 }
+
+func TestClusterWaitAndRegister(t *testing.T) {
+	count := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		count++
+		if count > 2 {
+			w.WriteHeader(http.StatusOK)
+		} else {
+			w.WriteHeader(http.StatusBadGateway)
+		}
+	}))
+	defer server.Close()
+	cluster, err := New(nil, &MapStorage{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = cluster.WaitAndRegister(server.URL, nil, 1*time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count <= 2 {
+		t.Fatalf("Expected server to receive more then 2 calls, got: %d", count)
+	}
+}
+
+func TestClusterWaitAndRegisterTimesOutWithOnlyErrors(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadGateway)
+	}))
+	defer server.Close()
+	cluster, err := New(nil, &MapStorage{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = cluster.WaitAndRegister(server.URL, nil, 500*time.Millisecond)
+	if err == nil || err.Error() != "timed out waiting for node to be ready" {
+		t.Fatalf("Expected to receive timeout error, got: %#v", err)
+	}
+}

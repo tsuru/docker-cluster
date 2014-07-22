@@ -137,6 +137,41 @@ func (c *Cluster) NodesForMetadata(metadata map[string]string) ([]Node, error) {
 	return NodeList(nodes).filterDisabled(), nil
 }
 
+func (c *Cluster) StartActiveMonitoring(updateInterval time.Duration) {
+	c.monitoringDone = make(chan bool)
+	go c.runActiveMonitoring(updateInterval)
+}
+
+func (c *Cluster) StopActiveMonitoring() {
+	if c.monitoringDone != nil {
+		c.monitoringDone <- true
+	}
+}
+
+func (c *Cluster) WaitAndRegister(address string, metadata map[string]string, timeout time.Duration) error {
+	client, err := c.getNodeByAddr(address)
+	if err != nil {
+		return err
+	}
+	doneChan := make(chan bool)
+	go func() {
+		for {
+			err = client.Ping()
+			if err == nil {
+				break
+			}
+			time.Sleep(100 * time.Millisecond)
+		}
+		close(doneChan)
+	}()
+	select {
+	case <-doneChan:
+	case <-time.After(timeout):
+		return errors.New("timed out waiting for node to be ready")
+	}
+	return c.Register(address, metadata)
+}
+
 func (c *Cluster) runActiveMonitoring(updateInterval time.Duration) {
 	for {
 		var nodes []Node
@@ -162,17 +197,6 @@ func (c *Cluster) runActiveMonitoring(updateInterval time.Duration) {
 			return
 		case <-time.After(updateInterval):
 		}
-	}
-}
-
-func (c *Cluster) StartActiveMonitoring(updateInterval time.Duration) {
-	c.monitoringDone = make(chan bool)
-	go c.runActiveMonitoring(updateInterval)
-}
-
-func (c *Cluster) StopActiveMonitoring() {
-	if c.monitoringDone != nil {
-		c.monitoringDone <- true
 	}
 }
 
