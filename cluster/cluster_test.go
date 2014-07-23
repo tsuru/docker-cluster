@@ -273,17 +273,15 @@ func TestRunOnNodesStress(t *testing.T) {
 	}))
 	defer server.Close()
 	id := "e90302"
-	stor := &MapStorage{}
-	err := stor.StoreContainer(id, server.URL)
-	if err != nil {
-		t.Fatal(err)
-	}
-	cluster, err := New(nil, stor, Node{Address: server.URL})
+	cluster, err := New(nil, &MapStorage{}, Node{Address: server.URL})
 	if err != nil {
 		t.Fatal(err)
 	}
 	for i := 0; i < rand.Intn(10)+n; i++ {
-		container, err := cluster.InspectContainer(id)
+		result, err := cluster.runOnNodes(func(n node) (interface{}, error) {
+			return n.InspectContainer(id)
+		}, &docker.NoSuchContainer{ID: id}, false)
+		container := result.(*docker.Container)
 		if err != nil {
 			t.Fatal(err)
 		}
