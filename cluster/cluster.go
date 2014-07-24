@@ -249,20 +249,26 @@ func (c *Cluster) storage() Storage {
 type nodeFunc func(node) (interface{}, error)
 
 func (c *Cluster) runOnNodes(fn nodeFunc, errNotFound error, wait bool, nodeAddresses ...string) (interface{}, error) {
-	nodes, err := c.Nodes()
-	if err != nil {
-		return nil, err
-	}
-	if len(nodeAddresses) > 0 {
-		nodes = c.filterNodes(nodes, nodeAddresses)
+	if len(nodeAddresses) == 0 {
+		nodes, err := c.Nodes()
+		if err != nil {
+			return nil, err
+		}
+		nodeAddresses = make([]string, len(nodes))
+		for i, node := range nodes {
+			nodeAddresses[i] = node.Address
+		}
 	}
 	var wg sync.WaitGroup
-	finish := make(chan int8, len(nodes))
-	errChan := make(chan error, len(nodes))
-	result := make(chan interface{}, len(nodes))
-	for _, n := range nodes {
+	finish := make(chan int8, len(nodeAddresses))
+	errChan := make(chan error, len(nodeAddresses))
+	result := make(chan interface{}, len(nodeAddresses))
+	for _, addr := range nodeAddresses {
 		wg.Add(1)
-		client, _ := docker.NewClient(n.Address)
+		client, err := docker.NewClient(addr)
+		if err != nil {
+			return nil, err
+		}
 		go func(n node) {
 			defer wg.Done()
 			value, err := fn(n)
@@ -273,7 +279,7 @@ func (c *Cluster) runOnNodes(fn nodeFunc, errNotFound error, wait bool, nodeAddr
 			} else if !reflect.DeepEqual(err, errNotFound) {
 				errChan <- err
 			}
-		}(node{addr: n.Address, Client: client})
+		}(node{addr: addr, Client: client})
 	}
 	if wait {
 		wg.Wait()
@@ -303,19 +309,6 @@ func (c *Cluster) runOnNodes(fn nodeFunc, errNotFound error, wait bool, nodeAddr
 			return nil, errNotFound
 		}
 	}
-}
-
-func (c *Cluster) filterNodes(nodes []Node, addresses []string) []Node {
-	filteredNodes := make([]Node, 0, len(nodes))
-	for _, node := range nodes {
-		for _, addr := range addresses {
-			if node.Address == addr {
-				filteredNodes = append(filteredNodes, node)
-				break
-			}
-		}
-	}
-	return filteredNodes
 }
 
 func (c *Cluster) getNode(retrieveFn func(Storage) (string, error)) (node, error) {

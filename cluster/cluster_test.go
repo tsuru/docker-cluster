@@ -6,6 +6,7 @@ package cluster
 
 import (
 	"errors"
+	"fmt"
 	"github.com/fsouza/go-dockerclient"
 	"github.com/tsuru/docker-cluster/storage"
 	"math/rand"
@@ -263,6 +264,32 @@ func TestNodesShouldReturnEmptyListWhenNoNodeIsFound(t *testing.T) {
 	}
 }
 
+func TestRunOnNodesWhenReceiveingNodeShouldntLoadStorage(t *testing.T) {
+	id := "e90302"
+	body := fmt.Sprintf(`{"Id":"%s","Path":"date","Args":[]}`, id)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(body))
+	}))
+	cluster, err := New(nil, &MapStorage{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := cluster.runOnNodes(func(n node) (interface{}, error) {
+		return n.InspectContainer(id)
+	}, &docker.NoSuchContainer{ID: id}, false, server.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	container := result.(*docker.Container)
+	if container.ID != id {
+		t.Errorf("InspectContainer(%q): Wrong ID. Want %q. Got %q.", id, id, container.ID)
+	}
+	if container.Path != "date" {
+		t.Errorf("InspectContainer(%q): Wrong Path. Want %q. Got %q.", id, "date", container.Path)
+	}
+}
+
 func TestRunOnNodesStress(t *testing.T) {
 	n := 1000
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(16))
@@ -281,10 +308,10 @@ func TestRunOnNodesStress(t *testing.T) {
 		result, err := cluster.runOnNodes(func(n node) (interface{}, error) {
 			return n.InspectContainer(id)
 		}, &docker.NoSuchContainer{ID: id}, false)
-		container := result.(*docker.Container)
 		if err != nil {
 			t.Fatal(err)
 		}
+		container := result.(*docker.Container)
 		if container.ID != id {
 			t.Errorf("InspectContainer(%q): Wrong ID. Want %q. Got %q.", id, id, container.ID)
 		}
