@@ -16,6 +16,7 @@ import (
 	"regexp"
 	"runtime"
 	"sort"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -161,7 +162,9 @@ func TestNodesShouldGetClusterNodes(t *testing.T) {
 
 func TestNodesShouldGetClusterNodesWithoutDisabledNodes(t *testing.T) {
 	cluster, err := New(nil, &MapStorage{})
-	healer := &blockingHealer{stop: make(chan bool)}
+	stopChan := make(chan bool)
+	healer := &blockingHealer{stop: stopChan}
+	defer close(stopChan)
 	cluster.SetHealer(healer)
 	if err != nil {
 		t.Fatal(err)
@@ -370,12 +373,15 @@ type blockingHealer struct {
 	disabledUntil string
 	failureCount  int
 	stop          <-chan bool
+	mutex         *sync.Mutex
 }
 
 func (h *blockingHealer) HandleError(n Node) time.Duration {
+	h.mutex.Lock()
 	h.calls++
 	h.failureCount = n.FailureCount()
 	h.disabledUntil = n.Metadata["DisabledUntil"]
+	h.mutex.Unlock()
 	<-h.stop
 	return 1 * time.Minute
 }
@@ -387,7 +393,7 @@ func TestClusterHandleNodeErrorStress(t *testing.T) {
 		t.Fatal(err)
 	}
 	stopChan := make(chan bool)
-	healer := &blockingHealer{stop: stopChan}
+	healer := &blockingHealer{stop: stopChan, mutex: &sync.Mutex{}}
 	c.SetHealer(healer)
 	err = c.Register("addr-1", nil)
 	if err != nil {
@@ -400,12 +406,14 @@ func TestClusterHandleNodeErrorStress(t *testing.T) {
 		}()
 	}
 	stopChan <- true
+	healer.mutex.Lock()
 	if healer.failureCount != 1 {
 		t.Errorf("Expected %d failures count, got: %d", 1, healer.failureCount)
 	}
 	if healer.calls != 1 {
-		t.Fatalf("Expected healer to have 1 call, got: %d", healer.calls)
+		t.Errorf("Expected healer to have 1 call, got: %d", healer.calls)
 	}
+	healer.mutex.Unlock()
 	done := make(chan bool)
 	go func() {
 		stopChan <- true
@@ -424,15 +432,18 @@ func TestClusterHandleNodeErrorStress(t *testing.T) {
 	case <-time.After(1 * time.Second):
 		t.Fatal("Timed out waiting for another healer call")
 	}
+	healer.mutex.Lock()
 	if healer.calls != 2 {
-		t.Fatalf("Expected healer to have 2 calls, got: %d", healer.calls)
+		t.Errorf("Expected healer to have 2 calls, got: %d", healer.calls)
 	}
 	if healer.failureCount != 2 {
 		t.Errorf("Expected %d failures count, got: %d", 2, healer.failureCount)
 	}
+	disabledStr := healer.disabledUntil
+	healer.mutex.Unlock()
 	now := time.Now().Add(1 * time.Minute).Format(time.RFC3339)
 	re := regexp.MustCompile(`(.*T\d{2}:\d{2}).*`)
-	disabledUntil := re.ReplaceAllString(healer.disabledUntil, "$1")
+	disabledUntil := re.ReplaceAllString(disabledStr, "$1")
 	now = re.ReplaceAllString(now, "$1")
 	if disabledUntil != now {
 		t.Errorf("Expected DisabledUntil to be like %s, got: %s", now, disabledUntil)
@@ -445,8 +456,8 @@ func TestClusterHandleNodeErrorStress(t *testing.T) {
 	if node.FailureCount() != 2 {
 		t.Errorf("Expected FailureCount to be 2, got: %d", node.FailureCount())
 	}
-	if node.Metadata["DisabledUntil"] != healer.disabledUntil {
-		t.Errorf("Expected DisabledUntil to be %s, got: %s", healer.disabledUntil, node.Metadata["DisabledUntil"])
+	if node.Metadata["DisabledUntil"] != disabledStr {
+		t.Errorf("Expected DisabledUntil to be %s, got: %s", disabledStr, node.Metadata["DisabledUntil"])
 	}
 }
 
