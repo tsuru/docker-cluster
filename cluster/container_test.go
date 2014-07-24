@@ -1617,6 +1617,87 @@ func TestCommitContainerNotFoundWithStorage(t *testing.T) {
 	}
 }
 
+func TestCommitContainerTagShouldRemoveImage(t *testing.T) {
+	imageDeleteCount := 0
+	imgTag := "mytag/mytag"
+	expectedImageId := "596069db4bf5"
+	oldServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		imageDeleteCount++
+		w.WriteHeader(http.StatusOK)
+	}))
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(fmt.Sprintf(`{"Id":"%s"}`, expectedImageId)))
+	}))
+	defer server.Close()
+	containerId := "abc123"
+	storage := MapStorage{}
+	err := storage.StoreContainer(containerId, server.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = storage.StoreImage(imgTag, oldServer.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cluster, err := New(nil, &storage, Node{Address: server.URL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	opts := docker.CommitContainerOptions{Container: containerId, Repository: imgTag}
+	image, err := cluster.CommitContainer(opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if image.ID != expectedImageId {
+		t.Fatalf("Expected image id to be %q, got: %q", expectedImageId, image.ID)
+	}
+	nodes, _ := storage.RetrieveImage(imgTag)
+	if !reflect.DeepEqual(nodes, []string{server.URL}) {
+		t.Errorf("CommitContainer(%q): wrong image ID in the storage. Want %q. Got %q", imgTag, []string{server.URL}, nodes)
+	}
+	if imageDeleteCount != 1 {
+		t.Fatalf("Expected image delete count to be 1, got: %d", imageDeleteCount)
+	}
+}
+
+func TestCommitContainerTagShouldIgnoreRemoveImageErrors(t *testing.T) {
+	imgTag := "mytag/mytag"
+	expectedImageId := "596069db4bf5"
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(fmt.Sprintf(`{"Id":"%s"}`, expectedImageId)))
+	}))
+	defer server.Close()
+	containerId := "abc123"
+	storage := MapStorage{}
+	err := storage.StoreContainer(containerId, server.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = storage.StoreImage(imgTag, "http://invalid.invalid")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cluster, err := New(nil, &storage, Node{Address: server.URL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	opts := docker.CommitContainerOptions{Container: containerId, Repository: imgTag}
+	image, err := cluster.CommitContainer(opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if image.ID != expectedImageId {
+		t.Fatalf("Expected image id to be %q, got: %q", expectedImageId, image.ID)
+	}
+	nodes, _ := storage.RetrieveImage(imgTag)
+	expectedNodes := []string{"http://invalid.invalid", server.URL}
+	sort.Strings(nodes)
+	sort.Strings(expectedNodes)
+	if !reflect.DeepEqual(nodes, expectedNodes) {
+		t.Errorf("CommitContainer(%q): wrong image ID in the storage. Want %q. Got %q", imgTag, expectedNodes, nodes)
+	}
+}
+
 func TestExportContainer(t *testing.T) {
 	content := "tar content of container"
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

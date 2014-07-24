@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/fsouza/go-dockerclient"
+	"github.com/tsuru/docker-cluster/log"
 	"sync"
 )
 
@@ -223,6 +224,12 @@ func (c *Cluster) Logs(opts docker.LogsOptions) error {
 
 // CommitContainer commits a container and returns the image id.
 func (c *Cluster) CommitContainer(opts docker.CommitContainerOptions) (*docker.Image, error) {
+	if opts.Repository != "" {
+		err := c.RemoveImage(opts.Repository)
+		if err != nil {
+			log.Errorf("Ignored error removing container %q on commit: %s", opts.Repository, err.Error())
+		}
+	}
 	node, err := c.getNodeForContainer(opts.Container)
 	if err != nil {
 		return nil, err
