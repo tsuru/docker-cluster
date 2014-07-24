@@ -552,12 +552,15 @@ func TestClusterStartActiveMonitoring(t *testing.T) {
 	if len(nodes) != 2 {
 		t.Errorf("Expected unfiltered nodes to have len 2, got: %d", len(nodes))
 	}
-	sort.Sort(NodeList(nodes))
-	if !nodes[0].isEnabled() {
-		t.Error("Expected nodes[0] to be enabled")
+	enabledMap := make(map[string]bool)
+	for _, node := range nodes {
+		enabledMap[node.Address] = node.isEnabled()
 	}
-	if nodes[1].isEnabled() {
-		t.Error("Expected nodes[1] to be disabled")
+	if !enabledMap[server1.URL] {
+		t.Error("Expected server1 to be enabled")
+	}
+	if enabledMap[server2.URL] {
+		t.Error("Expected server2 to be disabled")
 	}
 	c.StopActiveMonitoring()
 	oldCallCount := atomic.LoadInt32(&callCount1)
