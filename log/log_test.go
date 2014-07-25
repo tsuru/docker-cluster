@@ -16,7 +16,17 @@ func TestDefaultsToStdErr(t *testing.T) {
 			t.Fatalf("Expected not to panic, got: %#v", val)
 		}
 	}()
-	Debugf("%s - %s - %d", "foo", "bar", 1)
+	Errorf("%s - %s - %d", "foo", "bar", 1)
+}
+
+func TestSetOutputNil(t *testing.T) {
+	defer func() {
+		if val := recover(); val != nil {
+			t.Fatalf("Expected not to panic, got: %#v", val)
+		}
+	}()
+	SetOutput(nil)
+	Errorf("%s - %s - %d", "foo", "bar", 1)
 }
 
 func TestDebugf(t *testing.T) {

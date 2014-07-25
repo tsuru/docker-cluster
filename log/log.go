@@ -19,12 +19,15 @@ var (
 )
 
 func init() {
-	SetOutput(os.Stderr)
+	SetOutput(nil)
 }
 
 func SetOutput(w io.Writer) {
 	lock.Lock()
 	defer lock.Unlock()
+	if w == nil {
+		w = os.Stderr
+	}
 	logger = log.New(w, "", log.LstdFlags)
 }
 
