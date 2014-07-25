@@ -6,7 +6,6 @@ package cluster
 
 import (
 	"bytes"
-	"fmt"
 	"github.com/fsouza/go-dockerclient"
 	"github.com/tsuru/docker-cluster/storage"
 	"github.com/tsuru/tsuru/safe"
@@ -21,23 +20,21 @@ import (
 func TestRemoveImage(t *testing.T) {
 	var called bool
 	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		http.Error(w, "No such image", http.StatusNotFound)
-	}))
-	defer server1.Close()
-	server2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		called = true
 		w.WriteHeader(http.StatusNoContent)
 	}))
-	defer server2.Close()
+	defer server1.Close()
 	cluster, err := New(nil, &MapStorage{},
 		Node{Address: server1.URL},
-		Node{Address: server2.URL},
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
 	name := "tsuru/python"
-	cluster.storage().StoreImage(name, server2.URL)
+	err = cluster.storage().StoreImage(name, server1.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
 	err = cluster.RemoveImage(name)
 	if err != nil {
 		t.Fatal(err)
@@ -74,30 +71,58 @@ func TestRemoveImageNotFoundInStorage(t *testing.T) {
 
 func TestRemoveImageNotFoundInServer(t *testing.T) {
 	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		http.Error(w, "xxx", http.StatusNotFound)
+		w.WriteHeader(http.StatusNotFound)
 	}))
 	defer server1.Close()
-	server2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		http.Error(w, "xxx", http.StatusNotFound)
-	}))
-	defer server2.Close()
+	name := "tsuru/python"
 	stor := &MapStorage{}
-	err := stor.StoreImage("tsuru/python", server1.URL)
+	err := stor.StoreImage(name, server1.URL)
 	if err != nil {
 		t.Fatal(err)
 	}
 	cluster, err := New(nil, stor,
 		Node{Address: server1.URL},
-		Node{Address: server2.URL},
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
-	name := "tsuru/python"
 	err = cluster.RemoveImage(name)
-	expected := fmt.Sprintf("Error removing image tsuru/python from %s: no such image", server1.URL)
-	if err == nil || err.Error() != expected {
-		t.Errorf("RemoveImage(%q): wrong error. Want %s. Got %#v.", name, expected, err)
+	if err == nil || err != docker.ErrNoSuchImage {
+		t.Errorf("RemoveImage(%q): wrong error. Want %s. Got %#v.", name, docker.ErrNoSuchImage, err)
+	}
+	_, err = cluster.storage().RetrieveImage(name)
+	if err != storage.ErrNoSuchImage {
+		t.Errorf("RemoveImage(%q): wrong error. Want %#v. Got %#v.", name, storage.ErrNoSuchImage, err)
+	}
+}
+
+func TestRemoveImageNodeNotInStorage(t *testing.T) {
+	called := false
+	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer server1.Close()
+	name := "tsuru/python"
+	stor := &MapStorage{}
+	err := stor.StoreImage(name, server1.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cluster, err := New(nil, stor)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = cluster.RemoveImage(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !called {
+		t.Errorf("RemoveImage(%q): Did not call node HTTP server", name)
+	}
+	_, err = cluster.storage().RetrieveImage(name)
+	if err != storage.ErrNoSuchImage {
+		t.Errorf("RemoveImage(%q): wrong error. Want %#v. Got %#v.", name, storage.ErrNoSuchImage, err)
 	}
 }
 

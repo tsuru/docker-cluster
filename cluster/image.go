@@ -5,28 +5,36 @@
 package cluster
 
 import (
-	"fmt"
 	"github.com/fsouza/go-dockerclient"
 )
 
 // RemoveImage removes an image from the nodes where this images exists, returning an
-// error in case of failure.
+// error in case of failure. Will wait for the image to be removed from all nodes.
+func (c *Cluster) RemoveImageWait(name string) error {
+	return c.removeImage(name, true)
+}
+
+// RemoveImage removes an image from the nodes where this images exists, returning an
+// error in case of failure. Will wait for the image to be removed only from one node,
+// removal from the other nodes will happen in background.
 func (c *Cluster) RemoveImage(name string) error {
+	return c.removeImage(name, false)
+}
+
+func (c *Cluster) removeImage(name string, waitForAll bool) error {
 	hosts, err := c.storage().RetrieveImage(name)
 	if err != nil {
 		return err
 	}
 	_, err = c.runOnNodes(func(n node) (interface{}, error) {
-		err := n.RemoveImage(name)
-		if err != nil {
-			return nil, fmt.Errorf("Error removing image %s from %s: %s", name, n.addr, err.Error())
+		return nil, n.RemoveImage(name)
+	}, docker.ErrNoSuchImage, waitForAll, hosts...)
+	if err == nil || err == docker.ErrNoSuchImage {
+		otherErr := c.storage().RemoveImage(name)
+		if otherErr != nil {
+			return otherErr
 		}
-		return nil, nil
-	}, docker.ErrNoSuchImage, false, hosts...)
-	if err != nil {
-		return err
 	}
-	err = c.storage().RemoveImage(name)
 	return err
 }
 
