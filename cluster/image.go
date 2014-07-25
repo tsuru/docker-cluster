@@ -5,7 +5,10 @@
 package cluster
 
 import (
+	"fmt"
 	"github.com/fsouza/go-dockerclient"
+	"net/http"
+	"strings"
 )
 
 // RemoveImage removes an image from the nodes where this images exists, returning an
@@ -22,6 +25,10 @@ func (c *Cluster) RemoveImage(name string) error {
 }
 
 func (c *Cluster) removeImage(name string, waitForAll bool) error {
+	err := c.removeFromRegistry(name)
+	if err != nil {
+		return err
+	}
 	hosts, err := c.storage().RetrieveImage(name)
 	if err != nil {
 		return err
@@ -35,6 +42,22 @@ func (c *Cluster) removeImage(name string, waitForAll bool) error {
 			return otherErr
 		}
 	}
+	return err
+}
+
+func (c *Cluster) removeFromRegistry(imageId string) error {
+	parts := strings.SplitN(imageId, "/", 3)
+	if len(parts) < 3 {
+		return nil
+	}
+	registryServer := parts[0]
+	url := fmt.Sprintf("http://%s/v1/repositories/%s/tags", registryServer,
+		strings.Join(parts[1:], "/"))
+	request, err := http.NewRequest("DELETE", url, nil)
+	if err != nil {
+		return err
+	}
+	_, err = http.DefaultClient.Do(request)
 	return err
 }
 

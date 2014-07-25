@@ -11,6 +11,7 @@ import (
 	"github.com/tsuru/tsuru/safe"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"reflect"
 	"regexp"
 	"sort"
@@ -123,6 +124,99 @@ func TestRemoveImageNodeNotInStorage(t *testing.T) {
 	_, err = cluster.storage().RetrieveImage(name)
 	if err != storage.ErrNoSuchImage {
 		t.Errorf("RemoveImage(%q): wrong error. Want %#v. Got %#v.", name, storage.ErrNoSuchImage, err)
+	}
+}
+
+func TestRemoveImageRemoveFromRegistry(t *testing.T) {
+	var repoRequest http.Request
+	repoServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		repoRequest = *r
+	}))
+	defer repoServer.Close()
+	u, _ := url.Parse(repoServer.URL)
+	imageRepo := u.Host + "/tsuru/python"
+	var called bool
+	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer server1.Close()
+	cluster, err := New(nil, &MapStorage{},
+		Node{Address: server1.URL},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = cluster.storage().StoreImage(imageRepo, server1.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = cluster.RemoveImage(imageRepo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !called {
+		t.Errorf("RemoveImage(%q): Did not call node HTTP server", imageRepo)
+	}
+	_, err = cluster.storage().RetrieveImage(imageRepo)
+	if err != storage.ErrNoSuchImage {
+		t.Errorf("RemoveImage(%q): wrong error. Want %#v. Got %#v.", imageRepo, storage.ErrNoSuchImage, err)
+	}
+	if repoRequest.Method != "DELETE" {
+		t.Fatalf("removeFromRegistry(%q): Expected method to be DELETE, got: %s", imageRepo, repoRequest.Method)
+	}
+	path := "/v1/repositories/tsuru/python/tags"
+	if repoRequest.URL.Path != path {
+		t.Fatalf("removeFromRegistry(%q): Expected path to be %q, got: %s", imageRepo, path, repoRequest.URL.Path)
+	}
+}
+
+func TestRemoveFromRegistry(t *testing.T) {
+	var request http.Request
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		request = *r
+	}))
+	defer server.Close()
+	u, _ := url.Parse(server.URL)
+	imageRepo := u.Host + "/tsuru/python"
+	cluster, err := New(nil, &MapStorage{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = cluster.removeFromRegistry(imageRepo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if request.Method != "DELETE" {
+		t.Fatalf("removeFromRegistry(%q): Expected method to be DELETE, got: %s", imageRepo, request.Method)
+	}
+	path := "/v1/repositories/tsuru/python/tags"
+	if request.URL.Path != path {
+		t.Fatalf("removeFromRegistry(%q): Expected path to be %q, got: %s", imageRepo, path, request.URL.Path)
+	}
+}
+
+func TestRemoveFromRegistryIgnoresNoRepo(t *testing.T) {
+	imageRepo := "tsuru/python"
+	cluster, err := New(nil, &MapStorage{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = cluster.removeFromRegistry(imageRepo)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestRemoveFromRegistryErrorWithInvalidServer(t *testing.T) {
+	imageRepo := "xxx.xxx.xxxxxxx/tsuru/python"
+	cluster, err := New(nil, &MapStorage{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = cluster.removeFromRegistry(imageRepo)
+	if err == nil {
+		t.Fatal("Expected error to be not nil, got nil")
 	}
 }
 
