@@ -8,13 +8,17 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/fsouza/go-dockerclient"
+	dtesting "github.com/fsouza/go-dockerclient/testing"
 	cstorage "github.com/tsuru/docker-cluster/storage"
 	"github.com/tsuru/tsuru/safe"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"runtime"
 	"sort"
+	"sync"
 	"testing"
+	"time"
 )
 
 func TestCreateContainer(t *testing.T) {
@@ -1695,6 +1699,66 @@ func TestCommitContainerTagShouldIgnoreRemoveImageErrors(t *testing.T) {
 	sort.Strings(expectedNodes)
 	if !reflect.DeepEqual(nodes, expectedNodes) {
 		t.Errorf("CommitContainer(%q): wrong image ID in the storage. Want %q. Got %q", imgTag, expectedNodes, nodes)
+	}
+}
+
+func TestCommitContainerRaceWithRemoveImage(t *testing.T) {
+	baseImage := "test/mybase"
+	appImage := "test/myapp"
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(16))
+	server1, err := dtesting.NewServer("127.0.0.1:0", nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer server1.Stop()
+	server2, err := dtesting.NewServer("127.0.0.1:0", nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer server2.Stop()
+	imgsPath := "/images/" + appImage
+	var wg sync.WaitGroup
+	server1.CustomHandler(imgsPath, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer wg.Done()
+		time.Sleep(300 * time.Millisecond)
+		server1.DefaultHandler().ServeHTTP(w, r)
+	}))
+	server2.CustomHandler(imgsPath, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer wg.Done()
+		server2.DefaultHandler().ServeHTTP(w, r)
+	}))
+	cluster, err := New(nil, &MapStorage{},
+		Node{Address: server1.URL()},
+		Node{Address: server2.URL()},
+	)
+	config := docker.Config{Image: baseImage}
+	_, container, err := cluster.CreateContainer(docker.CreateContainerOptions{Config: &config}, server1.URL())
+	if err != nil {
+		t.Fatal(err)
+	}
+	wg = sync.WaitGroup{}
+	wg.Add(2)
+	err = cluster.PullImage(docker.PullImageOptions{
+		Repository: appImage,
+	}, docker.AuthConfiguration{}, server1.URL())
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = cluster.PullImage(docker.PullImageOptions{
+		Repository: appImage,
+	}, docker.AuthConfiguration{}, server2.URL())
+	if err != nil {
+		t.Fatal(err)
+	}
+	opts := docker.CommitContainerOptions{Container: container.ID, Repository: appImage}
+	_, err = cluster.CommitContainer(opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wg.Wait()
+	err = cluster.PushImage(docker.PushImageOptions{Name: appImage}, docker.AuthConfiguration{})
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 
