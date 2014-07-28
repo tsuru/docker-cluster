@@ -6,7 +6,6 @@ package log
 
 import (
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"sync"
@@ -19,16 +18,16 @@ var (
 )
 
 func init() {
-	SetOutput(nil)
+	SetLogger(nil)
 }
 
-func SetOutput(w io.Writer) {
+func SetLogger(l *log.Logger) {
 	lock.Lock()
 	defer lock.Unlock()
-	if w == nil {
-		w = os.Stderr
+	if l == nil {
+		l = log.New(os.Stderr, "", log.LstdFlags)
 	}
-	logger = log.New(w, "", log.LstdFlags)
+	logger = l
 }
 
 func SetDebug(d bool) {

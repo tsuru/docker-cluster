@@ -6,6 +6,7 @@ package log
 
 import (
 	"bytes"
+	"log"
 	"strings"
 	"testing"
 )
@@ -25,13 +26,13 @@ func TestSetOutputNil(t *testing.T) {
 			t.Fatalf("Expected not to panic, got: %#v", val)
 		}
 	}()
-	SetOutput(nil)
+	SetLogger(nil)
 	Errorf("%s - %s - %d", "foo", "bar", 1)
 }
 
 func TestDebugf(t *testing.T) {
 	var buf bytes.Buffer
-	SetOutput(&buf)
+	SetLogger(log.New(&buf, "", 0))
 	SetDebug(true)
 	Debugf("%s - %s - %d", "foo", "bar", 1)
 	expected := "[docker-cluster][debug] foo - bar - 1\n"
@@ -42,7 +43,7 @@ func TestDebugf(t *testing.T) {
 
 func TestDebugfWithoutDebug(t *testing.T) {
 	var buf bytes.Buffer
-	SetOutput(&buf)
+	SetLogger(log.New(&buf, "", 0))
 	SetDebug(false)
 	Debugf("%s - %s - %d", "foo", "bar", 1)
 	expected := ""
@@ -53,7 +54,7 @@ func TestDebugfWithoutDebug(t *testing.T) {
 
 func TestErrorf(t *testing.T) {
 	var buf bytes.Buffer
-	SetOutput(&buf)
+	SetLogger(log.New(&buf, "", 0))
 	SetDebug(false)
 	Errorf("%s - %s - %d", "foo", "bar", 1)
 	expected := "[docker-cluster][error] foo - bar - 1\n"
