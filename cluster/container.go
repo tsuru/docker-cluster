@@ -227,7 +227,7 @@ func (c *Cluster) CommitContainer(opts docker.CommitContainerOptions) (*docker.I
 	if opts.Repository != "" {
 		err := c.RemoveImageWait(opts.Repository)
 		if err != nil {
-			log.Errorf("Ignored error removing container %q on commit: %s", opts.Repository, err.Error())
+			log.Debugf("Ignored error removing container %q on commit: %s", opts.Repository, err.Error())
 		}
 	}
 	node, err := c.getNodeForContainer(opts.Container)

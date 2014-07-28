@@ -10,6 +10,7 @@ package cluster
 import (
 	"errors"
 	"github.com/fsouza/go-dockerclient"
+	"github.com/tsuru/docker-cluster/log"
 	"net/http"
 	"reflect"
 	"sync"
@@ -178,17 +179,21 @@ func (c *Cluster) runActiveMonitoring(updateInterval time.Duration) {
 		var err error
 		nodes, err = c.UnfilteredNodes()
 		if err != nil {
-			// TODO: log error
+			log.Errorf("[active-monitoring]: error in UnfilteredNodes: %s", err.Error())
 		}
 		for _, node := range nodes {
 			client, err := c.getNodeByAddr(node.Address)
 			if err != nil {
+				log.Errorf("[active-monitoring]: error creating client: %s", err.Error())
 				continue
 			}
+			log.Debugf("[active-monitoring]: pinging host: %s", node.Address)
 			err = client.Ping()
 			if err == nil {
+				log.Debugf("[active-monitoring]: Ping OK: %s", node.Address)
 				c.handleNodeSuccess(node.Address)
 			} else {
+				log.Errorf("[active-monitoring]: error in ping: %s", err.Error())
 				c.handleNodeError(node.Address, err)
 			}
 		}
