@@ -7,6 +7,7 @@ package cluster
 import (
 	"bytes"
 	"github.com/fsouza/go-dockerclient"
+	dtesting "github.com/fsouza/go-dockerclient/testing"
 	"github.com/tsuru/docker-cluster/storage"
 	"github.com/tsuru/tsuru/safe"
 	"net/http"
@@ -523,5 +524,91 @@ func TestBuildImage(t *testing.T) {
 	_, err = cluster.storage().RetrieveImage("tsuru/python")
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+type APIImagesList []docker.APIImages
+
+func (a APIImagesList) Len() int           { return len(a) }
+func (a APIImagesList) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a APIImagesList) Less(i, j int) bool { return a[i].RepoTags[0] < a[j].RepoTags[0] }
+
+func TestListImages(t *testing.T) {
+	server1, err := dtesting.NewServer("127.0.0.1:0", nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer server1.Stop()
+	server2, err := dtesting.NewServer("127.0.0.1:0", nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer server2.Stop()
+	cluster, err := New(nil, &MapStorage{},
+		Node{Address: server1.URL()},
+		Node{Address: server2.URL()},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	opts := docker.PullImageOptions{Repository: "tsuru/python1"}
+	err = cluster.PullImage(opts, docker.AuthConfiguration{}, server1.URL())
+	if err != nil {
+		t.Error(err)
+	}
+	opts = docker.PullImageOptions{Repository: "tsuru/python2"}
+	err = cluster.PullImage(opts, docker.AuthConfiguration{}, server2.URL())
+	if err != nil {
+		t.Error(err)
+	}
+	images, err := cluster.ListImages(true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(images) != 2 {
+		t.Fatalf("Expected images count to be 2, got: %d", len(images))
+	}
+	sort.Sort(APIImagesList(images))
+	if images[0].RepoTags[0] != "tsuru/python1" {
+		t.Fatalf("Expected images tsuru/python1, got: %s", images[0].RepoTags[0])
+	}
+	if images[1].RepoTags[0] != "tsuru/python2" {
+		t.Fatalf("Expected images tsuru/python2, got: %s", images[0].RepoTags[0])
+	}
+}
+
+func TestListImagesErrors(t *testing.T) {
+	server1, err := dtesting.NewServer("127.0.0.1:0", nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer server1.Stop()
+	server2, err := dtesting.NewServer("127.0.0.1:0", nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer server2.Stop()
+	cluster, err := New(nil, &MapStorage{},
+		Node{Address: server1.URL()},
+		Node{Address: server2.URL()},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	opts := docker.PullImageOptions{Repository: "tsuru/python1"}
+	err = cluster.PullImage(opts, docker.AuthConfiguration{}, server1.URL())
+	if err != nil {
+		t.Error(err)
+	}
+	opts = docker.PullImageOptions{Repository: "tsuru/python2"}
+	err = cluster.PullImage(opts, docker.AuthConfiguration{}, server2.URL())
+	if err != nil {
+		t.Error(err)
+	}
+	server2.PrepareFailure("list-images-error", "/images/json")
+	defer server2.ResetFailure("list-images-error")
+	_, err = cluster.ListImages(true)
+	if err == nil {
+		t.Fatal("Expected error to exist, got <nil>")
 	}
 }

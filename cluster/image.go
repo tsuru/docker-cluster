@@ -9,6 +9,7 @@ import (
 	"github.com/fsouza/go-dockerclient"
 	"net/http"
 	"strings"
+	"sync"
 )
 
 // RemoveImage removes an image from the nodes where this images exists, returning an
@@ -86,6 +87,43 @@ func (c *Cluster) PushImage(opts docker.PushImageOptions, auth docker.AuthConfig
 		return node.PushImage(opts, auth)
 	}
 	return nil
+}
+
+func (c *Cluster) ListImages(all bool) ([]docker.APIImages, error) {
+	nodes, err := c.Nodes()
+	if err != nil {
+		return nil, err
+	}
+	resultChan := make(chan []docker.APIImages, len(nodes))
+	errChan := make(chan error, len(nodes))
+	var wg sync.WaitGroup
+	for _, node := range nodes {
+		wg.Add(1)
+		go func(addr string) {
+			defer wg.Done()
+			client, err := c.getNodeByAddr(addr)
+			if err != nil {
+				errChan <- err
+			}
+			nodeImages, err := client.ListImages(all)
+			if err != nil {
+				errChan <- err
+			}
+			resultChan <- nodeImages
+		}(node.Address)
+	}
+	wg.Wait()
+	close(resultChan)
+	select {
+	case err := <-errChan:
+		return nil, err
+	default:
+	}
+	var allImages []docker.APIImages
+	for images := range resultChan {
+		allImages = append(allImages, images...)
+	}
+	return allImages, nil
 }
 
 func (c *Cluster) getNodesForImage(image string) ([]node, error) {
