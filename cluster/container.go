@@ -48,6 +48,7 @@ func (c *Cluster) CreateContainerSchedulerOpts(opts docker.CreateContainerOption
 			c.handleNodeSuccess(addr)
 			break
 		} else {
+			log.Errorf("Error trying to create container in node %q: %s. Trying again in another node...", addr, err.Error())
 			c.handleNodeError(addr, err)
 			if !useScheduler {
 				return addr, nil, err
@@ -62,9 +63,12 @@ func (c *Cluster) CreateContainerSchedulerOpts(opts docker.CreateContainerOption
 }
 
 func (c *Cluster) createContainerInNode(opts docker.CreateContainerOptions, nodeAddress string) (*docker.Container, error) {
-	c.PullImage(docker.PullImageOptions{
+	err := c.PullImage(docker.PullImageOptions{
 		Repository: opts.Config.Image,
 	}, docker.AuthConfiguration{}, nodeAddress)
+	if err != nil {
+		log.Errorf("Ignored error trying to pull image in node %q: %s", nodeAddress, err.Error())
+	}
 	node, err := c.getNode(func(Storage) (string, error) {
 		return nodeAddress, nil
 	})
