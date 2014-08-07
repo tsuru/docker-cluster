@@ -69,7 +69,7 @@ func (s *MapStorage) RetrieveImage(imageID string) ([]string, error) {
 		return nil, storage.ErrNoSuchImage
 	}
 	hosts := []string{}
-	for host, _ := range hostsSet {
+	for host := range hostsSet {
 		hosts = append(hosts, host)
 	}
 	return hosts, nil
