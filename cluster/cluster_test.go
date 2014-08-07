@@ -156,7 +156,7 @@ func TestNodesShouldGetClusterNodes(t *testing.T) {
 	}
 	expected := []Node{{Address: "http://localhost:4243", Metadata: map[string]string{}}}
 	if !reflect.DeepEqual(nodes, expected) {
-		t.Errorf("Expected nodes to be equal %q, got %q", expected, nodes)
+		t.Errorf("Expected nodes to be equal %+v, got %+v", expected, nodes)
 	}
 }
 
@@ -224,7 +224,7 @@ func TesteUnfilteredNodesReturnAllNodes(t *testing.T) {
 	}
 	sort.Sort(NodeList(nodes))
 	if !reflect.DeepEqual(nodes, expected) {
-		t.Errorf("Expected nodes to be equal %q, got %q", expected, nodes)
+		t.Errorf("Expected nodes to be equal %+v, got %+v", expected, nodes)
 	}
 }
 
@@ -249,7 +249,7 @@ func TestNodesForMetadataShouldGetClusterNodesWithMetadata(t *testing.T) {
 	}
 	expected := []Node{{Address: "http://server2:4243", Metadata: map[string]string{"key1": "val2"}}}
 	if !reflect.DeepEqual(nodes, expected) {
-		t.Errorf("Expected nodes to be equal %q, got %q", expected, nodes)
+		t.Errorf("Expected nodes to be equal %+v, got %+v", expected, nodes)
 	}
 }
 
@@ -263,7 +263,7 @@ func TestNodesShouldReturnEmptyListWhenNoNodeIsFound(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(nodes) != 0 {
-		t.Errorf("Expected nodes to be empty, got %q", nodes)
+		t.Errorf("Expected nodes to be empty, got %+v", nodes)
 	}
 }
 

@@ -82,7 +82,7 @@ type optsScheduler struct {
 	roundRobin
 }
 
-func (s optsScheduler) Schedule(c *Cluster, opts docker.CreateContainerOptions, schedulerOpts SchedulerOptions) (Node, error) {
+func (s *optsScheduler) Schedule(c *Cluster, opts docker.CreateContainerOptions, schedulerOpts SchedulerOptions) (Node, error) {
 	optStr := schedulerOpts.(string)
 	if optStr != "myOpt" {
 		return Node{}, fmt.Errorf("Invalid option %s", optStr)

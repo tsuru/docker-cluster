@@ -165,11 +165,11 @@ func TestNodeIsEnabled(t *testing.T) {
 func TestNodeFailureCount(t *testing.T) {
 	node := Node{}
 	if node.FailureCount() != 0 {
-		t.Fatal("Expected failure count 0, got: %d", node.FailureCount())
+		t.Fatalf("Expected failure count 0, got: %d", node.FailureCount())
 	}
 	node = Node{Metadata: map[string]string{"Failures": "3"}}
 	if node.FailureCount() != 3 {
-		t.Fatal("Expected failure count 3, got: %d", node.FailureCount())
+		t.Fatalf("Expected failure count 3, got: %d", node.FailureCount())
 	}
 }
 

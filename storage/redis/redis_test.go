@@ -584,7 +584,7 @@ func TestRedisStorageStoreNode(t *testing.T) {
 	address := "http://docker-node01.com:4243"
 	err := storage.StoreNode(cluster.Node{Address: address})
 	if err != nil {
-		t.Errorf("Got unexpected %s error", err.Error)
+		t.Errorf("Got unexpected %s error", err.Error())
 	}
 	cmd := conn.cmds[1]
 	expectedCmd := "SADD"
@@ -612,17 +612,17 @@ func TestRedisStorageRetrieveNodes(t *testing.T) {
 	address := "http://docker-node01.com:4243"
 	err := storage.StoreNode(cluster.Node{Address: address})
 	if err != nil {
-		t.Errorf("Got unexpected %s error", err.Error)
+		t.Errorf("Got unexpected %s error", err.Error())
 	}
 	nodes, err := storage.RetrieveNodes()
 	if err != nil {
-		t.Errorf("Got unexpected %s error", err.Error)
+		t.Errorf("Got unexpected %s error", err.Error())
 	}
 	expected := []cluster.Node{
 		{Address: "http://docker-node01.com:4243", Metadata: map[string]string{}},
 	}
 	if !reflect.DeepEqual(nodes, expected) {
-		t.Errorf("Expected nodes to be equal %q, got %q", expected, nodes)
+		t.Errorf("Expected nodes to be equal %+v, got %+v", expected, nodes)
 	}
 }
 
@@ -638,7 +638,7 @@ func TestRedisStorageRemoveNode(t *testing.T) {
 	addr := "server01"
 	err := storage.RemoveNode(addr)
 	if err != nil {
-		t.Errorf("Got unexpected %s error", err.Error)
+		t.Errorf("Got unexpected %s error", err.Error())
 	}
 	cmd := conn.cmds[0]
 	expectedCmd := "SREM"

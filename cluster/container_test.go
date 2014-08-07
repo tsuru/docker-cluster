@@ -109,7 +109,7 @@ func TestCreateContainerSchedulerOpts(t *testing.T) {
 	}))
 	defer server2.Close()
 	scheduler := optsScheduler{roundRobin{lastUsed: -1}}
-	cluster, err := New(scheduler, &MapStorage{},
+	cluster, err := New(&scheduler, &MapStorage{},
 		Node{Address: server1.URL},
 		Node{Address: server2.URL},
 	)
@@ -1801,7 +1801,7 @@ func TestExportContainerNotFoundWithStorage(t *testing.T) {
 	out := &bytes.Buffer{}
 	err = cluster.ExportContainer(docker.ExportContainerOptions{ID: containerID, OutputStream: out})
 	if err == nil {
-		t.Errorf("ExportContainer: expected error not to be <nil>", err.Error())
+		t.Error("ExportContainer: expected error not to be <nil>")
 	}
 }
 
@@ -1819,7 +1819,7 @@ func TestExportContainerNoStorage(t *testing.T) {
 	out := &bytes.Buffer{}
 	err = cluster.ExportContainer(docker.ExportContainerOptions{ID: containerID, OutputStream: out})
 	if err == nil {
-		t.Errorf("ExportContainer: expected error not to be <nil>", err.Error())
+		t.Error("ExportContainer: expected error not to be <nil>")
 	}
 }
 
