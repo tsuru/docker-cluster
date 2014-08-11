@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build: race
+// +build race
 
 package cluster
 
@@ -33,7 +33,7 @@ func TestRoundRobinScheduleIsRaceFree(t *testing.T) {
 				t.Fatal(err)
 			}
 			if node.Address != "url1" && node.Address != "url2" {
-				t.Errorf("Wrong node. Wanted url1 or url2. Got %q.", node)
+				t.Errorf("Wrong node. Wanted url1 or url2. Got %q.", node.Address)
 			}
 		}()
 	}
