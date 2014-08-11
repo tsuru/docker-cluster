@@ -7,7 +7,6 @@ package cluster
 import (
 	"errors"
 	"github.com/fsouza/go-dockerclient"
-	"sync"
 	"sync/atomic"
 )
 
@@ -30,13 +29,10 @@ type node struct {
 
 type roundRobin struct {
 	lastUsed int64
-	mut      sync.RWMutex
 	init     int32
 }
 
 func (s *roundRobin) Schedule(c *Cluster, opts docker.CreateContainerOptions, schedulerOpts SchedulerOptions) (Node, error) {
-	s.mut.RLock()
-	defer s.mut.RUnlock()
 	nodes, _ := c.Nodes()
 	if len(nodes) == 0 {
 		return Node{}, errors.New("No nodes available")
