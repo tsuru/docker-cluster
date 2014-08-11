@@ -42,6 +42,7 @@ func (c *Cluster) removeImage(name string, waitForAll bool) error {
 		if otherErr != nil {
 			return otherErr
 		}
+		return nil
 	}
 	return err
 }
