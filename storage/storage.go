@@ -13,6 +13,6 @@ import (
 var (
 	ErrNoSuchNode            = errors.New("No such node")
 	ErrNoSuchContainer       = errors.New("No such container")
-	ErrNoSuchImage           = errors.New("No such image")
+	ErrNoSuchImage           = errors.New("No such image in storage")
 	ErrDuplicatedNodeAddress = errors.New("Node address shouldn't repeat")
 )
