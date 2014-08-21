@@ -5,8 +5,9 @@
 package cluster
 
 import (
-	"github.com/fsouza/go-dockerclient"
 	"testing"
+
+	"github.com/fsouza/go-dockerclient"
 )
 
 func TestRoundRobinSchedule(t *testing.T) {

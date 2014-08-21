@@ -7,8 +7,6 @@ package cluster
 import (
 	"errors"
 	"fmt"
-	"github.com/fsouza/go-dockerclient"
-	"github.com/tsuru/docker-cluster/storage"
 	"math/rand"
 	"net/http"
 	"net/http/httptest"
@@ -20,6 +18,9 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/fsouza/go-dockerclient"
+	"github.com/tsuru/docker-cluster/storage"
 )
 
 func TestNewCluster(t *testing.T) {

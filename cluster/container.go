@@ -7,9 +7,10 @@ package cluster
 import (
 	"errors"
 	"fmt"
+	"sync"
+
 	"github.com/fsouza/go-dockerclient"
 	"github.com/tsuru/docker-cluster/log"
-	"sync"
 )
 
 // CreateContainer creates a container in the specified node. If no node is

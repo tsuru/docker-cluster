@@ -7,10 +7,11 @@
 package cluster
 
 import (
-	"github.com/fsouza/go-dockerclient"
 	"runtime"
 	"sync"
 	"testing"
+
+	"github.com/fsouza/go-dockerclient"
 )
 
 func TestRoundRobinScheduleIsRaceFree(t *testing.T) {

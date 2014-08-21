@@ -9,12 +9,13 @@ package cluster
 
 import (
 	"errors"
-	"github.com/fsouza/go-dockerclient"
-	"github.com/tsuru/docker-cluster/log"
 	"net/http"
 	"reflect"
 	"sync"
 	"time"
+
+	"github.com/fsouza/go-dockerclient"
+	"github.com/tsuru/docker-cluster/log"
 )
 
 var (

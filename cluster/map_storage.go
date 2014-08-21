@@ -5,8 +5,9 @@
 package cluster
 
 import (
-	"github.com/tsuru/docker-cluster/storage"
 	"sync"
+
+	"github.com/tsuru/docker-cluster/storage"
 )
 
 type MapStorage struct {

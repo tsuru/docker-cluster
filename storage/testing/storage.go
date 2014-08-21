@@ -5,14 +5,15 @@
 package testing
 
 import (
-	"github.com/tsuru/docker-cluster/cluster"
-	cstorage "github.com/tsuru/docker-cluster/storage"
 	"reflect"
 	"runtime"
 	"runtime/debug"
 	"sort"
 	"sync"
 	"testing"
+
+	"github.com/tsuru/docker-cluster/cluster"
+	cstorage "github.com/tsuru/docker-cluster/storage"
 )
 
 func assertIsNil(val interface{}, t *testing.T) {

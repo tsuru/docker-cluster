@@ -7,6 +7,7 @@ package cluster
 import (
 	"errors"
 	"fmt"
+
 	"github.com/fsouza/go-dockerclient"
 )
 

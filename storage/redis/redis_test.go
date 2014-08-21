@@ -5,12 +5,13 @@
 package redis
 
 import (
+	"reflect"
+	"testing"
+
 	"github.com/garyburd/redigo/redis"
 	"github.com/tsuru/docker-cluster/cluster"
 	cstorage "github.com/tsuru/docker-cluster/storage"
 	storageTesting "github.com/tsuru/docker-cluster/storage/testing"
-	"reflect"
-	"testing"
 )
 
 func TestRedisStorage(t *testing.T) {

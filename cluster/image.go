@@ -6,10 +6,11 @@ package cluster
 
 import (
 	"fmt"
-	"github.com/fsouza/go-dockerclient"
 	"net/http"
 	"strings"
 	"sync"
+
+	"github.com/fsouza/go-dockerclient"
 )
 
 // RemoveImage removes an image from the nodes where this images exists, returning an

@@ -6,10 +6,6 @@ package cluster
 
 import (
 	"bytes"
-	"github.com/fsouza/go-dockerclient"
-	dtesting "github.com/fsouza/go-dockerclient/testing"
-	"github.com/tsuru/docker-cluster/storage"
-	"github.com/tsuru/tsuru/safe"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -17,6 +13,11 @@ import (
 	"regexp"
 	"sort"
 	"testing"
+
+	"github.com/fsouza/go-dockerclient"
+	dtesting "github.com/fsouza/go-dockerclient/testing"
+	"github.com/tsuru/docker-cluster/storage"
+	"github.com/tsuru/tsuru/safe"
 )
 
 func TestRemoveImage(t *testing.T) {

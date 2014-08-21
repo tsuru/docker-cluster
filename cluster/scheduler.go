@@ -6,8 +6,9 @@ package cluster
 
 import (
 	"errors"
-	"github.com/fsouza/go-dockerclient"
 	"sync/atomic"
+
+	"github.com/fsouza/go-dockerclient"
 )
 
 // Arbitrary options to be sent to the scheduler. This options will
