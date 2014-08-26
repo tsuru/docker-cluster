@@ -90,8 +90,8 @@ func TestRemoveImageNotFoundInServer(t *testing.T) {
 		t.Fatal(err)
 	}
 	err = cluster.RemoveImage(name)
-	if err == nil || err != docker.ErrNoSuchImage {
-		t.Errorf("RemoveImage(%q): wrong error. Want %s. Got %#v.", name, docker.ErrNoSuchImage, err)
+	if err != nil {
+		t.Fatal(err)
 	}
 	_, err = cluster.storage().RetrieveImage(name)
 	if err != storage.ErrNoSuchImage {

@@ -1695,7 +1695,7 @@ func TestCommitContainerTagShouldIgnoreRemoveImageErrors(t *testing.T) {
 		t.Fatalf("Expected image id to be %q, got: %q", expectedImageId, image.ID)
 	}
 	nodes, _ := storage.RetrieveImage(imgTag)
-	expectedNodes := []string{"http://invalid.invalid", server.URL}
+	expectedNodes := []string{server.URL}
 	sort.Strings(nodes)
 	sort.Strings(expectedNodes)
 	if !reflect.DeepEqual(nodes, expectedNodes) {

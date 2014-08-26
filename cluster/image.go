@@ -11,6 +11,7 @@ import (
 	"sync"
 
 	"github.com/fsouza/go-dockerclient"
+	"github.com/tsuru/docker-cluster/log"
 )
 
 // RemoveImage removes an image from the nodes where this images exists, returning an
@@ -38,13 +39,10 @@ func (c *Cluster) removeImage(name string, waitForAll bool) error {
 	_, err = c.runOnNodes(func(n node) (interface{}, error) {
 		return nil, n.RemoveImage(name)
 	}, docker.ErrNoSuchImage, waitForAll, hosts...)
-	if err == nil || err == docker.ErrNoSuchImage {
-		otherErr := c.storage().RemoveImage(name)
-		if otherErr != nil {
-			return otherErr
-		}
+	if err != nil && err != docker.ErrNoSuchImage {
+		log.Debugf("Ignored error removing image from nodes: %s", err.Error())
 	}
-	return err
+	return c.storage().RemoveImage(name)
 }
 
 func (c *Cluster) removeFromRegistry(imageId string) error {
