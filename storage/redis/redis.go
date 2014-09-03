@@ -99,19 +99,14 @@ func (s *redisStorage) RemoveImage(id string) error {
 func (s *redisStorage) saveNode(node cluster.Node) error {
 	conn := s.pool.Get()
 	defer conn.Close()
-	_, err := conn.Do("SADD", s.key("nodes"), node.Address)
-	if err != nil {
-		return err
-	}
 	if !node.Healing.Locked {
-		_, err = conn.Do("DEL", s.key("node:healing:"+node.Address))
+		_, err := conn.Do("DEL", s.key("node:healing:"+node.Address))
 		if err != nil {
 			return err
 		}
 		_, err = conn.Do("DEL", s.key("node:healing:isfailure:"+node.Address))
-	}
-	if node.Metadata == nil {
-		return nil
+	} else {
+		s.LockNodeForHealing(node.Address, node.Healing.IsFailure)
 	}
 	args := []interface{}{
 		s.key("node:metadata:" + node.Address),
@@ -119,14 +114,17 @@ func (s *redisStorage) saveNode(node cluster.Node) error {
 	for key, value := range node.Metadata {
 		args = append(args, key, value)
 	}
-	if len(args) == 1 {
-		return nil
+	if len(args) > 1 {
+		_, err := conn.Do("DEL", args[0])
+		if err != nil {
+			return err
+		}
+		_, err = conn.Do("HMSET", args...)
+		if err != nil {
+			return err
+		}
 	}
-	_, err = conn.Do("DEL", args[0])
-	if err != nil {
-		return err
-	}
-	_, err = conn.Do("HMSET", args...)
+	_, err := conn.Do("SADD", s.key("nodes"), node.Address)
 	if err != nil {
 		return err
 	}

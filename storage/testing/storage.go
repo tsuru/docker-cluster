@@ -115,6 +115,9 @@ func testStorageStoreRetrieveNodes(storage cluster.Storage, t *testing.T) {
 	assertIsNil(err, t)
 	nodes, err := storage.RetrieveNodes()
 	assertIsNil(err, t)
+	if len(nodes) != 2 {
+		t.Fatalf("unexpected number of nodes, expected 2, got: %d", len(nodes))
+	}
 	sort.Sort(cluster.NodeList(nodes))
 	if nodes[0].Address != node1.Address || nodes[1].Address != node2.Address {
 		t.Errorf("unexpected nodes: %#v", nodes)
@@ -307,6 +310,22 @@ func testStorageLockNodeHealing(storage cluster.Storage, t *testing.T) {
 	}
 }
 
+func testStorageStoreAlreadyLocked(storage cluster.Storage, t *testing.T) {
+	node1 := cluster.Node{
+		Address:  "my-addr-locked",
+		Metadata: map[string]string{},
+		Healing:  cluster.HealingData{Locked: true, IsFailure: true},
+	}
+	defer storage.RemoveNode("my-addr-locked")
+	err := storage.StoreNode(node1)
+	assertIsNil(err, t)
+	nd, err := storage.RetrieveNode("my-addr-locked")
+	assertIsNil(err, t)
+	if !reflect.DeepEqual(nd, node1) {
+		t.Errorf("unexpected node, expected: %#v, got: %#v", node1, nd)
+	}
+}
+
 func RunTestsForStorage(storage cluster.Storage, t *testing.T) {
 	testStorageStoreRetrieveContainer(storage, t)
 	testStorageStoreRemoveContainer(storage, t)
@@ -322,4 +341,5 @@ func RunTestsForStorage(storage cluster.Storage, t *testing.T) {
 	testStorageStoreRetrieveNode(storage, t)
 	testStorageStoreUpdateNode(storage, t)
 	testStorageLockNodeHealing(storage, t)
+	testStorageStoreAlreadyLocked(storage, t)
 }
