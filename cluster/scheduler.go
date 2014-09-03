@@ -6,6 +6,7 @@ package cluster
 
 import (
 	"errors"
+	"sync"
 	"sync/atomic"
 
 	"github.com/fsouza/go-dockerclient"
@@ -30,7 +31,7 @@ type node struct {
 
 type roundRobin struct {
 	lastUsed int64
-	init     int32
+	once     sync.Once
 }
 
 func (s *roundRobin) Schedule(c *Cluster, opts docker.CreateContainerOptions, schedulerOpts SchedulerOptions) (Node, error) {
@@ -38,9 +39,9 @@ func (s *roundRobin) Schedule(c *Cluster, opts docker.CreateContainerOptions, sc
 	if len(nodes) == 0 {
 		return Node{}, errors.New("No nodes available")
 	}
-	if atomic.CompareAndSwapInt32(&s.init, 0, 1) {
-		atomic.StoreInt64(&s.lastUsed, -1)
-	}
+	s.once.Do(func() {
+		s.lastUsed = -1
+	})
 	value := atomic.AddInt64(&s.lastUsed, 1)
 	index := value % int64(len(nodes))
 	return nodes[index], nil
