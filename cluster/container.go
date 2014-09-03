@@ -110,7 +110,7 @@ func (c *Cluster) ListContainers(opts docker.ListContainersOptions) ([]docker.AP
 	errs := make(chan error, len(nodes))
 	for _, n := range nodes {
 		wg.Add(1)
-		client, _ := docker.NewClient(n.Address)
+		client, _ := c.getNodeByAddr(n.Address)
 		go func(n node) {
 			defer wg.Done()
 			if containers, err := n.ListContainers(opts); err != nil {
@@ -118,7 +118,7 @@ func (c *Cluster) ListContainers(opts docker.ListContainersOptions) ([]docker.AP
 			} else {
 				result <- containers
 			}
-		}(node{addr: n.Address, Client: client})
+		}(client)
 	}
 	wg.Wait()
 	var group []docker.APIContainers

@@ -9,6 +9,7 @@ package cluster
 
 import (
 	"errors"
+	"net"
 	"net/http"
 	"reflect"
 	"sync"
@@ -21,6 +22,11 @@ import (
 var (
 	errStorageMandatory = errors.New("Storage parameter is mandatory")
 	errHealerInProgress = errors.New("Healer already running")
+)
+
+var (
+	timeout5Client  = clientWithTimeout(5 * time.Second)
+	timeout10Client = clientWithTimeout(10 * time.Second)
 )
 
 // ContainerStorage provides methods to store and retrieve information about
@@ -174,7 +180,25 @@ func (c *Cluster) WaitAndRegister(address string, metadata map[string]string, ti
 	return c.Register(address, metadata)
 }
 
+func (c *Cluster) runPingForHost(addr string, wg *sync.WaitGroup) {
+	defer wg.Done()
+	client, err := c.getNodeByAddr(addr)
+	if err != nil {
+		log.Errorf("[active-monitoring]: error creating client: %s", err.Error())
+		return
+	}
+	client.HTTPClient = timeout5Client
+	err = client.Ping()
+	if err == nil {
+		c.handleNodeSuccess(addr)
+	} else {
+		log.Errorf("[active-monitoring]: error in ping: %s", err.Error())
+		c.handleNodeError(addr, err)
+	}
+}
+
 func (c *Cluster) runActiveMonitoring(updateInterval time.Duration) {
+	log.Debugf("[active-monitoring]: active monitoring enabled, pinging hosts every %d seconds", updateInterval/time.Second)
 	for {
 		var nodes []Node
 		var err error
@@ -182,22 +206,12 @@ func (c *Cluster) runActiveMonitoring(updateInterval time.Duration) {
 		if err != nil {
 			log.Errorf("[active-monitoring]: error in UnfilteredNodes: %s", err.Error())
 		}
+		wg := sync.WaitGroup{}
 		for _, node := range nodes {
-			client, err := c.getNodeByAddr(node.Address)
-			if err != nil {
-				log.Errorf("[active-monitoring]: error creating client: %s", err.Error())
-				continue
-			}
-			log.Debugf("[active-monitoring]: pinging host: %s", node.Address)
-			err = client.Ping()
-			if err == nil {
-				log.Debugf("[active-monitoring]: Ping OK: %s", node.Address)
-				c.handleNodeSuccess(node.Address)
-			} else {
-				log.Errorf("[active-monitoring]: error in ping: %s", err.Error())
-				c.handleNodeError(node.Address, err)
-			}
+			wg.Add(1)
+			go c.runPingForHost(node.Address, &wg)
 		}
+		wg.Wait()
 		select {
 		case <-c.monitoringDone:
 			return
@@ -271,7 +285,7 @@ func (c *Cluster) runOnNodes(fn nodeFunc, errNotFound error, wait bool, nodeAddr
 	result := make(chan interface{}, len(nodeAddresses))
 	for _, addr := range nodeAddresses {
 		wg.Add(1)
-		client, err := docker.NewClient(addr)
+		client, err := c.getNodeByAddr(addr)
 		if err != nil {
 			return nil, err
 		}
@@ -285,7 +299,7 @@ func (c *Cluster) runOnNodes(fn nodeFunc, errNotFound error, wait bool, nodeAddr
 			} else if !reflect.DeepEqual(err, errNotFound) {
 				errChan <- err
 			}
-		}(node{addr: addr, Client: client})
+		}(client)
 	}
 	if wait {
 		wg.Wait()
@@ -327,11 +341,24 @@ func (c *Cluster) getNode(retrieveFn func(Storage) (string, error)) (node, error
 	return c.getNodeByAddr(address)
 }
 
+func clientWithTimeout(timeout time.Duration) *http.Client {
+	dialTimeout := func(network, addr string) (net.Conn, error) {
+		return net.DialTimeout(network, addr, timeout)
+	}
+	transport := http.Transport{
+		Dial: dialTimeout,
+	}
+	return &http.Client{
+		Transport: &transport,
+	}
+}
+
 func (c *Cluster) getNodeByAddr(address string) (node, error) {
 	var n node
 	client, err := docker.NewClient(address)
 	if err != nil {
 		return n, err
 	}
+	client.HTTPClient = timeout10Client
 	return node{addr: address, Client: client}, nil
 }

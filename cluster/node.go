@@ -18,8 +18,8 @@ import (
 // metadata.
 type Node struct {
 	Address  string `bson:"_id"`
-	Metadata map[string]string
 	Healing  HealingData
+	Metadata map[string]string
 }
 
 type HealingData struct {
@@ -102,6 +102,18 @@ func (n *Node) updateSuccess() {
 	delete(n.Metadata, "DisabledUntil")
 	delete(n.Metadata, "LastError")
 	n.Metadata["LastSuccess"] = time.Now().Format(time.RFC3339)
+}
+
+func (n *Node) CleanMetadata() map[string]string {
+	paramsCopy := make(map[string]string)
+	for k, v := range n.Metadata {
+		paramsCopy[k] = v
+	}
+	delete(paramsCopy, "Failures")
+	delete(paramsCopy, "DisabledUntil")
+	delete(paramsCopy, "LastError")
+	delete(paramsCopy, "LastSuccess")
+	return paramsCopy
 }
 
 func (n *Node) isEnabled() bool {
