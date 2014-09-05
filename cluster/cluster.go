@@ -236,7 +236,7 @@ func (c *Cluster) handleNodeError(addr string, lastErr error) error {
 		node.Healing = HealingData{}
 		defer c.storage().UpdateNode(node)
 		node.updateError(lastErr)
-		duration := c.healer.HandleError(node)
+		duration := c.healer.HandleError(&node)
 		if duration > 0 {
 			node.updateDisabled(time.Now().Add(duration))
 		}

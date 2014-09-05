@@ -79,6 +79,15 @@ func (n *Node) FailureCount() int {
 	return failures
 }
 
+func (n *Node) ResetFailures() {
+	if n.Metadata == nil {
+		n.Metadata = make(map[string]string)
+	}
+	delete(n.Metadata, "Failures")
+	delete(n.Metadata, "DisabledUntil")
+	delete(n.Metadata, "LastError")
+}
+
 func (n *Node) updateError(lastErr error) {
 	if n.Metadata == nil {
 		n.Metadata = make(map[string]string)
@@ -95,12 +104,7 @@ func (n *Node) updateDisabled(disabledUntil time.Time) {
 }
 
 func (n *Node) updateSuccess() {
-	if n.Metadata == nil {
-		n.Metadata = make(map[string]string)
-	}
-	delete(n.Metadata, "Failures")
-	delete(n.Metadata, "DisabledUntil")
-	delete(n.Metadata, "LastError")
+	n.ResetFailures()
 	n.Metadata["LastSuccess"] = time.Now().Format(time.RFC3339)
 }
 

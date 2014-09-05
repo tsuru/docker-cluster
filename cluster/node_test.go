@@ -135,6 +135,32 @@ func TestNodeUpdateSuccess(t *testing.T) {
 	}
 }
 
+func TestNodeResetFailures(t *testing.T) {
+	node := Node{Metadata: map[string]string{
+		"Failures":      "9",
+		"DisabledUntil": "something",
+		"LastError":     "some error",
+		"LastSuccess":   "something",
+	}}
+	node.ResetFailures()
+	_, ok := node.Metadata["Failures"]
+	if ok {
+		t.Fatal("Node shouldn't have Failures")
+	}
+	_, ok = node.Metadata["DisabledUntil"]
+	if ok {
+		t.Fatal("Node shouldn't have DisabledUntil")
+	}
+	_, ok = node.Metadata["LastError"]
+	if ok {
+		t.Fatal("Node shouldn't have LastError")
+	}
+	lastSuccess := node.Metadata["LastSuccess"]
+	if lastSuccess != "something" {
+		t.Fatalf("Node should have preserved LastSuccess, got %s", lastSuccess)
+	}
+}
+
 func TestNodeIsEnabled(t *testing.T) {
 	node := Node{}
 	if !node.isEnabled() {

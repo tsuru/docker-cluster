@@ -377,7 +377,7 @@ type blockingHealer struct {
 	mutex         *sync.Mutex
 }
 
-func (h *blockingHealer) HandleError(n Node) time.Duration {
+func (h *blockingHealer) HandleError(n *Node) time.Duration {
 	h.mutex.Lock()
 	h.calls++
 	h.failureCount = n.FailureCount()
