@@ -49,6 +49,11 @@ func (n Node) MarshalJSON() ([]byte, error) {
 	})
 }
 
+func (n *Node) HasSuccess() bool {
+	_, hasSuccess := n.Metadata["LastSuccess"]
+	return hasSuccess
+}
+
 func (n *Node) Status() string {
 	if n.isHealing() {
 		return NodeStatusHealing
@@ -61,8 +66,7 @@ func (n *Node) Status() string {
 		if hasFailures {
 			return NodeStatusRetry
 		}
-		_, hasSuccess := n.Metadata["LastSuccess"]
-		if !hasSuccess {
+		if !n.HasSuccess() {
 			return NodeStatusWaiting
 		}
 		return NodeStatusReady

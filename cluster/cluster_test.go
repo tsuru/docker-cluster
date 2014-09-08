@@ -61,9 +61,15 @@ func TestRegister(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = cluster.Register("http://localhost1:4243", nil)
+	createdNode, err := cluster.Register("http://localhost1:4243", map[string]string{"x": "y", "a": "b"})
 	if err != nil {
 		t.Fatal(err)
+	}
+	if createdNode.Address != "http://localhost1:4243" {
+		t.Fatalf("Expected node address to be http://localhost1:4243, got: %s", createdNode.Address)
+	}
+	if !reflect.DeepEqual(createdNode.Metadata, map[string]string{"x": "y", "a": "b"}) {
+		t.Fatalf("Expected node metadata to be saved, got: %#v", createdNode.Metadata)
 	}
 	opts := docker.CreateContainerOptions{}
 	node, err := scheduler.Schedule(cluster, opts, nil)
@@ -73,7 +79,7 @@ func TestRegister(t *testing.T) {
 	if node.Address != "http://localhost1:4243" {
 		t.Errorf("Register failed. Got wrong Address. Want %q. Got %q.", "http://localhost1:4243", node.Address)
 	}
-	err = cluster.Register("http://localhost2:4243", nil)
+	_, err = cluster.Register("http://localhost2:4243", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -98,11 +104,11 @@ func TestRegisterDoesNotAllowRepeatedAddresses(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = cluster.Register("http://localhost1:4243", nil)
+	_, err = cluster.Register("http://localhost1:4243", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = cluster.Register("http://localhost1:4243", nil)
+	_, err = cluster.Register("http://localhost1:4243", nil)
 	if err != storage.ErrDuplicatedNodeAddress {
 		t.Fatalf("Expected error ErrDuplicatedNodeAddress, got: %#v", err)
 	}
@@ -113,7 +119,7 @@ func TestRegisterFailure(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = cluster.Register("", nil)
+	_, err = cluster.Register("", nil)
 	if err == nil {
 		t.Error("Expected non-nil error, got <nil>.")
 	}
@@ -125,7 +131,7 @@ func TestUnregister(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = cluster.Register("http://localhost1:4243", nil)
+	_, err = cluster.Register("http://localhost1:4243", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -145,7 +151,7 @@ func TestNodesShouldGetClusterNodes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = cluster.Register("http://localhost:4243", nil)
+	_, err = cluster.Register("http://localhost:4243", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -171,11 +177,11 @@ func TestNodesShouldGetClusterNodesWithoutDisabledNodes(t *testing.T) {
 	}
 	defer cluster.Unregister("http://server1:4243")
 	defer cluster.Unregister("http://server2:4243")
-	err = cluster.Register("http://server1:4243", nil)
+	_, err = cluster.Register("http://server1:4243", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = cluster.Register("http://server2:4243", nil)
+	_, err = cluster.Register("http://server2:4243", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -221,11 +227,11 @@ func TesteUnfilteredNodesReturnAllNodes(t *testing.T) {
 	}
 	defer cluster.Unregister("http://server1:4243")
 	defer cluster.Unregister("http://server2:4243")
-	err = cluster.Register("http://server1:4243", nil)
+	_, err = cluster.Register("http://server1:4243", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = cluster.Register("http://server2:4243", nil)
+	_, err = cluster.Register("http://server2:4243", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -252,11 +258,11 @@ func TestNodesForMetadataShouldGetClusterNodesWithMetadata(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = cluster.Register("http://server1:4243", map[string]string{"key1": "val1"})
+	_, err = cluster.Register("http://server1:4243", map[string]string{"key1": "val1"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = cluster.Register("http://server2:4243", map[string]string{"key1": "val2"})
+	_, err = cluster.Register("http://server2:4243", map[string]string{"key1": "val2"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -418,7 +424,7 @@ func TestClusterHandleNodeErrorStress(t *testing.T) {
 	stopChan := make(chan bool)
 	healer := &blockingHealer{stop: stopChan}
 	c.SetHealer(healer)
-	err = c.Register("stress-addr-1", nil)
+	_, err = c.Register("stress-addr-1", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -503,7 +509,7 @@ func TestClusterHandleNodeSuccess(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = c.Register("addr-1", map[string]string{"Failures": "10"})
+	_, err = c.Register("addr-1", map[string]string{"Failures": "10"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -529,7 +535,7 @@ func TestClusterHandleNodeSuccessStressShouldntBlockNodes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = c.Register("addr-1", nil)
+	_, err = c.Register("addr-1", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -567,11 +573,11 @@ func TestClusterStartActiveMonitoring(t *testing.T) {
 		atomic.AddInt32(&callCount2, 1)
 		w.WriteHeader(http.StatusInternalServerError)
 	}))
-	err = c.Register(server1.URL, nil)
+	_, err = c.Register(server1.URL, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = c.Register(server2.URL, nil)
+	_, err = c.Register(server2.URL, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -634,7 +640,7 @@ func TestClusterWaitAndRegister(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = cluster.WaitAndRegister(server.URL, nil, 1*time.Second)
+	_, err = cluster.WaitAndRegister(server.URL, nil, 1*time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -652,7 +658,7 @@ func TestClusterWaitAndRegisterTimesOutWithOnlyErrors(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = cluster.WaitAndRegister(server.URL, nil, 500*time.Millisecond)
+	_, err = cluster.WaitAndRegister(server.URL, nil, 500*time.Millisecond)
 	if err == nil || err.Error() != "timed out waiting for node to be ready" {
 		t.Fatalf("Expected to receive timeout error, got: %#v", err)
 	}

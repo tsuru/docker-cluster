@@ -97,7 +97,7 @@ func New(scheduler Scheduler, storage Storage, nodes ...Node) (*Cluster, error) 
 	}
 	if len(nodes) > 0 {
 		for _, n := range nodes {
-			err = c.Register(n.Address, n.Metadata)
+			_, err = c.Register(n.Address, n.Metadata)
 			if err != nil {
 				return &c, err
 			}
@@ -111,15 +111,15 @@ func (c *Cluster) SetHealer(healer Healer) {
 }
 
 // Register adds new nodes to the cluster.
-func (c *Cluster) Register(address string, metadata map[string]string) error {
+func (c *Cluster) Register(address string, metadata map[string]string) (Node, error) {
 	if address == "" {
-		return errors.New("Invalid address")
+		return Node{}, errors.New("Invalid address")
 	}
 	node := Node{
 		Address:  address,
 		Metadata: metadata,
 	}
-	return c.storage().StoreNode(node)
+	return node, c.storage().StoreNode(node)
 }
 
 // Unregister removes nodes from the cluster.
@@ -158,10 +158,10 @@ func (c *Cluster) StopActiveMonitoring() {
 	}
 }
 
-func (c *Cluster) WaitAndRegister(address string, metadata map[string]string, timeout time.Duration) error {
+func (c *Cluster) WaitAndRegister(address string, metadata map[string]string, timeout time.Duration) (Node, error) {
 	client, err := c.getNodeByAddr(address)
 	if err != nil {
-		return err
+		return Node{}, err
 	}
 	doneChan := make(chan bool)
 	go func() {
@@ -177,7 +177,7 @@ func (c *Cluster) WaitAndRegister(address string, metadata map[string]string, ti
 	select {
 	case <-doneChan:
 	case <-time.After(timeout):
-		return errors.New("timed out waiting for node to be ready")
+		return Node{}, errors.New("timed out waiting for node to be ready")
 	}
 	return c.Register(address, metadata)
 }
