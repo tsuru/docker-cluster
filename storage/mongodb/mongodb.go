@@ -5,6 +5,8 @@
 package mongodb
 
 import (
+	"time"
+
 	"github.com/tsuru/docker-cluster/cluster"
 	"github.com/tsuru/docker-cluster/storage"
 	"gopkg.in/mgo.v2"
@@ -84,17 +86,48 @@ func (s *mongodbStorage) StoreNode(node cluster.Node) error {
 	return err
 }
 
-func (s *mongodbStorage) LockNodeForHealing(address string, isFailure bool) (bool, error) {
+func (s *mongodbStorage) LockNodeForHealing(address string, isFailure bool, timeout time.Duration) (bool, error) {
 	coll := s.getColl("nodes")
 	defer coll.Database.Session.Close()
+	now := time.Now().UTC()
+	until := now.Add(timeout)
+	setOperation := bson.M{"$set": bson.M{"healing": bson.M{"lockeduntil": until, "isfailure": isFailure}}}
 	err := coll.Update(
-		bson.M{"_id": address, "healing.locked": bson.M{"$in": []interface{}{false, nil}}},
-		bson.M{"$set": bson.M{"healing": bson.M{"locked": true, "isfailure": isFailure}}},
-	)
+		bson.M{"_id": address, "healing.lockeduntil": nil},
+		setOperation)
 	if err == mgo.ErrNotFound {
-		return false, nil
+		var dbNode cluster.Node
+		err = coll.Find(bson.M{"_id": address}).One(&dbNode)
+		if dbNode.Healing.LockedUntil.After(now) {
+			return false, nil
+		}
+		err = coll.Update(bson.M{
+			"_id": address,
+			"healing.lockeduntil": dbNode.Healing.LockedUntil,
+		}, setOperation)
+		if err == mgo.ErrNotFound {
+			return false, nil
+		}
 	}
 	return err == nil, err
+}
+
+func (s *mongodbStorage) ExtendNodeLock(address string, timeout time.Duration) error {
+	coll := s.getColl("nodes")
+	defer coll.Database.Session.Close()
+	now := time.Now().UTC()
+	until := now.Add(timeout)
+	return coll.Update(
+		bson.M{"_id": address},
+		bson.M{"$set": bson.M{"healing.lockeduntil": until}})
+}
+
+func (s *mongodbStorage) UnlockNode(address string) error {
+	coll := s.getColl("nodes")
+	defer coll.Database.Session.Close()
+	return coll.Update(
+		bson.M{"_id": address},
+		bson.M{"$set": bson.M{"healing": nil}})
 }
 
 func (s *mongodbStorage) RetrieveNodesByMetadata(metadata map[string]string) ([]cluster.Node, error) {

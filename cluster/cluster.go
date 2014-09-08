@@ -55,7 +55,9 @@ type NodeStorage interface {
 	RetrieveNode(address string) (Node, error)
 	UpdateNode(node Node) error
 	RemoveNode(address string) error
-	LockNodeForHealing(address string, isFailure bool) (bool, error)
+	LockNodeForHealing(address string, isFailure bool, timeout time.Duration) (bool, error)
+	ExtendNodeLock(address string, timeout time.Duration) error
+	UnlockNode(address string) error
 }
 
 type Storage interface {
@@ -220,46 +222,65 @@ func (c *Cluster) runActiveMonitoring(updateInterval time.Duration) {
 	}
 }
 
+func (c *Cluster) lockWithTimeout(addr string, isFailure bool) (func(), error) {
+	lockTimeout := 3 * time.Minute
+	locked, err := c.storage().LockNodeForHealing(addr, isFailure, lockTimeout)
+	if err != nil {
+		return nil, err
+	}
+	if !locked {
+		return nil, errHealerInProgress
+	}
+	doneKeepAlive := make(chan bool)
+	go func() {
+		for {
+			select {
+			case <-doneKeepAlive:
+				return
+			case <-time.After(30 * time.Second):
+			}
+			c.storage().ExtendNodeLock(addr, lockTimeout)
+		}
+	}()
+	return func() {
+		doneKeepAlive <- true
+		c.storage().UnlockNode(addr)
+	}, nil
+}
+
 func (c *Cluster) handleNodeError(addr string, lastErr error) error {
-	locked, err := c.storage().LockNodeForHealing(addr, true)
+	unlock, err := c.lockWithTimeout(addr, true)
 	if err != nil {
 		return err
 	}
-	if !locked {
-		return errHealerInProgress
-	}
 	go func() {
+		defer unlock()
 		node, err := c.storage().RetrieveNode(addr)
 		if err != nil {
 			return
 		}
-		node.Healing = HealingData{}
-		defer c.storage().UpdateNode(node)
 		node.updateError(lastErr)
 		duration := c.healer.HandleError(&node)
 		if duration > 0 {
 			node.updateDisabled(time.Now().Add(duration))
 		}
+		c.storage().UpdateNode(node)
 	}()
 	return nil
 }
 
 func (c *Cluster) handleNodeSuccess(addr string) error {
-	locked, err := c.storage().LockNodeForHealing(addr, false)
+	unlock, err := c.lockWithTimeout(addr, false)
 	if err != nil {
 		return err
 	}
-	if !locked {
-		return errHealerInProgress
-	}
+	defer unlock()
 	node, err := c.storage().RetrieveNode(addr)
 	if err != nil {
 		return err
 	}
-	node.Healing = HealingData{}
-	defer c.storage().UpdateNode(node)
 	node.updateSuccess()
-	return nil
+	return c.storage().UpdateNode(node)
 }
 
 func (c *Cluster) storage() Storage {

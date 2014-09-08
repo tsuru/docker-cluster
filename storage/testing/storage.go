@@ -10,7 +10,9 @@ import (
 	"runtime/debug"
 	"sort"
 	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/tsuru/docker-cluster/cluster"
 	cstorage "github.com/tsuru/docker-cluster/storage"
@@ -267,7 +269,7 @@ func testStorageStoreRemoveNode(storage cluster.Storage, t *testing.T) {
 }
 
 func testStorageLockNodeHealing(storage cluster.Storage, t *testing.T) {
-	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(10))
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(100))
 	node := cluster.Node{Address: "addr-xyz"}
 	defer storage.RemoveNode("addr-xyz")
 	err := storage.StoreNode(node)
@@ -278,7 +280,7 @@ func testStorageLockNodeHealing(storage cluster.Storage, t *testing.T) {
 	for i := 0; i < 50; i++ {
 		go func() {
 			defer wg.Done()
-			locked, err := storage.LockNodeForHealing("addr-xyz", true)
+			locked, err := storage.LockNodeForHealing("addr-xyz", true, 5*time.Second)
 			assertIsNil(err, t)
 			if locked {
 				successCount++
@@ -291,8 +293,8 @@ func testStorageLockNodeHealing(storage cluster.Storage, t *testing.T) {
 	}
 	dbNode, err := storage.RetrieveNode("addr-xyz")
 	assertIsNil(err, t)
-	if !dbNode.Healing.Locked {
-		t.Fatal("Expected node Healing.Locked to be true")
+	if dbNode.Healing.LockedUntil.IsZero() {
+		t.Fatal("Expected node Healing.LockedUntil not to be zero")
 	}
 	if !dbNode.Healing.IsFailure {
 		t.Fatal("Expected node healing.isFailure to be true")
@@ -302,8 +304,8 @@ func testStorageLockNodeHealing(storage cluster.Storage, t *testing.T) {
 	assertIsNil(err, t)
 	dbNode, err = storage.RetrieveNode("addr-xyz")
 	assertIsNil(err, t)
-	if dbNode.Healing.Locked {
-		t.Fatal("Expected node Healing.Locked to be false")
+	if !dbNode.Healing.LockedUntil.IsZero() {
+		t.Fatal("Expected node Healing.LockedUntil to be zero")
 	}
 	if dbNode.Healing.IsFailure {
 		t.Fatal("Expected node Healing.IsFailure to be false")
@@ -314,15 +316,85 @@ func testStorageStoreAlreadyLocked(storage cluster.Storage, t *testing.T) {
 	node1 := cluster.Node{
 		Address:  "my-addr-locked",
 		Metadata: map[string]string{},
-		Healing:  cluster.HealingData{Locked: true, IsFailure: true},
+		Healing:  cluster.HealingData{LockedUntil: time.Now().UTC().Add(5 * time.Second), IsFailure: true},
 	}
 	defer storage.RemoveNode("my-addr-locked")
 	err := storage.StoreNode(node1)
 	assertIsNil(err, t)
 	nd, err := storage.RetrieveNode("my-addr-locked")
 	assertIsNil(err, t)
-	if !reflect.DeepEqual(nd, node1) {
+	duration := nd.Healing.LockedUntil.Sub(node1.Healing.LockedUntil)
+	if duration < 0 {
+		duration = -duration
+	}
+	if duration > 1*time.Second {
 		t.Errorf("unexpected node, expected: %#v, got: %#v", node1, nd)
+	}
+}
+
+func testStorageLockNodeHealingAfterTimeout(storage cluster.Storage, t *testing.T) {
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(100))
+	node := cluster.Node{Address: "addr-xyz"}
+	defer storage.RemoveNode("addr-xyz")
+	err := storage.StoreNode(node)
+	assertIsNil(err, t)
+	locked, err := storage.LockNodeForHealing("addr-xyz", true, 200*time.Millisecond)
+	assertIsNil(err, t)
+	locked, err = storage.LockNodeForHealing("addr-xyz", true, 200*time.Millisecond)
+	assertIsNil(err, t)
+	if locked {
+		t.Fatal("Expected LockNodeForHealing to return false before timeout")
+	}
+	time.Sleep(300 * time.Millisecond)
+	successCount := int32(0)
+	wg := sync.WaitGroup{}
+	wg.Add(50)
+	for i := 0; i < 50; i++ {
+		go func() {
+			defer wg.Done()
+			locked, err := storage.LockNodeForHealing("addr-xyz", true, 5*time.Second)
+			assertIsNil(err, t)
+			if locked {
+				atomic.AddInt32(&successCount, 1)
+			}
+		}()
+	}
+	wg.Wait()
+	if successCount != 1 {
+		t.Fatalf("Expected LockNodeForHealing after timeout to lock only once, got: %d", successCount)
+	}
+}
+
+func testStorageExtendNodeLock(storage cluster.Storage, t *testing.T) {
+	node := cluster.Node{Address: "addr-xyz"}
+	defer storage.RemoveNode("addr-xyz")
+	err := storage.StoreNode(node)
+	assertIsNil(err, t)
+	locked, err := storage.LockNodeForHealing("addr-xyz", true, 200*time.Millisecond)
+	assertIsNil(err, t)
+	time.Sleep(300 * time.Millisecond)
+	err = storage.ExtendNodeLock("addr-xyz", 200*time.Millisecond)
+	assertIsNil(err, t)
+	locked, err = storage.LockNodeForHealing("addr-xyz", true, 200*time.Millisecond)
+	assertIsNil(err, t)
+	if locked {
+		t.Fatal("Expected LockNodeForHealing to return false after extending timeout")
+	}
+}
+
+func testStorageUnlockNode(storage cluster.Storage, t *testing.T) {
+	node := cluster.Node{Address: "addr-xyz"}
+	defer storage.RemoveNode("addr-xyz")
+	err := storage.StoreNode(node)
+	assertIsNil(err, t)
+	locked, err := storage.LockNodeForHealing("addr-xyz", true, 200*time.Millisecond)
+	assertIsNil(err, t)
+	err = storage.UnlockNode("addr-xyz")
+	assertIsNil(err, t)
+	locked, err = storage.LockNodeForHealing("addr-xyz", true, 200*time.Millisecond)
+	assertIsNil(err, t)
+	if !locked {
+		t.Fatal("Expected LockNodeForHealing to return true after unlocking")
 	}
 }
 
@@ -342,4 +414,7 @@ func RunTestsForStorage(storage cluster.Storage, t *testing.T) {
 	testStorageStoreUpdateNode(storage, t)
 	testStorageLockNodeHealing(storage, t)
 	testStorageStoreAlreadyLocked(storage, t)
+	testStorageLockNodeHealingAfterTimeout(storage, t)
+	testStorageExtendNodeLock(storage, t)
+	testStorageUnlockNode(storage, t)
 }

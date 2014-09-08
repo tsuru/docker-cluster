@@ -23,8 +23,8 @@ type Node struct {
 }
 
 type HealingData struct {
-	Locked    bool
-	IsFailure bool
+	LockedUntil time.Time
+	IsFailure   bool
 }
 
 type NodeList []Node
@@ -50,7 +50,7 @@ func (n Node) MarshalJSON() ([]byte, error) {
 }
 
 func (n *Node) Status() string {
-	if n.Healing.Locked && n.Healing.IsFailure {
+	if n.isHealing() {
 		return NodeStatusHealing
 	}
 	if n.Metadata == nil {
@@ -121,7 +121,7 @@ func (n *Node) CleanMetadata() map[string]string {
 }
 
 func (n *Node) isEnabled() bool {
-	if n.Healing.Locked && n.Healing.IsFailure {
+	if n.isHealing() {
 		return false
 	}
 	if n.Metadata == nil {
@@ -130,6 +130,10 @@ func (n *Node) isEnabled() bool {
 	disabledStr, _ := n.Metadata["DisabledUntil"]
 	t, _ := time.Parse(time.RFC3339, disabledStr)
 	return time.Now().After(t)
+}
+
+func (n *Node) isHealing() bool {
+	return (!n.Healing.LockedUntil.IsZero()) && n.Healing.IsFailure
 }
 
 func (nodes NodeList) filterDisabled() NodeList {

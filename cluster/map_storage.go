@@ -6,6 +6,7 @@ package cluster
 
 import (
 	"sync"
+	"time"
 
 	"github.com/tsuru/docker-cluster/storage"
 )
@@ -183,14 +184,41 @@ func (s *MapStorage) RemoveNode(addr string) error {
 	return nil
 }
 
-func (s *MapStorage) LockNodeForHealing(address string, isFailure bool) (bool, error) {
+func (s *MapStorage) LockNodeForHealing(address string, isFailure bool, timeout time.Duration) (bool, error) {
 	s.nMut.Lock()
 	defer s.nMut.Unlock()
 	n, present := s.nodeMap[address]
-	if !present || n.Healing.Locked {
+	if !present {
+		return false, storage.ErrNoSuchNode
+	}
+	now := time.Now().UTC()
+	if n.Healing.LockedUntil.After(now) {
 		return false, nil
 	}
-	n.Healing.Locked = true
+	n.Healing.LockedUntil = now.Add(timeout)
 	n.Healing.IsFailure = isFailure
 	return true, nil
+}
+
+func (s *MapStorage) ExtendNodeLock(address string, timeout time.Duration) error {
+	s.nMut.Lock()
+	defer s.nMut.Unlock()
+	n, present := s.nodeMap[address]
+	if !present {
+		return storage.ErrNoSuchNode
+	}
+	now := time.Now().UTC()
+	n.Healing.LockedUntil = now.Add(timeout)
+	return nil
+}
+
+func (s *MapStorage) UnlockNode(address string) error {
+	s.nMut.Lock()
+	defer s.nMut.Unlock()
+	n, present := s.nodeMap[address]
+	if !present {
+		return storage.ErrNoSuchNode
+	}
+	n.Healing = HealingData{}
+	return nil
 }

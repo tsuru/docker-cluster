@@ -7,6 +7,7 @@ package cluster
 import (
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/fsouza/go-dockerclient"
 )
@@ -63,8 +64,14 @@ func (failingStorage) UpdateNode(node Node) error {
 func (failingStorage) RemoveNode(address string) error {
 	return errors.New("storage error")
 }
-func (failingStorage) LockNodeForHealing(address string, isFailure bool) (bool, error) {
+func (failingStorage) LockNodeForHealing(address string, isFailure bool, timeout time.Duration) (bool, error) {
 	return false, errors.New("storage error")
+}
+func (failingStorage) ExtendNodeLock(address string, timeout time.Duration) error {
+	return errors.New("storage error")
+}
+func (failingStorage) UnlockNode(address string) error {
+	return errors.New("storage error")
 }
 
 type fakeScheduler struct{}

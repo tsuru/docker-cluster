@@ -37,13 +37,14 @@ func TestNodeStatus(t *testing.T) {
 	if node.Status() != NodeStatusDisabled {
 		t.Fatalf("Expected status NodeStatusDisabled, got %s", node.Status())
 	}
-	node = Node{Healing: HealingData{Locked: true}, Metadata: map[string]string{
+	future := time.Now().UTC().Add(5 * time.Second)
+	node = Node{Healing: HealingData{LockedUntil: future}, Metadata: map[string]string{
 		"LastSuccess": "date",
 	}}
 	if node.Status() != NodeStatusReady {
 		t.Fatalf("Expected status NodeStatusReady got %s", node.Status())
 	}
-	node = Node{Healing: HealingData{Locked: true, IsFailure: true}, Metadata: map[string]string{
+	node = Node{Healing: HealingData{LockedUntil: future, IsFailure: true}, Metadata: map[string]string{
 		"DisabledUntil": time.Now().Add(1 * time.Minute).Format(time.RFC3339),
 		"Failures":      "1",
 	}}
@@ -178,11 +179,12 @@ func TestNodeIsEnabled(t *testing.T) {
 	if node.isEnabled() {
 		t.Fatal("node should be disabled")
 	}
-	node = Node{Healing: HealingData{Locked: true}}
+	future := time.Now().UTC().Add(5 * time.Second)
+	node = Node{Healing: HealingData{LockedUntil: future}}
 	if !node.isEnabled() {
 		t.Fatal("node should be enabled")
 	}
-	node = Node{Healing: HealingData{Locked: true, IsFailure: true}}
+	node = Node{Healing: HealingData{LockedUntil: future, IsFailure: true}}
 	if node.isEnabled() {
 		t.Fatal("node should be disabled")
 	}
@@ -203,7 +205,8 @@ func TestNodeListFilterDisabledAndHealing(t *testing.T) {
 	nodes := []Node{{Address: "a1"}, {Address: "a2"}, {Address: "a3"}, {Address: "a4"}}
 	until := time.Now().Add(1 * time.Minute).Format(time.RFC3339)
 	nodes[1].Metadata = map[string]string{"DisabledUntil": until}
-	nodes[3].Healing = HealingData{Locked: true, IsFailure: true}
+	future := time.Now().UTC().Add(5 * time.Second)
+	nodes[3].Healing = HealingData{LockedUntil: future, IsFailure: true}
 	filtered := NodeList(nodes).filterDisabled()
 	if len(filtered) != 2 {
 		t.Fatalf("Expected filtered nodes len = 2, got %d", len(filtered))
