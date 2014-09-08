@@ -519,7 +519,7 @@ func TestClusterHandleNodeSuccess(t *testing.T) {
 		t.Errorf("Expected FailureCount to be 0, got: %d", node.FailureCount())
 	}
 	if !node.Healing.LockedUntil.IsZero() {
-		t.Error("Expected node.Healing to be zero, got: %s", node.Healing.LockedUntil)
+		t.Errorf("Expected node.Healing to be zero, got: %s", node.Healing.LockedUntil)
 	}
 }
 
