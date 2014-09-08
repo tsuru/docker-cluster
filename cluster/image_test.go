@@ -528,6 +528,24 @@ func TestBuildImage(t *testing.T) {
 	}
 }
 
+func TestBuildImageWithNoNodes(t *testing.T) {
+	cluster, err := New(nil, &MapStorage{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var buf bytes.Buffer
+	buildOptions := docker.BuildImageOptions{
+		Name:         "tsuru/python",
+		Remote:       "http://localhost/Dockerfile",
+		InputStream:  nil,
+		OutputStream: &buf,
+	}
+	err = cluster.BuildImage(buildOptions)
+	if err == nil {
+		t.Error("Should return an error.")
+	}
+}
+
 type APIImagesList []docker.APIImages
 
 func (a APIImagesList) Len() int           { return len(a) }

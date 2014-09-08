@@ -5,6 +5,7 @@
 package cluster
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -154,6 +155,9 @@ func (c *Cluster) BuildImage(buildOptions docker.BuildImageOptions) error {
 	nodes, err := c.Nodes()
 	if err != nil {
 		return err
+	}
+	if len(nodes) < 1 {
+		return errors.New("There is no docker node. Please list one in tsuru.conf or add one with `tsuru docker-node-add`.")
 	}
 	nodeAddress := nodes[0].Address
 	node, err := c.getNode(func(Storage) (string, error) {
