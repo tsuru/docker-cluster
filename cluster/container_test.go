@@ -12,6 +12,7 @@ import (
 	"reflect"
 	"runtime"
 	"sort"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -41,7 +42,7 @@ func TestCreateContainer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	config := docker.Config{Memory: 67108864, Image: "myimg"}
+	config := docker.Config{Memory: 67108864, Image: "myhost/somwhere/myimg"}
 	nodeAddr, container, err := cluster.CreateContainer(docker.CreateContainerOptions{Config: &config})
 	if err != nil {
 		t.Fatal(err)
@@ -52,7 +53,7 @@ func TestCreateContainer(t *testing.T) {
 	if container.ID != "e90302" {
 		t.Errorf("CreateContainer: wrong container ID. Want %q. Got %q.", "e90302", container.ID)
 	}
-	imageHosts, err := cluster.storage().RetrieveImage("myimg")
+	imageHosts, err := cluster.storage().RetrieveImage("myhost/somwhere/myimg")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -94,6 +95,58 @@ func TestCreateContainerOptions(t *testing.T) {
 	}
 	if container.ID != "e90302" {
 		t.Errorf("CreateContainer: wrong container ID. Want %q. Got %q.", "e90302", container.ID)
+	}
+}
+
+func TestCreateContainerErrorImageInRepo(t *testing.T) {
+	server1, err := dtesting.NewServer("127.0.0.1:0", nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer server1.Stop()
+	server1.PrepareFailure("createErr", "/images/create")
+	cluster, err := New(nil, &MapStorage{},
+		Node{Address: server1.URL()},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	config := docker.Config{Memory: 67108864, Image: "myserver/user/myimg"}
+	_, _, err = cluster.CreateContainer(docker.CreateContainerOptions{Config: &config})
+	if err == nil || strings.Index(err.Error(), "Error trying to pull image") == -1 {
+		t.Fatalf("Expected pull image error, got: %s", err)
+	}
+}
+
+func TestCreateContainerWithoutRepo(t *testing.T) {
+	server1, err := dtesting.NewServer("127.0.0.1:0", nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer server1.Stop()
+	cluster, err := New(nil, &MapStorage{},
+		Node{Address: server1.URL()},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = cluster.PullImage(docker.PullImageOptions{
+		Repository: "user/myimg",
+	}, docker.AuthConfiguration{}, server1.URL())
+	if err != nil {
+		t.Fatal(err)
+	}
+	server1.PrepareFailure("createErr", "/images/create")
+	config := docker.Config{Memory: 67108864, Image: "user/myimg"}
+	nodeAddr, container, err := cluster.CreateContainer(docker.CreateContainerOptions{Config: &config})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if nodeAddr != server1.URL() {
+		t.Errorf("CreateContainer: wrong node  ID. Want %q. Got %q.", server1.URL, nodeAddr)
+	}
+	if container.ID == "" {
+		t.Errorf("CreateContainer: wrong container ID. Expected not empty.")
 	}
 }
 
@@ -148,8 +201,8 @@ func TestCreateContainerFailure(t *testing.T) {
 	}
 	config := docker.Config{Memory: 67108864}
 	_, _, err = cluster.CreateContainer(docker.CreateContainerOptions{Config: &config})
-	expected := "No nodes available"
-	if err == nil || err.Error() != expected {
+	expected := "no such image"
+	if err == nil || strings.Index(err.Error(), expected) == -1 {
 		t.Errorf("Expected error %q, got: %#v", expected, err)
 	}
 }
@@ -179,7 +232,7 @@ func TestCreateContainerSpecifyNode(t *testing.T) {
 	}
 	opts := docker.CreateContainerOptions{Config: &docker.Config{
 		Memory: 67108864,
-		Image:  "myImage",
+		Image:  "some.host/user/myImage",
 	}}
 	nodeAddr, container, err := cluster.CreateContainer(opts, server2.URL)
 	if err != nil {
@@ -196,9 +249,9 @@ func TestCreateContainerSpecifyNode(t *testing.T) {
 		t.Errorf("Cluster.CreateContainer() with storage: wrong data. Want %#v. Got %#v.", server2.URL, host)
 	}
 	if len(requests) != 2 {
-		t.Errorf("Expected 2 api calls, got %d.", len(requests))
+		t.Fatalf("Expected 2 api calls, got %d.", len(requests))
 	}
-	expectedReq := "/images/create?fromImage=myImage"
+	expectedReq := "/images/create?fromImage=some.host%2Fuser%2FmyImage"
 	if requests[0] != expectedReq {
 		t.Errorf("Incorrect request 0. Want %#v. Got %#v", expectedReq, requests[0])
 	}
@@ -1704,8 +1757,12 @@ func TestCommitContainerTagShouldIgnoreRemoveImageErrors(t *testing.T) {
 }
 
 func TestCommitContainerRaceWithRemoveImage(t *testing.T) {
-	baseImage := "test/mybase"
-	appImage := "test/myapp"
+	repoServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	repoPort := strings.Split(repoServer.URL, ":")[2]
+	baseImage := fmt.Sprintf("127.0.0.1:%s/test/mybase", repoPort)
+	appImage := fmt.Sprintf("127.0.0.1:%s/test/myapp", repoPort)
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(16))
 	server1, err := dtesting.NewServer("127.0.0.1:0", nil, nil)
 	if err != nil {
@@ -1717,6 +1774,7 @@ func TestCommitContainerRaceWithRemoveImage(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer server2.Stop()
+
 	imgsPath := "/images/" + appImage
 	var wg sync.WaitGroup
 	server1.CustomHandler(imgsPath, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

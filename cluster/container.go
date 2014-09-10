@@ -33,9 +33,12 @@ func (c *Cluster) CreateContainerSchedulerOpts(opts docker.CreateContainerOption
 	maxTries := 5
 	for ; maxTries > 0; maxTries-- {
 		if useScheduler {
-			node, err := c.scheduler.Schedule(c, opts, schedulerOpts)
-			if err != nil {
-				return addr, nil, err
+			node, scheduleErr := c.scheduler.Schedule(c, opts, schedulerOpts)
+			if scheduleErr != nil {
+				if err != nil {
+					scheduleErr = fmt.Errorf("Error in scheduler after previous errors (%s) trying to create container: %s", err.Error(), scheduleErr.Error())
+				}
+				return addr, nil, scheduleErr
 			}
 			addr = node.Address
 		} else {
@@ -64,11 +67,14 @@ func (c *Cluster) CreateContainerSchedulerOpts(opts docker.CreateContainerOption
 }
 
 func (c *Cluster) createContainerInNode(opts docker.CreateContainerOptions, nodeAddress string) (*docker.Container, error) {
-	err := c.PullImage(docker.PullImageOptions{
-		Repository: opts.Config.Image,
-	}, docker.AuthConfiguration{}, nodeAddress)
-	if err != nil {
-		log.Errorf("Ignored error trying to pull image in node %q: %s", nodeAddress, err.Error())
+	registryServer, _ := parseImageRegistry(opts.Config.Image)
+	if registryServer != "" {
+		err := c.PullImage(docker.PullImageOptions{
+			Repository: opts.Config.Image,
+		}, docker.AuthConfiguration{}, nodeAddress)
+		if err != nil {
+			return nil, fmt.Errorf("Error trying to pull image in node %q: %s", nodeAddress, err.Error())
+		}
 	}
 	node, err := c.getNode(func(Storage) (string, error) {
 		return nodeAddress, nil

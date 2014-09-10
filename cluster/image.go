@@ -47,19 +47,25 @@ func (c *Cluster) removeImage(name string, waitForAll bool) error {
 }
 
 func (c *Cluster) removeFromRegistry(imageId string) error {
-	parts := strings.SplitN(imageId, "/", 3)
-	if len(parts) < 3 {
+	registryServer, imageTag := parseImageRegistry(imageId)
+	if registryServer == "" {
 		return nil
 	}
-	registryServer := parts[0]
-	url := fmt.Sprintf("http://%s/v1/repositories/%s/tags", registryServer,
-		strings.Join(parts[1:], "/"))
+	url := fmt.Sprintf("http://%s/v1/repositories/%s/tags", registryServer, imageTag)
 	request, err := http.NewRequest("DELETE", url, nil)
 	if err != nil {
 		return err
 	}
 	_, err = http.DefaultClient.Do(request)
 	return err
+}
+
+func parseImageRegistry(imageId string) (string, string) {
+	parts := strings.SplitN(imageId, "/", 3)
+	if len(parts) < 3 {
+		return "", strings.Join(parts, "/")
+	}
+	return parts[0], strings.Join(parts[1:], "/")
 }
 
 // PullImage pulls an image from a remote registry server, returning an error
