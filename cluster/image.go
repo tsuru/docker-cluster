@@ -29,10 +29,6 @@ func (c *Cluster) RemoveImage(name string) error {
 }
 
 func (c *Cluster) removeImage(name string, waitForAll bool) error {
-	err := c.removeFromRegistry(name)
-	if err != nil {
-		return err
-	}
 	hosts, err := c.storage().RetrieveImage(name)
 	if err != nil {
 		return err
@@ -46,7 +42,7 @@ func (c *Cluster) removeImage(name string, waitForAll bool) error {
 	return c.storage().RemoveImage(name)
 }
 
-func (c *Cluster) removeFromRegistry(imageId string) error {
+func (c *Cluster) RemoveFromRegistry(imageId string) error {
 	registryServer, imageTag := parseImageRegistry(imageId)
 	if registryServer == "" {
 		return nil

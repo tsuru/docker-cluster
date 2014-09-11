@@ -76,9 +76,7 @@ func (c *Cluster) createContainerInNode(opts docker.CreateContainerOptions, node
 			return nil, fmt.Errorf("Error trying to pull image in node %q: %s", nodeAddress, err.Error())
 		}
 	}
-	node, err := c.getNode(func(Storage) (string, error) {
-		return nodeAddress, nil
-	})
+	node, err := c.getNodeByAddr(nodeAddress)
 	if err != nil {
 		return nil, err
 	}
