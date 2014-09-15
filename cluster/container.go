@@ -233,12 +233,6 @@ func (c *Cluster) Logs(opts docker.LogsOptions) error {
 
 // CommitContainer commits a container and returns the image id.
 func (c *Cluster) CommitContainer(opts docker.CommitContainerOptions) (*docker.Image, error) {
-	if opts.Repository != "" {
-		err := c.RemoveImageWait(opts.Repository)
-		if err != nil {
-			log.Debugf("Ignored error removing container %q on commit: %s", opts.Repository, err.Error())
-		}
-	}
 	node, err := c.getNodeForContainer(opts.Container)
 	if err != nil {
 		return nil, err
@@ -248,10 +242,13 @@ func (c *Cluster) CommitContainer(opts docker.CommitContainerOptions) (*docker.I
 		return nil, err
 	}
 	key := opts.Repository
-	if key == "" {
-		key = image.ID
+	if key != "" {
+		err = c.storage().StoreImage(key, image.ID, node.addr)
+		if err != nil {
+			return nil, err
+		}
 	}
-	return image, c.storage().StoreImage(key, node.addr)
+	return image, nil
 }
 
 // ExportContainer exports a container as a tar and writes

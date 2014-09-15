@@ -13,7 +13,7 @@ import (
 
 type MapStorage struct {
 	cMap    map[string]string
-	iMap    map[string]map[string]bool
+	iMap    map[string]*Image
 	nodes   []Node
 	nodeMap map[string]*Node
 	cMut    sync.Mutex
@@ -48,39 +48,59 @@ func (s *MapStorage) RemoveContainer(containerID string) error {
 	return nil
 }
 
-func (s *MapStorage) StoreImage(imageID, hostID string) error {
+func (s *MapStorage) StoreImage(repo, id, host string) error {
 	s.iMut.Lock()
 	defer s.iMut.Unlock()
 	if s.iMap == nil {
-		s.iMap = make(map[string]map[string]bool)
+		s.iMap = make(map[string]*Image)
 	}
-	set, _ := s.iMap[imageID]
-	if set == nil {
-		set = make(map[string]bool)
-		s.iMap[imageID] = set
+	img, _ := s.iMap[repo]
+	if img == nil {
+		img = &Image{Repository: repo, History: []ImageHistory{}}
+		s.iMap[repo] = img
 	}
-	set[hostID] = true
+	hasId := false
+	for _, entry := range img.History {
+		if entry.ImageId == id && entry.Node == host {
+			hasId = true
+			break
+		}
+	}
+	if !hasId {
+		img.History = append(img.History, ImageHistory{Node: host, ImageId: id})
+	}
+	img.LastNode = host
+	img.LastId = id
 	return nil
 }
 
-func (s *MapStorage) RetrieveImage(imageID string) ([]string, error) {
+func (s *MapStorage) RetrieveImage(repo string) (Image, error) {
 	s.iMut.Lock()
 	defer s.iMut.Unlock()
-	hostsSet, ok := s.iMap[imageID]
+	image, ok := s.iMap[repo]
 	if !ok {
-		return nil, storage.ErrNoSuchImage
+		return Image{}, storage.ErrNoSuchImage
 	}
-	hosts := []string{}
-	for host := range hostsSet {
-		hosts = append(hosts, host)
+	if len(image.History) == 0 {
+		return Image{}, storage.ErrNoSuchImage
 	}
-	return hosts, nil
+	return *image, nil
 }
 
-func (s *MapStorage) RemoveImage(imageID string) error {
+func (s *MapStorage) RemoveImage(repo, id, host string) error {
 	s.iMut.Lock()
 	defer s.iMut.Unlock()
-	delete(s.iMap, imageID)
+	image, ok := s.iMap[repo]
+	if !ok {
+		return storage.ErrNoSuchImage
+	}
+	newHistory := []ImageHistory{}
+	for _, entry := range image.History {
+		if entry.ImageId != id || entry.Node != host {
+			newHistory = append(newHistory, entry)
+		}
+	}
+	image.History = newHistory
 	return nil
 }
 

@@ -43,9 +43,9 @@ type ContainerStorage interface {
 // ImageStorage works like ContainerStorage, but stores information about
 // images and hosts.
 type ImageStorage interface {
-	StoreImage(image, host string) error
-	RetrieveImage(image string) (host []string, err error)
-	RemoveImage(image string) error
+	StoreImage(repo, id, host string) error
+	RetrieveImage(repo string) (Image, error)
+	RemoveImage(repo, id, host string) error
 }
 
 type NodeStorage interface {

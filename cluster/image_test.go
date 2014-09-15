@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"reflect"
 	"regexp"
 	"sort"
@@ -34,7 +33,7 @@ func TestRemoveImage(t *testing.T) {
 		t.Fatal(err)
 	}
 	name := "tsuru/python"
-	err = cluster.storage().StoreImage(name, server1.URL)
+	err = cluster.storage().StoreImage(name, "id1", server1.URL)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -79,12 +78,36 @@ func TestRemoveImageNotFoundInServer(t *testing.T) {
 	defer server1.Close()
 	name := "tsuru/python"
 	stor := &MapStorage{}
-	err := stor.StoreImage(name, server1.URL)
+	err := stor.StoreImage(name, "id1", server1.URL)
 	if err != nil {
 		t.Fatal(err)
 	}
 	cluster, err := New(nil, stor,
 		Node{Address: server1.URL},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = cluster.RemoveImage(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = cluster.storage().RetrieveImage(name)
+	if err != storage.ErrNoSuchImage {
+		t.Errorf("RemoveImage(%q): wrong error. Want %#v. Got %#v.", name, storage.ErrNoSuchImage, err)
+	}
+}
+
+func TestRemoveImageServerUnavailable(t *testing.T) {
+	addr := "http://invalid-server.nowhere.none"
+	name := "tsuru/python"
+	stor := &MapStorage{}
+	err := stor.StoreImage(name, "id1", addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cluster, err := New(nil, stor,
+		Node{Address: addr},
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -108,7 +131,7 @@ func TestRemoveImageNodeNotInStorage(t *testing.T) {
 	defer server1.Close()
 	name := "tsuru/python"
 	stor := &MapStorage{}
-	err := stor.StoreImage(name, server1.URL)
+	err := stor.StoreImage(name, "id1", server1.URL)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -129,62 +152,21 @@ func TestRemoveImageNodeNotInStorage(t *testing.T) {
 	}
 }
 
-func TestRemoveFromRegistry(t *testing.T) {
-	var request http.Request
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		request = *r
-	}))
-	defer server.Close()
-	u, _ := url.Parse(server.URL)
-	imageRepo := u.Host + "/tsuru/python"
-	cluster, err := New(nil, &MapStorage{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = cluster.RemoveFromRegistry(imageRepo)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if request.Method != "DELETE" {
-		t.Fatalf("removeFromRegistry(%q): Expected method to be DELETE, got: %s", imageRepo, request.Method)
-	}
-	path := "/v1/repositories/tsuru/python/tags"
-	if request.URL.Path != path {
-		t.Fatalf("removeFromRegistry(%q): Expected path to be %q, got: %s", imageRepo, path, request.URL.Path)
-	}
-}
-
-func TestRemoveFromRegistryIgnoresNoRepo(t *testing.T) {
-	imageRepo := "tsuru/python"
-	cluster, err := New(nil, &MapStorage{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = cluster.RemoveFromRegistry(imageRepo)
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestRemoveFromRegistryErrorWithInvalidServer(t *testing.T) {
-	imageRepo := "xxx.xxx.xxxxxxx/tsuru/python"
-	cluster, err := New(nil, &MapStorage{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = cluster.RemoveFromRegistry(imageRepo)
-	if err == nil {
-		t.Fatal("Expected error to be not nil, got nil")
-	}
-}
-
 func TestPullImage(t *testing.T) {
 	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("Pulling from 1!"))
+		if r.URL.Path == "/images/tsuru/python/json" {
+			w.Write([]byte(`{"Id": "id1"}`))
+		} else {
+			w.Write([]byte("Pulling from 1!"))
+		}
 	}))
 	defer server1.Close()
 	server2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("Pulling from 2!"))
+		if r.URL.Path == "/images/tsuru/python/json" {
+			w.Write([]byte(`{"Id": "id1"}`))
+		} else {
+			w.Write([]byte("Pulling from 2!"))
+		}
 	}))
 	defer server2.Close()
 	var buf safe.Buffer
@@ -207,15 +189,19 @@ func TestPullImage(t *testing.T) {
 	if r := buf.String(); r != alternatives[0] && r != alternatives[1] {
 		t.Errorf("Wrong output: Want %q. Got %q.", "Pulling from 1!Pulling from 2!", buf.String())
 	}
-	nodes, err := cluster.storage().RetrieveImage("tsuru/python")
+	img, err := cluster.storage().RetrieveImage("tsuru/python")
 	if err != nil {
 		t.Fatal(err)
 	}
-	expected := []string{server1.URL, server2.URL}
-	sort.Strings(nodes)
-	sort.Strings(expected)
-	if !reflect.DeepEqual(nodes, expected) {
-		t.Errorf("Wrong output: Want %q. Got %q.", expected, nodes)
+	expected := []ImageHistory{
+		{Node: server1.URL, ImageId: "id1"},
+		{Node: server2.URL, ImageId: "id1"},
+	}
+	if !reflect.DeepEqual(img.History, expected) {
+		expected[0], expected[1] = expected[1], expected[0]
+		if !reflect.DeepEqual(img.History, expected) {
+			t.Errorf("Wrong output: Want %q. Got %q.", expected, img)
+		}
 	}
 }
 
@@ -245,11 +231,19 @@ func TestPullImageNotFound(t *testing.T) {
 
 func TestPullImageSpecifyNode(t *testing.T) {
 	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("Pulling from 1!"))
+		if r.URL.Path == "/images/tsuru/python/json" {
+			w.Write([]byte(`{"Id": "id1"}`))
+		} else {
+			w.Write([]byte("Pulling from 1!"))
+		}
 	}))
 	defer server1.Close()
 	server2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("Pulling from 2!"))
+		if r.URL.Path == "/images/tsuru/python/json" {
+			w.Write([]byte(`{"Id": "id1"}`))
+		} else {
+			w.Write([]byte("Pulling from 2!"))
+		}
 	}))
 	defer server2.Close()
 	var buf safe.Buffer
@@ -277,11 +271,19 @@ func TestPullImageSpecifyMultipleNodes(t *testing.T) {
 	}))
 	defer server1.Close()
 	server2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("Pulling from 2!"))
+		if r.URL.Path == "/images/tsuru/python/json" {
+			w.Write([]byte(`{"Id": "id1"}`))
+		} else {
+			w.Write([]byte("Pulling from 2!"))
+		}
 	}))
 	defer server2.Close()
 	server3 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("Pulling from 3!"))
+		if r.URL.Path == "/images/tsuru/python/json" {
+			w.Write([]byte(`{"Id": "id1"}`))
+		} else {
+			w.Write([]byte("Pulling from 3!"))
+		}
 	}))
 	defer server3.Close()
 	var buf safe.Buffer
@@ -318,7 +320,7 @@ func TestPushImage(t *testing.T) {
 	defer server2.Close()
 	var buf safe.Buffer
 	stor := &MapStorage{}
-	err := stor.StoreImage("tsuru/ruby", server1.URL)
+	err := stor.StoreImage("tsuru/ruby", "id1", server1.URL)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -375,7 +377,7 @@ func TestPushImageWithStorage(t *testing.T) {
 	}))
 	defer server2.Close()
 	stor := MapStorage{}
-	err := stor.StoreImage("tsuru/python", server2.URL)
+	err := stor.StoreImage("tsuru/python", "id1", server2.URL)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -459,6 +461,9 @@ func TestImportImageWithAbsentFile(t *testing.T) {
 
 func TestBuildImage(t *testing.T) {
 	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/images/tsuru/python/json" {
+			w.Write([]byte(`{"Id": "id1"}`))
+		}
 	}))
 	defer server1.Close()
 	cluster, err := New(nil, &MapStorage{},

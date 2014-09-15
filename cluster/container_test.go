@@ -10,12 +10,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
-	"runtime"
 	"sort"
 	"strings"
-	"sync"
 	"testing"
-	"time"
 
 	"github.com/fsouza/go-dockerclient"
 	dtesting "github.com/fsouza/go-dockerclient/testing"
@@ -53,15 +50,15 @@ func TestCreateContainer(t *testing.T) {
 	if container.ID != "e90302" {
 		t.Errorf("CreateContainer: wrong container ID. Want %q. Got %q.", "e90302", container.ID)
 	}
-	imageHosts, err := cluster.storage().RetrieveImage("myhost/somwhere/myimg")
+	img, err := cluster.storage().RetrieveImage("myhost/somwhere/myimg")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(imageHosts) != 1 {
-		t.Fatal("CreateContainer: should store image in host, none found")
+	if img.LastNode != server1.URL {
+		t.Fatalf("CreateContainer: should store image in host, found %s", img.LastNode)
 	}
-	if imageHosts[0] != server1.URL {
-		t.Fatalf("CreateContainer: should store image in host, found %s", imageHosts[0])
+	if len(img.History) != 1 {
+		t.Fatal("CreateContainer: should store image id in host, none found")
 	}
 }
 
@@ -248,16 +245,20 @@ func TestCreateContainerSpecifyNode(t *testing.T) {
 	if host != server2.URL {
 		t.Errorf("Cluster.CreateContainer() with storage: wrong data. Want %#v. Got %#v.", server2.URL, host)
 	}
-	if len(requests) != 2 {
-		t.Fatalf("Expected 2 api calls, got %d.", len(requests))
+	if len(requests) != 3 {
+		t.Fatalf("Expected 3 api calls, got %d.", len(requests))
 	}
 	expectedReq := "/images/create?fromImage=some.host%2Fuser%2FmyImage"
 	if requests[0] != expectedReq {
 		t.Errorf("Incorrect request 0. Want %#v. Got %#v", expectedReq, requests[0])
 	}
-	expectedReq = "/containers/create"
+	expectedReq = "/images/some.host/user/myImage/json"
 	if requests[1] != expectedReq {
 		t.Errorf("Incorrect request 1. Want %#v. Got %#v", expectedReq, requests[1])
+	}
+	expectedReq = "/containers/create"
+	if requests[2] != expectedReq {
+		t.Errorf("Incorrect request 2. Want %#v. Got %#v", expectedReq, requests[2])
 	}
 }
 
@@ -1629,9 +1630,9 @@ func TestCommitContainerWithStorage(t *testing.T) {
 	if called {
 		t.Errorf("CommitContainer(%q): should not call the all node servers.", id)
 	}
-	nodes, _ := storage.RetrieveImage("tsuru/python")
-	if !reflect.DeepEqual(nodes, []string{server2.URL}) {
-		t.Errorf("CommitContainer(%q): wrong image ID in the storage. Want %q. Got %q", id, []string{server2.URL}, nodes)
+	img, _ := storage.RetrieveImage("tsuru/python")
+	if img.LastNode != server2.URL {
+		t.Errorf("CommitContainer(%q): wrong image last node in the storage. Want %q. Got %q", id, server2.URL, img.LastNode)
 	}
 }
 
@@ -1641,12 +1642,12 @@ func TestCommitContainerWithStorageAndImageID(t *testing.T) {
 	}))
 	defer server.Close()
 	id := "abc123"
-	storage := MapStorage{}
-	err := storage.StoreContainer(id, server.URL)
+	stor := MapStorage{}
+	err := stor.StoreContainer(id, server.URL)
 	if err != nil {
 		t.Fatal(err)
 	}
-	cluster, err := New(nil, &storage, Node{Address: server.URL})
+	cluster, err := New(nil, &stor, Node{Address: server.URL})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1655,9 +1656,9 @@ func TestCommitContainerWithStorageAndImageID(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	nodes, _ := storage.RetrieveImage(image.ID)
-	if !reflect.DeepEqual(nodes, []string{server.URL}) {
-		t.Errorf("CommitContainer(%q): wrong image ID in the storage. Want %q. Got %q", id, []string{server.URL}, nodes)
+	_, err = stor.RetrieveImage(image.ID)
+	if err != cstorage.ErrNoSuchImage {
+		t.Errorf("CommitContainer(%q): Expected no such image error, got: %s", id, err)
 	}
 }
 
@@ -1675,49 +1676,6 @@ func TestCommitContainerNotFoundWithStorage(t *testing.T) {
 	}
 }
 
-func TestCommitContainerTagShouldRemoveImage(t *testing.T) {
-	imageDeleteCount := 0
-	imgTag := "mytag/mytag"
-	expectedImageId := "596069db4bf5"
-	oldServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		imageDeleteCount++
-		w.WriteHeader(http.StatusOK)
-	}))
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(fmt.Sprintf(`{"Id":"%s"}`, expectedImageId)))
-	}))
-	defer server.Close()
-	containerId := "abc123"
-	storage := MapStorage{}
-	err := storage.StoreContainer(containerId, server.URL)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = storage.StoreImage(imgTag, oldServer.URL)
-	if err != nil {
-		t.Fatal(err)
-	}
-	cluster, err := New(nil, &storage, Node{Address: server.URL})
-	if err != nil {
-		t.Fatal(err)
-	}
-	opts := docker.CommitContainerOptions{Container: containerId, Repository: imgTag}
-	image, err := cluster.CommitContainer(opts)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if image.ID != expectedImageId {
-		t.Fatalf("Expected image id to be %q, got: %q", expectedImageId, image.ID)
-	}
-	nodes, _ := storage.RetrieveImage(imgTag)
-	if !reflect.DeepEqual(nodes, []string{server.URL}) {
-		t.Errorf("CommitContainer(%q): wrong image ID in the storage. Want %q. Got %q", imgTag, []string{server.URL}, nodes)
-	}
-	if imageDeleteCount != 1 {
-		t.Fatalf("Expected image delete count to be 1, got: %d", imageDeleteCount)
-	}
-}
-
 func TestCommitContainerTagShouldIgnoreRemoveImageErrors(t *testing.T) {
 	imgTag := "mytag/mytag"
 	expectedImageId := "596069db4bf5"
@@ -1731,7 +1689,7 @@ func TestCommitContainerTagShouldIgnoreRemoveImageErrors(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = storage.StoreImage(imgTag, "http://invalid.invalid")
+	err = storage.StoreImage(imgTag, "id1", "http://invalid.invalid")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1747,77 +1705,9 @@ func TestCommitContainerTagShouldIgnoreRemoveImageErrors(t *testing.T) {
 	if image.ID != expectedImageId {
 		t.Fatalf("Expected image id to be %q, got: %q", expectedImageId, image.ID)
 	}
-	nodes, _ := storage.RetrieveImage(imgTag)
-	expectedNodes := []string{server.URL}
-	sort.Strings(nodes)
-	sort.Strings(expectedNodes)
-	if !reflect.DeepEqual(nodes, expectedNodes) {
-		t.Errorf("CommitContainer(%q): wrong image ID in the storage. Want %q. Got %q", imgTag, expectedNodes, nodes)
-	}
-}
-
-func TestCommitContainerRaceWithRemoveImage(t *testing.T) {
-	repoServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	}))
-	repoPort := strings.Split(repoServer.URL, ":")[2]
-	baseImage := fmt.Sprintf("127.0.0.1:%s/test/mybase", repoPort)
-	appImage := fmt.Sprintf("127.0.0.1:%s/test/myapp", repoPort)
-	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(16))
-	server1, err := dtesting.NewServer("127.0.0.1:0", nil, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer server1.Stop()
-	server2, err := dtesting.NewServer("127.0.0.1:0", nil, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer server2.Stop()
-
-	imgsPath := "/images/" + appImage
-	var wg sync.WaitGroup
-	server1.CustomHandler(imgsPath, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		defer wg.Done()
-		time.Sleep(300 * time.Millisecond)
-		server1.DefaultHandler().ServeHTTP(w, r)
-	}))
-	server2.CustomHandler(imgsPath, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		defer wg.Done()
-		server2.DefaultHandler().ServeHTTP(w, r)
-	}))
-	cluster, err := New(nil, &MapStorage{},
-		Node{Address: server1.URL()},
-		Node{Address: server2.URL()},
-	)
-	config := docker.Config{Image: baseImage}
-	_, container, err := cluster.CreateContainer(docker.CreateContainerOptions{Config: &config}, server1.URL())
-	if err != nil {
-		t.Fatal(err)
-	}
-	wg = sync.WaitGroup{}
-	wg.Add(2)
-	err = cluster.PullImage(docker.PullImageOptions{
-		Repository: appImage,
-	}, docker.AuthConfiguration{}, server1.URL())
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = cluster.PullImage(docker.PullImageOptions{
-		Repository: appImage,
-	}, docker.AuthConfiguration{}, server2.URL())
-	if err != nil {
-		t.Fatal(err)
-	}
-	opts := docker.CommitContainerOptions{Container: container.ID, Repository: appImage}
-	_, err = cluster.CommitContainer(opts)
-	if err != nil {
-		t.Fatal(err)
-	}
-	wg.Wait()
-	err = cluster.PushImage(docker.PushImageOptions{Name: appImage}, docker.AuthConfiguration{})
-	if err != nil {
-		t.Fatal(err)
+	img, _ := storage.RetrieveImage(imgTag)
+	if img.LastNode != server.URL {
+		t.Errorf("CommitContainer(%q): wrong image last node in the storage. Want %q. Got %q", containerId, server.URL, img.LastNode)
 	}
 }
 

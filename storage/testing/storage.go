@@ -60,49 +60,113 @@ func testStorageStoreRemoveContainer(storage cluster.Storage, t *testing.T) {
 	}
 }
 
-func testStorageStoreRetrieveImage(storage cluster.Storage, t *testing.T) {
-	defer storage.RemoveImage("img-1")
-	defer storage.RemoveImage("img-2")
-	err := storage.StoreImage("img-1", "host-1")
-	assertIsNil(err, t)
-	err = storage.StoreImage("img-1", "host-2")
-	assertIsNil(err, t)
-	err = storage.StoreImage("img-2", "host-2")
-	assertIsNil(err, t)
-	hosts, err := storage.RetrieveImage("img-1")
-	assertIsNil(err, t)
-	sort.Strings(hosts)
-	if !reflect.DeepEqual(hosts, []string{"host-1", "host-2"}) {
-		t.Errorf("unexpected array %#v", hosts)
+type historyList []cluster.ImageHistory
+
+func (l historyList) Len() int      { return len(l) }
+func (l historyList) Swap(i, j int) { l[i], l[j] = l[j], l[i] }
+func (l historyList) Less(i, j int) bool {
+	if l[i].Node == l[j].Node {
+		return l[i].ImageId < l[j].ImageId
 	}
+	return l[i].Node < l[j].Node
+}
+
+func compareImage(img, expected cluster.Image, t *testing.T) {
+	sort.Sort(historyList(img.History))
+	sort.Sort(historyList(expected.History))
+	if !reflect.DeepEqual(img, expected) {
+		debug.PrintStack()
+		t.Fatalf("unexpected image:\ngot: %#v\nexp: %#v", img, expected)
+	}
+}
+
+func testStorageStoreRetrieveImage(storage cluster.Storage, t *testing.T) {
+	defer storage.RemoveImage("img-1", "id1", "host-1.something")
+	defer storage.RemoveImage("img-1", "id1", "host-2")
+	defer storage.RemoveImage("img-1", "id2", "host-2")
+	err := storage.StoreImage("img-1", "id1", "host-1.something")
+	assertIsNil(err, t)
+	err = storage.StoreImage("img-1", "id1", "host-2")
+	assertIsNil(err, t)
+	img, err := storage.RetrieveImage("img-1")
+	assertIsNil(err, t)
+	expected := cluster.Image{Repository: "img-1", LastId: "id1", LastNode: "host-2", History: []cluster.ImageHistory{{
+		Node:    "host-1.something",
+		ImageId: "id1",
+	}, {
+		Node:    "host-2",
+		ImageId: "id1",
+	}}}
+	compareImage(img, expected, t)
+	err = storage.StoreImage("img-1", "id2", "host-2")
+	assertIsNil(err, t)
+	expected.History = append(expected.History, cluster.ImageHistory{Node: "host-2", ImageId: "id2"})
+	expected.LastId = "id2"
+	img, err = storage.RetrieveImage("img-1")
+	assertIsNil(err, t)
+	compareImage(img, expected, t)
 }
 
 func testStorageStoreImageIgnoreDups(storage cluster.Storage, t *testing.T) {
-	defer storage.RemoveImage("img-x")
-	err := storage.StoreImage("img-x", "host-1")
+	defer storage.RemoveImage("img-x", "id1", "host-1")
+	err := storage.StoreImage("img-x", "id1", "host-1")
 	assertIsNil(err, t)
-	err = storage.StoreImage("img-x", "host-1")
+	err = storage.StoreImage("img-x", "id1", "host-1")
 	assertIsNil(err, t)
-	hosts, err := storage.RetrieveImage("img-x")
+	img, err := storage.RetrieveImage("img-x")
 	assertIsNil(err, t)
-	if len(hosts) != 1 {
-		t.Fatalf("Expected host list to have len 1, got: %d", len(hosts))
-	}
-	if hosts[0] != "host-1" {
-		t.Fatalf("Expected host list to have value host-1, got: %s", hosts[0])
-	}
+	expected := cluster.Image{Repository: "img-x", LastId: "id1", LastNode: "host-1", History: []cluster.ImageHistory{{
+		Node:    "host-1",
+		ImageId: "id1",
+	}}}
+	compareImage(img, expected, t)
 }
 
 func testStorageStoreRemoveImage(storage cluster.Storage, t *testing.T) {
-	err := storage.StoreImage("img-1", "host-1")
+	err := storage.StoreImage("img-1", "id1", "host-1")
 	assertIsNil(err, t)
-	err = storage.StoreImage("img-1", "host-2")
+	err = storage.StoreImage("img-1", "id1", "host-2")
 	assertIsNil(err, t)
-	err = storage.RemoveImage("img-1")
+	err = storage.StoreImage("img-1", "id2", "host-2")
 	assertIsNil(err, t)
+	expected := cluster.Image{Repository: "img-1", LastId: "id2", LastNode: "host-2", History: []cluster.ImageHistory{{
+		Node:    "host-1",
+		ImageId: "id1",
+	}, {
+		Node:    "host-2",
+		ImageId: "id1",
+	}, {
+		Node:    "host-2",
+		ImageId: "id2",
+	}}}
+	img, err := storage.RetrieveImage("img-1")
+	assertIsNil(err, t)
+	compareImage(img, expected, t)
+	err = storage.RemoveImage("img-1", "id1", "host-1")
+	assertIsNil(err, t)
+	expected.History = []cluster.ImageHistory{{
+		Node:    "host-2",
+		ImageId: "id1",
+	}, {
+		Node:    "host-2",
+		ImageId: "id2",
+	}}
+	img, err = storage.RetrieveImage("img-1")
+	assertIsNil(err, t)
+	compareImage(img, expected, t)
+	err = storage.RemoveImage("img-1", "id1", "host-2")
+	assertIsNil(err, t)
+	expected.History = []cluster.ImageHistory{{
+		Node:    "host-2",
+		ImageId: "id2",
+	}}
+	img, err = storage.RetrieveImage("img-1")
+	assertIsNil(err, t)
+	compareImage(img, expected, t)
+	err = storage.RemoveImage("img-1", "id2", "host-2")
 	_, err = storage.RetrieveImage("img-1")
 	if err != cstorage.ErrNoSuchImage {
-		t.Errorf("Error should be cstorage.ErrNoSuchImage, received: %s", err)
+		t.Fatalf("Expected error to be ErrNoSuchImage, got %s", err)
 	}
 }
 

@@ -47,33 +47,37 @@ func (s *mongodbStorage) RemoveContainer(container string) error {
 	return coll.Remove(bson.M{"_id": container})
 }
 
-func (s *mongodbStorage) StoreImage(image, host string) error {
-	coll := s.getColl("images")
+func (s *mongodbStorage) StoreImage(repo, id, host string) error {
+	coll := s.getColl("images_history")
 	defer coll.Database.Session.Close()
-	_, err := coll.UpsertId(image, bson.M{"$addToSet": bson.M{"hosts": host}})
+	_, err := coll.UpsertId(repo, bson.M{
+		"$addToSet": bson.M{"history": bson.M{"node": host, "imageid": id}},
+		"$set":      bson.M{"lastnode": host, "lastid": id},
+	})
 	return err
 }
 
-func (s *mongodbStorage) RetrieveImage(image string) ([]string, error) {
-	coll := s.getColl("images")
+func (s *mongodbStorage) RetrieveImage(repo string) (cluster.Image, error) {
+	coll := s.getColl("images_history")
 	defer coll.Database.Session.Close()
-	dbImage := struct {
-		Hosts []string
-	}{}
-	err := coll.Find(bson.M{"_id": image}).One(&dbImage)
+	var image cluster.Image
+	err := coll.FindId(repo).One(&image)
 	if err != nil {
 		if err == mgo.ErrNotFound {
-			return nil, storage.ErrNoSuchImage
+			return image, storage.ErrNoSuchImage
 		}
-		return nil, err
+		return image, err
 	}
-	return dbImage.Hosts, nil
+	if len(image.History) == 0 {
+		return image, storage.ErrNoSuchImage
+	}
+	return image, nil
 }
 
-func (s *mongodbStorage) RemoveImage(image string) error {
-	coll := s.getColl("images")
+func (s *mongodbStorage) RemoveImage(repo, id, host string) error {
+	coll := s.getColl("images_history")
 	defer coll.Database.Session.Close()
-	return coll.Remove(bson.M{"_id": image})
+	return coll.UpdateId(repo, bson.M{"$pull": bson.M{"history": bson.M{"node": host, "imageid": id}}})
 }
 
 func (s *mongodbStorage) StoreNode(node cluster.Node) error {

@@ -37,13 +37,13 @@ func (failingStorage) RetrieveContainer(container string) (string, error) {
 func (failingStorage) RemoveContainer(container string) error {
 	return errors.New("storage error")
 }
-func (failingStorage) StoreImage(image, host string) error {
+func (failingStorage) StoreImage(repository, id, host string) error {
 	return errors.New("storage error")
 }
-func (failingStorage) RetrieveImage(image string) ([]string, error) {
-	return nil, errors.New("storage error")
+func (failingStorage) RetrieveImage(repository string) (Image, error) {
+	return Image{}, errors.New("storage error")
 }
-func (failingStorage) RemoveImage(image string) error {
+func (failingStorage) RemoveImage(repository, id, host string) error {
 	return errors.New("storage error")
 }
 func (failingStorage) StoreNode(node Node) error {
