@@ -135,6 +135,20 @@ func (c *Cluster) PushImage(opts docker.PushImageOptions, auth docker.AuthConfig
 	return node.PushImage(opts, auth)
 }
 
+// InspectContainer inspects an image based on its repo name
+func (c *Cluster) InspectImage(repo string) (*docker.Image, error) {
+	img, err := c.storage().RetrieveImage(repo)
+	if err != nil {
+		return nil, err
+	}
+	node, err := c.getNodeByAddr(img.LastNode)
+	if err != nil {
+		return nil, err
+	}
+	return node.InspectImage(repo)
+}
+
+// ListImages lists images existing in each cluster node
 func (c *Cluster) ListImages(all bool) ([]docker.APIImages, error) {
 	nodes, err := c.Nodes()
 	if err != nil {

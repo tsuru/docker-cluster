@@ -592,3 +592,50 @@ func TestListImagesErrors(t *testing.T) {
 		t.Fatal("Expected error to exist, got <nil>")
 	}
 }
+
+func TestInspectImage(t *testing.T) {
+	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`{"id": "id1"}`))
+	}))
+	defer server1.Close()
+	server2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`{"id": "id2"}`))
+	}))
+	defer server2.Close()
+	stor := &MapStorage{}
+	err := stor.StoreImage("tsuru/ruby", "id1", server1.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cluster, err := New(nil, stor,
+		Node{Address: server1.URL},
+		Node{Address: server2.URL},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	imgData, err := cluster.InspectImage("tsuru/ruby")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if imgData.ID != "id1" {
+		t.Fatalf("Expected image id to be 'id1', got: %s", imgData.ID)
+	}
+}
+
+func TestInspectImageNotFound(t *testing.T) {
+	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`{"id": "id1"}`))
+	}))
+	defer server1.Close()
+	cluster, err := New(nil, &MapStorage{},
+		Node{Address: server1.URL},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = cluster.InspectImage("tsuru/ruby")
+	if err != storage.ErrNoSuchImage {
+		t.Fatalf("Expected no such image error, got: %#v", err)
+	}
+}
