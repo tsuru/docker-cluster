@@ -261,6 +261,16 @@ func (c *Cluster) ExportContainer(opts docker.ExportContainerOptions) error {
 	return node.ExportContainer(opts)
 }
 
+// TopContainer returns information about running processes inside a container
+// by its ID, getting the information from the right node.
+func (c *Cluster) TopContainer(id string, psArgs string) (docker.TopResult, error) {
+	node, err := c.getNodeForContainer(id)
+	if err != nil {
+		return docker.TopResult{}, err
+	}
+	return node.TopContainer(id, psArgs)
+}
+
 func (c *Cluster) getNodeForContainer(container string) (node, error) {
 	return c.getNode(func(s Storage) (string, error) {
 		return s.RetrieveContainer(container)

@@ -1815,3 +1815,42 @@ func TestGetNode(t *testing.T) {
 		t.Errorf("cluster.getNode(%q): wrong error. Want %q. Got %q.", "e90301", expectedMsg, err.Error())
 	}
 }
+
+func TestTopContainer(t *testing.T) {
+	server1, err := dtesting.NewServer("127.0.0.1:0", nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	server2, err := dtesting.NewServer("127.0.0.1:0", nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cluster, err := New(nil, &MapStorage{},
+		Node{Address: server1.URL()},
+		Node{Address: server2.URL()},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	config := docker.Config{Memory: 1000, Image: "myhost/somwhere/myimg"}
+	config.Cmd = []string{"tail", "-f"}
+	opts := docker.CreateContainerOptions{Config: &config}
+	_, container, err := cluster.CreateContainer(opts, server1.URL())
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = cluster.StartContainer(container.ID, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := cluster.TopContainer(container.ID, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Processes) != 1 {
+		t.Fatalf("TopContainer: Unexpected process len, got: %d", len(result.Processes))
+	}
+	if result.Processes[0][len(result.Processes[0])-1] != "tail -f" {
+		t.Fatalf("TopContainer: Unexpected command name, got: %s", result.Processes[0][len(result.Processes[0])-1])
+	}
+}
