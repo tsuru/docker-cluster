@@ -276,3 +276,19 @@ func (c *Cluster) getNodeForContainer(container string) (node, error) {
 		return s.RetrieveContainer(container)
 	})
 }
+
+func (c *Cluster) CreateExec(opts docker.CreateExecOptions) (*docker.Exec, error) {
+	node, err := c.getNodeForContainer(opts.Container)
+	if err != nil {
+		return nil, err
+	}
+	return node.CreateExec(opts)
+}
+
+func (c *Cluster) StartExec(exec_id, container_id string, opts docker.StartExecOptions) error {
+	node, err := c.getNodeForContainer(container_id)
+	if err != nil {
+		return err
+	}
+	return node.StartExec(exec_id, opts)
+}

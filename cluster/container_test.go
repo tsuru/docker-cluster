@@ -1854,3 +1854,49 @@ func TestTopContainer(t *testing.T) {
 		t.Fatalf("TopContainer: Unexpected command name, got: %s", result.Processes[0][len(result.Processes[0])-1])
 	}
 }
+
+func TestExecContainer(t *testing.T) {
+	server, err := dtesting.NewServer("127.0.0.1:0", nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cluster, err := New(nil, &MapStorage{}, Node{Address: server.URL()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	config := docker.Config{Memory: 1000, Image: "myhost/somwhere/myimg"}
+	config.Cmd = []string{"tail", "-f"}
+	opts := docker.CreateContainerOptions{Config: &config}
+	_, container, err := cluster.CreateContainer(opts, server.URL())
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = cluster.StartContainer(container.ID, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	createExecOpts := docker.CreateExecOptions{
+		AttachStdin:  false,
+		AttachStdout: true,
+		AttachStderr: true,
+		Tty:          false,
+		Cmd:          []string{"ls"},
+		Container:    container.ID,
+	}
+	exec, err := cluster.CreateExec(createExecOpts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if exec == nil {
+		t.Fatal("CreateExec: Exec was not created!")
+	}
+	startExecOptions := docker.StartExecOptions{
+		OutputStream: nil,
+		ErrorStream:  nil,
+		RawTerminal:  true,
+	}
+	err = cluster.StartExec(exec.ID, container.ID, startExecOptions)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
