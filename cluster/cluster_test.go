@@ -663,3 +663,28 @@ func TestClusterWaitAndRegisterTimesOutWithOnlyErrors(t *testing.T) {
 		t.Fatalf("Expected to receive timeout error, got: %#v", err)
 	}
 }
+
+func TestWrapError(t *testing.T) {
+	err := errors.New("my error")
+	node := node{addr: "199.222.111.10"}
+	wrapped := wrapError(node, err)
+	expected := "error in docker node 199.222.111.10: my error"
+	if wrapped.Error() != expected {
+		t.Fatalf("Expected to receive %s, got: %s", expected, wrapped.Error())
+	}
+	nodeErr, ok := wrapped.(DockerNodeError)
+	if !ok {
+		t.Fatalf("Expected wrapped to be DockerNodeError")
+	}
+	if nodeErr.BaseError() != err {
+		t.Fatalf("Expected BaseError to be original error")
+	}
+}
+
+func TestWrapErrorNil(t *testing.T) {
+	node := node{addr: "199.222.111.10"}
+	wrapped := wrapError(node, nil)
+	if wrapped != nil {
+		t.Fatalf("Expected to receive nil, got: %#v", wrapped)
+	}
+}

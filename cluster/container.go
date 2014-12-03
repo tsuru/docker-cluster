@@ -80,7 +80,8 @@ func (c *Cluster) createContainerInNode(opts docker.CreateContainerOptions, node
 	if err != nil {
 		return nil, err
 	}
-	return node.CreateContainer(opts)
+	cont, err := node.CreateContainer(opts)
+	return cont, wrapError(node, err)
 }
 
 // InspectContainer returns information about a container by its ID, getting
@@ -90,7 +91,8 @@ func (c *Cluster) InspectContainer(id string) (*docker.Container, error) {
 	if err != nil {
 		return nil, err
 	}
-	return node.InspectContainer(id)
+	cont, err := node.InspectContainer(id)
+	return cont, wrapError(node, err)
 }
 
 // KillContainer kills a container, returning an error in case of failure.
@@ -99,7 +101,7 @@ func (c *Cluster) KillContainer(opts docker.KillContainerOptions) error {
 	if err != nil {
 		return err
 	}
-	return node.KillContainer(opts)
+	return wrapError(node, node.KillContainer(opts))
 }
 
 // ListContainers returns a slice of all containers in the cluster matching the
@@ -118,7 +120,7 @@ func (c *Cluster) ListContainers(opts docker.ListContainersOptions) ([]docker.AP
 		go func(n node) {
 			defer wg.Done()
 			if containers, err := n.ListContainers(opts); err != nil {
-				errs <- err
+				errs <- wrapError(n, err)
 			} else {
 				result <- containers
 			}
@@ -151,7 +153,7 @@ func (c *Cluster) removeFromStorage(opts docker.RemoveContainerOptions) error {
 	if err != nil {
 		_, isNoSuchContainer := err.(*docker.NoSuchContainer)
 		if !isNoSuchContainer {
-			return err
+			return wrapError(node, err)
 		}
 	}
 	return c.storage().RemoveContainer(opts.ID)
@@ -162,7 +164,7 @@ func (c *Cluster) StartContainer(id string, hostConfig *docker.HostConfig) error
 	if err != nil {
 		return err
 	}
-	return node.StartContainer(id, hostConfig)
+	return wrapError(node, node.StartContainer(id, hostConfig))
 }
 
 // StopContainer stops a container, killing it after the given timeout, if it
@@ -172,7 +174,7 @@ func (c *Cluster) StopContainer(id string, timeout uint) error {
 	if err != nil {
 		return err
 	}
-	return node.StopContainer(id, timeout)
+	return wrapError(node, node.StopContainer(id, timeout))
 }
 
 // RestartContainer restarts a container, killing it after the given timeout,
@@ -182,7 +184,7 @@ func (c *Cluster) RestartContainer(id string, timeout uint) error {
 	if err != nil {
 		return err
 	}
-	return node.RestartContainer(id, timeout)
+	return wrapError(node, node.RestartContainer(id, timeout))
 }
 
 // PauseContainer changes the container to the paused state.
@@ -191,7 +193,7 @@ func (c *Cluster) PauseContainer(id string) error {
 	if err != nil {
 		return err
 	}
-	return node.PauseContainer(id)
+	return wrapError(node, node.PauseContainer(id))
 }
 
 // UnpauseContainer removes the container from the paused state.
@@ -200,7 +202,7 @@ func (c *Cluster) UnpauseContainer(id string) error {
 	if err != nil {
 		return err
 	}
-	return node.UnpauseContainer(id)
+	return wrapError(node, node.UnpauseContainer(id))
 }
 
 // WaitContainer blocks until the given container stops, returning the exit
@@ -210,7 +212,8 @@ func (c *Cluster) WaitContainer(id string) (int, error) {
 	if err != nil {
 		return -1, err
 	}
-	return node.WaitContainer(id)
+	code, err := node.WaitContainer(id)
+	return code, wrapError(node, err)
 }
 
 // AttachToContainer attaches to a container, using the given options.
@@ -219,7 +222,7 @@ func (c *Cluster) AttachToContainer(opts docker.AttachToContainerOptions) error 
 	if err != nil {
 		return err
 	}
-	return node.AttachToContainer(opts)
+	return wrapError(node, node.AttachToContainer(opts))
 }
 
 // Logs retrieves the logs of the specified container.
@@ -228,7 +231,7 @@ func (c *Cluster) Logs(opts docker.LogsOptions) error {
 	if err != nil {
 		return err
 	}
-	return node.Logs(opts)
+	return wrapError(node, node.Logs(opts))
 }
 
 // CommitContainer commits a container and returns the image id.
@@ -239,7 +242,7 @@ func (c *Cluster) CommitContainer(opts docker.CommitContainerOptions) (*docker.I
 	}
 	image, err := node.CommitContainer(opts)
 	if err != nil {
-		return nil, err
+		return nil, wrapError(node, err)
 	}
 	key := opts.Repository
 	if key != "" {
@@ -258,7 +261,7 @@ func (c *Cluster) ExportContainer(opts docker.ExportContainerOptions) error {
 	if err != nil {
 		return err
 	}
-	return node.ExportContainer(opts)
+	return wrapError(node, node.ExportContainer(opts))
 }
 
 // TopContainer returns information about running processes inside a container
@@ -268,7 +271,8 @@ func (c *Cluster) TopContainer(id string, psArgs string) (docker.TopResult, erro
 	if err != nil {
 		return docker.TopResult{}, err
 	}
-	return node.TopContainer(id, psArgs)
+	result, err := node.TopContainer(id, psArgs)
+	return result, wrapError(node, err)
 }
 
 func (c *Cluster) getNodeForContainer(container string) (node, error) {
@@ -282,7 +286,8 @@ func (c *Cluster) CreateExec(opts docker.CreateExecOptions) (*docker.Exec, error
 	if err != nil {
 		return nil, err
 	}
-	return node.CreateExec(opts)
+	exec, err := node.CreateExec(opts)
+	return exec, wrapError(node, err)
 }
 
 func (c *Cluster) StartExec(exec_id, container_id string, opts docker.StartExecOptions) error {
@@ -290,5 +295,5 @@ func (c *Cluster) StartExec(exec_id, container_id string, opts docker.StartExecO
 	if err != nil {
 		return err
 	}
-	return node.StartExec(exec_id, opts)
+	return wrapError(node, node.StartExec(exec_id, opts))
 }

@@ -9,6 +9,7 @@ package cluster
 
 import (
 	"errors"
+	"fmt"
 	"net"
 	"net/http"
 	"reflect"
@@ -74,6 +75,26 @@ type Cluster struct {
 	stor           Storage
 	healer         Healer
 	monitoringDone chan bool
+}
+
+type DockerNodeError struct {
+	node node
+	err  error
+}
+
+func (n DockerNodeError) Error() string {
+	return fmt.Sprintf("error in docker node %s: %s", n.node.addr, n.err.Error())
+}
+
+func (n DockerNodeError) BaseError() error {
+	return n.err
+}
+
+func wrapError(n node, err error) error {
+	if err != nil {
+		return DockerNodeError{node: n, err: err}
+	}
+	return nil
 }
 
 // New creates a new Cluster, initially composed by the given nodes.
@@ -318,7 +339,7 @@ func (c *Cluster) runOnNodes(fn nodeFunc, errNotFound error, wait bool, nodeAddr
 			} else if e, ok := err.(*docker.Error); ok && e.Status == http.StatusNotFound {
 				return
 			} else if !reflect.DeepEqual(err, errNotFound) {
-				errChan <- err
+				errChan <- wrapError(n, err)
 			}
 		}(client)
 	}

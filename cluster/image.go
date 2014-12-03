@@ -132,7 +132,7 @@ func (c *Cluster) PushImage(opts docker.PushImageOptions, auth docker.AuthConfig
 	if err != nil {
 		return err
 	}
-	return node.PushImage(opts, auth)
+	return wrapError(node, node.PushImage(opts, auth))
 }
 
 // InspectContainer inspects an image based on its repo name
@@ -145,7 +145,8 @@ func (c *Cluster) InspectImage(repo string) (*docker.Image, error) {
 	if err != nil {
 		return nil, err
 	}
-	return node.InspectImage(repo)
+	dockerImg, err := node.InspectImage(repo)
+	return dockerImg, wrapError(node, err)
 }
 
 // ListImages lists images existing in each cluster node
@@ -167,7 +168,7 @@ func (c *Cluster) ListImages(all bool) ([]docker.APIImages, error) {
 			}
 			nodeImages, err := client.ListImages(all)
 			if err != nil {
-				errChan <- err
+				errChan <- wrapError(client, err)
 			}
 			resultChan <- nodeImages
 		}(node.Address)
@@ -210,11 +211,11 @@ func (c *Cluster) BuildImage(buildOptions docker.BuildImageOptions) error {
 	}
 	err = node.BuildImage(buildOptions)
 	if err != nil {
-		return err
+		return wrapError(node, err)
 	}
 	img, err := node.InspectImage(buildOptions.Name)
 	if err != nil {
-		return err
+		return wrapError(node, err)
 	}
 	return c.storage().StoreImage(buildOptions.Name, img.ID, nodeAddress)
 }
