@@ -399,6 +399,60 @@ func TestPushImageWithStorage(t *testing.T) {
 	}
 }
 
+func TestTagImage(t *testing.T) {
+	var call string
+	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		call = "server1"
+	}))
+	defer server1.Close()
+	server2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		call = "server2"
+	}))
+	defer server2.Close()
+	stor := &MapStorage{}
+	err := stor.StoreImage("tsuru/ruby", "id1", server1.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cluster, err := New(nil, stor,
+		Node{Address: server1.URL},
+		Node{Address: server2.URL},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	opts := docker.TagImageOptions{Repo: "myregistry.com/tsuru/ruby", Force: true}
+	err = cluster.TagImage("tsuru/ruby", opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if call != "server1" {
+		t.Errorf("Wrong call: Want %q. Got %q.", "server1", call)
+	}
+}
+
+func TestTagImageNotFound(t *testing.T) {
+	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "No such image", http.StatusNotFound)
+	}))
+	defer server1.Close()
+	server2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "No such image", http.StatusNotFound)
+	}))
+	defer server2.Close()
+	cluster, err := New(nil, &MapStorage{},
+		Node{Address: server1.URL},
+		Node{Address: server2.URL},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = cluster.TagImage("tsuru/ruby", docker.TagImageOptions{})
+	if err == nil {
+		t.Error("TagImage: got unexpected <nil> error")
+	}
+}
+
 func TestImportImage(t *testing.T) {
 	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("importing from 1"))

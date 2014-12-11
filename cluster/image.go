@@ -121,6 +121,20 @@ func (c *Cluster) PullImage(opts docker.PullImageOptions, auth docker.AuthConfig
 	return err
 }
 
+// TagImage adds a tag to the given image, returning an error in case of
+// failure.
+func (c *Cluster) TagImage(name string, opts docker.TagImageOptions) error {
+	img, err := c.storage().RetrieveImage(name)
+	if err != nil {
+		return err
+	}
+	node, err := c.getNodeByAddr(img.LastNode)
+	if err != nil {
+		return err
+	}
+	return wrapError(node, node.TagImage(name, opts))
+}
+
 // PushImage pushes an image to a remote registry server, returning an error in
 // case of failure.
 func (c *Cluster) PushImage(opts docker.PushImageOptions, auth docker.AuthConfiguration) error {
