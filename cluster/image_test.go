@@ -429,6 +429,13 @@ func TestTagImage(t *testing.T) {
 	if call != "server1" {
 		t.Errorf("Wrong call: Want %q. Got %q.", "server1", call)
 	}
+	img, err := cluster.storage().RetrieveImage("myregistry.com/tsuru/ruby")
+	if err != nil {
+		t.Error(err)
+	}
+	if img.LastId != "id1" {
+		t.Errorf("TagImage: wrong id. Want %q. Got %q.", "id1", img.LastId)
+	}
 }
 
 func TestTagImageNotFound(t *testing.T) {

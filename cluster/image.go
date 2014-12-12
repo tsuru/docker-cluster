@@ -132,7 +132,11 @@ func (c *Cluster) TagImage(name string, opts docker.TagImageOptions) error {
 	if err != nil {
 		return err
 	}
-	return wrapError(node, node.TagImage(name, opts))
+	err = node.TagImage(name, opts)
+	if err != nil {
+		return wrapError(node, err)
+	}
+	return c.storage().StoreImage(opts.Repo, img.LastId, node.addr)
 }
 
 // PushImage pushes an image to a remote registry server, returning an error in
