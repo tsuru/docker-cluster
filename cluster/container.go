@@ -297,3 +297,11 @@ func (c *Cluster) StartExec(exec_id, container_id string, opts docker.StartExecO
 	}
 	return wrapError(node, node.StartExec(exec_id, opts))
 }
+
+func (c *Cluster) ResizeExecTTY(exec_id, container_id string, height, width int) error {
+	node, err := c.getNodeForContainer(container_id)
+	if err != nil {
+		return err
+	}
+	return wrapError(node, node.ResizeExecTTY(exec_id, height, width))
+}

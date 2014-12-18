@@ -1899,4 +1899,8 @@ func TestExecContainer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	err = cluster.ResizeExecTTY(exec.ID, container.ID, 10, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
 }
