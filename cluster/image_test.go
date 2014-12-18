@@ -602,7 +602,7 @@ func TestListImages(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	images, err := cluster.ListImages(true)
+	images, err := cluster.ListImages(docker.ListImagesOptions{All: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -648,7 +648,7 @@ func TestListImagesErrors(t *testing.T) {
 	}
 	server2.PrepareFailure("list-images-error", "/images/json")
 	defer server2.ResetFailure("list-images-error")
-	_, err = cluster.ListImages(true)
+	_, err = cluster.ListImages(docker.ListImagesOptions{All: true})
 	if err == nil {
 		t.Fatal("Expected error to exist, got <nil>")
 	}

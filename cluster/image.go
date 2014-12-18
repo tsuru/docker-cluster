@@ -168,7 +168,7 @@ func (c *Cluster) InspectImage(repo string) (*docker.Image, error) {
 }
 
 // ListImages lists images existing in each cluster node
-func (c *Cluster) ListImages(all bool) ([]docker.APIImages, error) {
+func (c *Cluster) ListImages(opts docker.ListImagesOptions) ([]docker.APIImages, error) {
 	nodes, err := c.Nodes()
 	if err != nil {
 		return nil, err
@@ -184,7 +184,7 @@ func (c *Cluster) ListImages(all bool) ([]docker.APIImages, error) {
 			if err != nil {
 				errChan <- err
 			}
-			nodeImages, err := client.ListImages(all)
+			nodeImages, err := client.ListImages(opts)
 			if err != nil {
 				errChan <- wrapError(client, err)
 			}
