@@ -26,8 +26,8 @@ var (
 )
 
 var (
-	timeout5Client  = clientWithTimeout(5 * time.Second)
-	timeout10Client = clientWithTimeout(10 * time.Second)
+	pingClient      = clientWithTimeout(5*time.Second, 1*time.Minute)
+	timeout10Client = clientWithTimeout(10*time.Second, 1*time.Hour)
 )
 
 // ContainerStorage provides methods to store and retrieve information about
@@ -210,7 +210,7 @@ func (c *Cluster) runPingForHost(addr string, wg *sync.WaitGroup) {
 		log.Errorf("[active-monitoring]: error creating client: %s", err.Error())
 		return
 	}
-	client.HTTPClient = timeout5Client
+	client.HTTPClient = pingClient
 	err = client.Ping()
 	if err == nil {
 		c.handleNodeSuccess(addr)
@@ -383,15 +383,17 @@ func (c *Cluster) getNode(retrieveFn func(Storage) (string, error)) (node, error
 	return c.getNodeByAddr(address)
 }
 
-func clientWithTimeout(timeout time.Duration) *http.Client {
-	dialTimeout := func(network, addr string) (net.Conn, error) {
-		return net.DialTimeout(network, addr, timeout)
-	}
+func clientWithTimeout(dialTimeout time.Duration, fullTimeout time.Duration) *http.Client {
 	transport := http.Transport{
-		Dial: dialTimeout,
+		Dial: (&net.Dialer{
+			Timeout:   dialTimeout,
+			KeepAlive: 30 * time.Second,
+		}).Dial,
+		TLSHandshakeTimeout: dialTimeout,
 	}
 	return &http.Client{
 		Transport: &transport,
+		Timeout:   fullTimeout,
 	}
 }
 
