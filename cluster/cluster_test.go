@@ -688,3 +688,32 @@ func TestWrapErrorNil(t *testing.T) {
 		t.Fatalf("Expected to receive nil, got: %#v", wrapped)
 	}
 }
+
+func TestClusterGetNodeByAddr(t *testing.T) {
+	cluster, err := New(nil, &MapStorage{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	node, err := cluster.getNodeByAddr("http://199.222.111.10")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if node.HTTPClient != timeout10Client {
+		t.Fatalf("Expected client %#v, got %#v", timeout10Client, node.HTTPClient)
+	}
+}
+
+func TestNodeSetPersistentClient(t *testing.T) {
+	cluster, err := New(nil, &MapStorage{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	node, err := cluster.getNodeByAddr("http://199.222.111.10")
+	if err != nil {
+		t.Fatal(err)
+	}
+	node.setPersistentClient()
+	if node.HTTPClient != persistentClient {
+		t.Fatalf("Expected client %#v, got %#v", persistentClient, node.HTTPClient)
+	}
+}

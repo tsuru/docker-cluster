@@ -24,11 +24,6 @@ type Scheduler interface {
 	Schedule(c *Cluster, opts docker.CreateContainerOptions, schedulerOpts SchedulerOptions) (Node, error)
 }
 
-type node struct {
-	*docker.Client
-	addr string
-}
-
 type roundRobin struct {
 	lastUsed int64
 	once     sync.Once

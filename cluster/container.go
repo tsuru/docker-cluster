@@ -212,6 +212,7 @@ func (c *Cluster) WaitContainer(id string) (int, error) {
 	if err != nil {
 		return -1, err
 	}
+	node.setPersistentClient()
 	code, err := node.WaitContainer(id)
 	return code, wrapError(node, err)
 }
@@ -222,6 +223,7 @@ func (c *Cluster) AttachToContainer(opts docker.AttachToContainerOptions) error 
 	if err != nil {
 		return err
 	}
+	node.setPersistentClient()
 	return wrapError(node, node.AttachToContainer(opts))
 }
 
@@ -295,6 +297,7 @@ func (c *Cluster) StartExec(exec_id, container_id string, opts docker.StartExecO
 	if err != nil {
 		return err
 	}
+	node.setPersistentClient()
 	return wrapError(node, node.StartExec(exec_id, opts))
 }
 

@@ -26,9 +26,19 @@ var (
 )
 
 var (
-	pingClient      = clientWithTimeout(5*time.Second, 1*time.Minute)
-	timeout10Client = clientWithTimeout(10*time.Second, 1*time.Hour)
+	pingClient       = clientWithTimeout(5*time.Second, 1*time.Minute)
+	timeout10Client  = clientWithTimeout(10*time.Second, 1*time.Hour)
+	persistentClient = clientWithTimeout(10*time.Second, 0)
 )
+
+type node struct {
+	*docker.Client
+	addr string
+}
+
+func (n *node) setPersistentClient() {
+	n.HTTPClient = persistentClient
+}
 
 // ContainerStorage provides methods to store and retrieve information about
 // the relation between the node and the container. It can be easily
