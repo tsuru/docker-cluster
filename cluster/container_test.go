@@ -1904,3 +1904,47 @@ func TestExecContainer(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestInspectExec(t *testing.T) {
+	body := `{"ID":"d34db33f","Running":false,"ExitCode":1}`
+	var count int
+	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		count++
+	}))
+	defer server1.Close()
+	server2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(body))
+	}))
+	defer server2.Close()
+	contId := "e90302"
+	storage := MapStorage{}
+	err := storage.StoreContainer(contId, server2.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cluster, err := New(nil, &storage,
+		Node{Address: server1.URL},
+		Node{Address: server2.URL},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	execId := "d34db33f"
+	exec, err := cluster.InspectExec(execId, contId)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if exec.ID != execId {
+		t.Errorf("InspectExec: Wrong ID. Want %q. Got %q.", execId, exec.ID)
+	}
+	if exec.Running {
+		t.Errorf("InspectExec: Wrong Running. Want false. Got true.")
+	}
+	if exec.ExitCode != 1 {
+		t.Errorf("InspectExec: Wrong Running. Want %d. Got %d.", 1, exec.ExitCode)
+	}
+	if count > 0 {
+		t.Errorf("InspectExec: should not send request to all servers, but did.")
+	}
+}

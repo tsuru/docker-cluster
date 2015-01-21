@@ -292,19 +292,31 @@ func (c *Cluster) CreateExec(opts docker.CreateExecOptions) (*docker.Exec, error
 	return exec, wrapError(node, err)
 }
 
-func (c *Cluster) StartExec(exec_id, container_id string, opts docker.StartExecOptions) error {
-	node, err := c.getNodeForContainer(container_id)
+func (c *Cluster) StartExec(execId, containerId string, opts docker.StartExecOptions) error {
+	node, err := c.getNodeForContainer(containerId)
 	if err != nil {
 		return err
 	}
 	node.setPersistentClient()
-	return wrapError(node, node.StartExec(exec_id, opts))
+	return wrapError(node, node.StartExec(execId, opts))
 }
 
-func (c *Cluster) ResizeExecTTY(exec_id, container_id string, height, width int) error {
-	node, err := c.getNodeForContainer(container_id)
+func (c *Cluster) ResizeExecTTY(execId, containerId string, height, width int) error {
+	node, err := c.getNodeForContainer(containerId)
 	if err != nil {
 		return err
 	}
-	return wrapError(node, node.ResizeExecTTY(exec_id, height, width))
+	return wrapError(node, node.ResizeExecTTY(execId, height, width))
+}
+
+func (c *Cluster) InspectExec(execId, containerId string) (*docker.ExecInspect, error) {
+	node, err := c.getNodeForContainer(containerId)
+	if err != nil {
+		return nil, err
+	}
+	execInspect, err := node.InspectExec(execId)
+	if err != nil {
+		return nil, wrapError(node, err)
+	}
+	return execInspect, nil
 }
