@@ -247,6 +247,9 @@ func (c *Cluster) CommitContainer(opts docker.CommitContainerOptions) (*docker.I
 		return nil, wrapError(node, err)
 	}
 	key := opts.Repository
+	if opts.Tag != "" {
+		key = fmt.Sprintf("%s:%s", key, opts.Tag)
+	}
 	if key != "" {
 		err = c.storage().StoreImage(key, image.ID, node.addr)
 		if err != nil {

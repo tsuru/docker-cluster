@@ -1711,6 +1711,40 @@ func TestCommitContainerTagShouldIgnoreRemoveImageErrors(t *testing.T) {
 	}
 }
 
+func TestCommitContainerWithRepositoryAndTag(t *testing.T) {
+	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`{"Id":"596069db4bf5"}`))
+	}))
+	defer server1.Close()
+	id := "abc123"
+	storage := MapStorage{}
+	err := storage.StoreContainer(id, server1.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cluster, err := New(nil, &storage,
+		Node{Address: server1.URL},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	opts := docker.CommitContainerOptions{Container: id, Repository: "tsuru/python", Tag: "v1"}
+	image, err := cluster.CommitContainer(opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if image.ID != "596069db4bf5" {
+		t.Errorf("CommitContainer: the image container is %s, expected: '596069db4bf5'", image.ID)
+	}
+	img, err := storage.RetrieveImage("tsuru/python:v1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if img.LastNode != server1.URL {
+		t.Errorf("CommitContainer(%q): wrong image last node in the storage. Want %q. Got %q", id, server1.URL, img.LastNode)
+	}
+}
+
 func TestExportContainer(t *testing.T) {
 	content := "tar content of container"
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
