@@ -13,7 +13,6 @@ import (
 	"sync"
 
 	"github.com/fsouza/go-dockerclient"
-	"github.com/tsuru/docker-cluster/log"
 )
 
 type ImageHistory struct {
@@ -58,6 +57,7 @@ func (c *Cluster) removeImage(name string, ignoreLast bool) error {
 	}
 	_, err = c.runOnNodes(func(n node) (interface{}, error) {
 		imgIds, _ := idMap[n.addr]
+		var lastErr error
 		for _, imgId := range imgIds {
 			if ignoreLast && imgId == image.LastId {
 				continue
@@ -67,13 +67,13 @@ func (c *Cluster) removeImage(name string, ignoreLast bool) error {
 			if err == nil || err == docker.ErrNoSuchImage || isNetErr {
 				err = stor.RemoveImage(name, imgId, n.addr)
 				if err != nil {
-					return nil, err
+					lastErr = err
 				}
 			} else {
-				log.Debugf("Ignored error removing image %q from node %q: %s. Will try again in the future.", imgId, n.addr, err.Error())
+				lastErr = err
 			}
 		}
-		return nil, nil
+		return nil, lastErr
 	}, docker.ErrNoSuchImage, true, hosts...)
 	return err
 }
