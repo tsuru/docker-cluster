@@ -107,7 +107,7 @@ func (c *Cluster) RemoveFromRegistry(imageId string) error {
 // given buffer is safe.
 func (c *Cluster) PullImage(opts docker.PullImageOptions, auth docker.AuthConfiguration, nodes ...string) error {
 	_, err := c.runOnNodes(func(n node) (interface{}, error) {
-		key := opts.Repository
+		key := imageKey(opts.Repository, opts.Tag)
 		err := n.PullImage(opts, auth)
 		if err != nil {
 			return nil, err
@@ -136,13 +136,15 @@ func (c *Cluster) TagImage(name string, opts docker.TagImageOptions) error {
 	if err != nil {
 		return wrapError(node, err)
 	}
-	return c.storage().StoreImage(opts.Repo, img.LastId, node.addr)
+	key := imageKey(opts.Repo, opts.Tag)
+	return c.storage().StoreImage(key, img.LastId, node.addr)
 }
 
 // PushImage pushes an image to a remote registry server, returning an error in
 // case of failure.
 func (c *Cluster) PushImage(opts docker.PushImageOptions, auth docker.AuthConfiguration) error {
-	img, err := c.storage().RetrieveImage(opts.Name)
+	key := imageKey(opts.Name, opts.Tag)
+	img, err := c.storage().RetrieveImage(key)
 	if err != nil {
 		return err
 	}
@@ -236,4 +238,12 @@ func (c *Cluster) BuildImage(buildOptions docker.BuildImageOptions) error {
 		return wrapError(node, err)
 	}
 	return c.storage().StoreImage(buildOptions.Name, img.ID, nodeAddress)
+}
+
+func imageKey(repo, tag string) string {
+	key := repo
+	if key != "" && tag != "" {
+		key = fmt.Sprintf("%s:%s", key, tag)
+	}
+	return key
 }
