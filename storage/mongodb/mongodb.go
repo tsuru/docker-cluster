@@ -53,7 +53,7 @@ func (s *mongodbStorage) StoreImage(repo, id, host string) error {
 	_, err := coll.UpsertId(repo, bson.M{
 		"$addToSet": bson.M{"history": bson.D{
 			// Order is important for $addToSet!
-			{"node", host}, {"imageid", id},
+			{Name: "node", Value: host}, {Name: "imageid", Value: id},
 		}},
 		"$set": bson.M{"lastnode": host, "lastid": id},
 	})

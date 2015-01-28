@@ -140,7 +140,7 @@ func TestCreateContainerWithoutRepo(t *testing.T) {
 		t.Fatal(err)
 	}
 	if nodeAddr != server1.URL() {
-		t.Errorf("CreateContainer: wrong node  ID. Want %q. Got %q.", server1.URL, nodeAddr)
+		t.Errorf("CreateContainer: wrong node  ID. Want %q. Got %q.", server1.URL(), nodeAddr)
 	}
 	if container.ID == "" {
 		t.Errorf("CreateContainer: wrong container ID. Expected not empty.")
