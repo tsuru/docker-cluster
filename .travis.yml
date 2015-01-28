@@ -1,13 +1,11 @@
 language: go
 go:
-  - 1.2
   - 1.3
   - 1.4
   - tip
 install:
   - go get -d -t ./...
   - go get golang.org/x/tools/cmd/vet
-  - go get code.google.com/p/go.tools/cmd/vet
 script:
   - go test -race ./...
   - go vet ./...
