@@ -51,10 +51,10 @@ func (s *mongodbStorage) StoreImage(repo, id, host string) error {
 	coll := s.getColl("images_history")
 	defer coll.Database.Session.Close()
 	_, err := coll.UpsertId(repo, bson.M{
-		"$addToSet": bson.M{"history": bson.D{
+		"$addToSet": bson.M{"history": bson.D([]bson.DocElem{
 			// Order is important for $addToSet!
-			{Name: "node", Value: host}, {Name: "imageid", Value: id},
-		}},
+			bson.DocElem{Name: "node", Value: host}, bson.DocElem{Name: "imageid", Value: id},
+		})},
 		"$set": bson.M{"lastnode": host, "lastid": id},
 	})
 	return err
