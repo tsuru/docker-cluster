@@ -171,7 +171,7 @@ func (c *Cluster) InspectImage(repo string) (*docker.Image, error) {
 
 // ListImages lists images existing in each cluster node
 func (c *Cluster) ListImages(opts docker.ListImagesOptions) ([]docker.APIImages, error) {
-	nodes, err := c.Nodes()
+	nodes, err := c.UnfilteredNodes()
 	if err != nil {
 		return nil, err
 	}
@@ -195,14 +195,15 @@ func (c *Cluster) ListImages(opts docker.ListImagesOptions) ([]docker.APIImages,
 	}
 	wg.Wait()
 	close(resultChan)
-	select {
-	case err := <-errChan:
-		return nil, err
-	default:
-	}
+	close(errChan)
 	var allImages []docker.APIImages
 	for images := range resultChan {
 		allImages = append(allImages, images...)
+	}
+	select {
+	case err := <-errChan:
+		return allImages, err
+	default:
 	}
 	return allImages, nil
 }
