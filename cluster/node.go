@@ -1,4 +1,4 @@
-// Copyright 2014 docker-cluster authors. All rights reserved.
+// Copyright 2015 docker-cluster authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -11,6 +11,8 @@ import (
 	"encoding/json"
 	"strconv"
 	"time"
+
+	"github.com/fsouza/go-dockerclient"
 )
 
 // Node represents a host running Docker. Each node has an Address
@@ -90,6 +92,10 @@ func (n *Node) ResetFailures() {
 	delete(n.Metadata, "Failures")
 	delete(n.Metadata, "DisabledUntil")
 	delete(n.Metadata, "LastError")
+}
+
+func (n *Node) Client() (*docker.Client, error) {
+	return docker.NewClient(n.Address)
 }
 
 func (n *Node) updateError(lastErr error) {

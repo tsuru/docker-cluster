@@ -1,4 +1,4 @@
-// Copyright 2014 docker-cluster authors. All rights reserved.
+// Copyright 2015 docker-cluster authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -11,6 +11,8 @@ import (
 	"regexp"
 	"testing"
 	"time"
+
+	dtesting "github.com/fsouza/go-dockerclient/testing"
 )
 
 func TestNodeStatus(t *testing.T) {
@@ -213,5 +215,22 @@ func TestNodeListFilterDisabledAndHealing(t *testing.T) {
 	}
 	if filtered[0].Address != "a1" || filtered[1].Address != "a3" {
 		t.Fatalf("Expected filtered nodes to be %#v", filtered)
+	}
+}
+
+func TestNodeClient(t *testing.T) {
+	server, err := dtesting.NewServer("127.0.0.1:0", nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer server.Stop()
+	node := Node{Address: server.URL()}
+	client, err := node.Client()
+	if err != nil {
+		t.Error(err)
+	}
+	err = client.Ping()
+	if err != nil {
+		t.Error(err)
 	}
 }
