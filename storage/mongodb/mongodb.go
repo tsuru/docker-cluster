@@ -47,6 +47,14 @@ func (s *mongodbStorage) RemoveContainer(container string) error {
 	return coll.Remove(bson.M{"_id": container})
 }
 
+func (s *mongodbStorage) RetrieveContainers() ([]cluster.Container, error) {
+	coll := s.getColl("containers")
+	defer coll.Database.Session.Close()
+	var containers []cluster.Container
+	err := coll.Find(nil).All(&containers)
+	return containers, err
+}
+
 func (s *mongodbStorage) StoreImage(repo, id, host string) error {
 	coll := s.getColl("images_history")
 	defer coll.Database.Session.Close()
@@ -81,6 +89,14 @@ func (s *mongodbStorage) RemoveImage(repo, id, host string) error {
 	coll := s.getColl("images_history")
 	defer coll.Database.Session.Close()
 	return coll.UpdateId(repo, bson.M{"$pull": bson.M{"history": bson.M{"node": host, "imageid": id}}})
+}
+
+func (s *mongodbStorage) RetrieveImages() ([]cluster.Image, error) {
+	coll := s.getColl("images_history")
+	defer coll.Database.Session.Close()
+	var images []cluster.Image
+	err := coll.Find(nil).All(&images)
+	return images, err
 }
 
 func (s *mongodbStorage) StoreNode(node cluster.Node) error {

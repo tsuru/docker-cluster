@@ -48,6 +48,16 @@ func (s *MapStorage) RemoveContainer(containerID string) error {
 	return nil
 }
 
+func (s *MapStorage) RetrieveContainers() ([]Container, error) {
+	s.cMut.Lock()
+	defer s.cMut.Unlock()
+	entries := make([]Container, 0, len(s.cMap))
+	for k, v := range s.cMap {
+		entries = append(entries, Container{Id: k, Host: v})
+	}
+	return entries, nil
+}
+
 func (s *MapStorage) StoreImage(repo, id, host string) error {
 	s.iMut.Lock()
 	defer s.iMut.Unlock()
@@ -102,6 +112,16 @@ func (s *MapStorage) RemoveImage(repo, id, host string) error {
 	}
 	image.History = newHistory
 	return nil
+}
+
+func (s *MapStorage) RetrieveImages() ([]Image, error) {
+	s.iMut.Lock()
+	defer s.iMut.Unlock()
+	images := make([]Image, 0, len(s.iMap))
+	for _, img := range s.iMap {
+		images = append(images, *img)
+	}
+	return images, nil
 }
 
 func (s *MapStorage) updateNodeMap() {

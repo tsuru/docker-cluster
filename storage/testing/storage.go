@@ -26,6 +26,9 @@ func assertIsNil(val interface{}, t *testing.T) {
 }
 
 func testStorageStoreRetrieveContainer(storage cluster.Storage, t *testing.T) {
+	defer storage.RemoveContainer("container-1")
+	defer storage.RemoveContainer("container-2")
+	defer storage.RemoveContainer("container-3")
 	err := storage.StoreContainer("container-1", "host-1")
 	assertIsNil(err, t)
 	err = storage.StoreContainer("container-2", "host-1")
@@ -462,8 +465,41 @@ func testStorageUnlockNode(storage cluster.Storage, t *testing.T) {
 	}
 }
 
+func testRetrieveContainers(storage cluster.Storage, t *testing.T) {
+	defer storage.RemoveContainer("container-1")
+	defer storage.RemoveContainer("container-2")
+	defer storage.RemoveContainer("container-3")
+	err := storage.StoreContainer("container-1", "host-1")
+	assertIsNil(err, t)
+	err = storage.StoreContainer("container-2", "host-1")
+	assertIsNil(err, t)
+	err = storage.StoreContainer("container-3", "host-2")
+	assertIsNil(err, t)
+	containers, err := storage.RetrieveContainers()
+	assertIsNil(err, t)
+	if len(containers) != 3 {
+		t.Errorf("Unexpected len %d - expected %d", len(containers), 3)
+	}
+}
+
+func testRetrieveImages(storage cluster.Storage, t *testing.T) {
+	defer storage.RemoveImage("img-1", "id1", "host-1.something")
+	defer storage.RemoveImage("img-1", "id1", "host-2")
+	defer storage.RemoveImage("img-1", "id2", "host-2")
+	err := storage.StoreImage("img-1", "id1", "host-1.something")
+	assertIsNil(err, t)
+	err = storage.StoreImage("img-1", "id1", "host-2")
+	assertIsNil(err, t)
+	imgs, err := storage.RetrieveImages()
+	assertIsNil(err, t)
+	if len(imgs) != 2 {
+		t.Errorf("Unexpected len %d - expected %d", len(imgs), 2)
+	}
+}
+
 func RunTestsForStorage(storage cluster.Storage, t *testing.T) {
 	testStorageStoreRetrieveContainer(storage, t)
+	testRetrieveContainers(storage, t)
 	testStorageStoreRemoveContainer(storage, t)
 	testStorageStoreRetrieveImage(storage, t)
 	testStorageStoreImageIgnoreDups(storage, t)
@@ -481,4 +517,5 @@ func RunTestsForStorage(storage cluster.Storage, t *testing.T) {
 	testStorageLockNodeHealingAfterTimeout(storage, t)
 	testStorageExtendNodeLock(storage, t)
 	testStorageUnlockNode(storage, t)
+	testRetrieveImages(storage, t)
 }

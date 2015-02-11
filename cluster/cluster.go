@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/fsouza/go-dockerclient"
+	dtesting "github.com/fsouza/go-dockerclient/testing"
 	"github.com/tsuru/docker-cluster/log"
 )
 
@@ -49,6 +50,7 @@ type ContainerStorage interface {
 	StoreContainer(container, host string) error
 	RetrieveContainer(container string) (host string, err error)
 	RemoveContainer(container string) error
+	RetrieveContainers() ([]Container, error)
 }
 
 // ImageStorage works like ContainerStorage, but stores information about
@@ -57,6 +59,7 @@ type ImageStorage interface {
 	StoreImage(repo, id, host string) error
 	RetrieveImage(repo string) (Image, error)
 	RemoveImage(repo, id, host string) error
+	RetrieveImages() ([]Image, error)
 }
 
 type NodeStorage interface {
@@ -85,6 +88,7 @@ type Cluster struct {
 	stor           Storage
 	healer         Healer
 	monitoringDone chan bool
+	dryServer      *dtesting.DockerServer
 }
 
 type DockerNodeError struct {
@@ -407,7 +411,69 @@ func clientWithTimeout(dialTimeout time.Duration, fullTimeout time.Duration) *ht
 	}
 }
 
+func (c *Cluster) StopDryMode() {
+	if c.dryServer != nil {
+		c.dryServer.Stop()
+	}
+}
+
+func (c *Cluster) DryMode() error {
+	var err error
+	c.dryServer, err = dtesting.NewServer("127.0.0.1:0", nil, nil)
+	if err != nil {
+		return err
+	}
+	oldStor := c.stor
+	c.stor = &MapStorage{}
+	nodes, err := oldStor.RetrieveNodes()
+	if err != nil {
+		return err
+	}
+	for _, node := range nodes {
+		err = c.storage().StoreNode(node)
+		if err != nil {
+			return err
+		}
+	}
+	images, err := oldStor.RetrieveImages()
+	if err != nil {
+		return err
+	}
+	for _, img := range images {
+		for _, historyEntry := range img.History {
+			if historyEntry.ImageId != img.LastId && historyEntry.Node != img.LastNode {
+				err = c.PullImage(docker.PullImageOptions{
+					Repository: img.Repository,
+				}, docker.AuthConfiguration{}, historyEntry.Node)
+				if err != nil {
+					return err
+				}
+			}
+		}
+		err = c.PullImage(docker.PullImageOptions{
+			Repository: img.Repository,
+		}, docker.AuthConfiguration{}, img.LastNode)
+		if err != nil {
+			return err
+		}
+	}
+	containers, err := oldStor.RetrieveContainers()
+	if err != nil {
+		return err
+	}
+	for _, container := range containers {
+		err = c.storage().StoreContainer(container.Id, container.Host)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (c *Cluster) getNodeByAddr(address string) (node, error) {
+	if c.dryServer != nil {
+		address = c.dryServer.URL()
+	}
 	var n node
 	client, err := docker.NewClient(address)
 	if err != nil {

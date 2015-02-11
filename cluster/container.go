@@ -13,6 +13,11 @@ import (
 	"github.com/tsuru/docker-cluster/log"
 )
 
+type Container struct {
+	Id   string `bson:"_id"`
+	Host string
+}
+
 // CreateContainer creates a container in the specified node. If no node is
 // specified, it will create the container in a node selected by the scheduler.
 //
