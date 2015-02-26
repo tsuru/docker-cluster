@@ -185,7 +185,7 @@ func TestNodesShouldGetClusterNodesWithoutDisabledNodes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = cluster.handleNodeError("http://server1:4243", errors.New("some err"))
+	err = cluster.handleNodeError("http://server1:4243", errors.New("some err"), true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -235,7 +235,7 @@ func TesteUnfilteredNodesReturnAllNodes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = cluster.handleNodeError("http://server1:4243", errors.New("some err"))
+	err = cluster.handleNodeError("http://server1:4243", errors.New("some err"), true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -430,7 +430,7 @@ func TestClusterHandleNodeErrorStress(t *testing.T) {
 	}
 	expectedErr := errors.New("some error")
 	for i := 0; i < 200; i++ {
-		c.handleNodeError("stress-addr-1", expectedErr)
+		c.handleNodeError("stress-addr-1", expectedErr, true)
 	}
 	done := make(chan bool)
 	go func() {
@@ -457,7 +457,7 @@ func TestClusterHandleNodeErrorStress(t *testing.T) {
 	if healer.calls != 1 {
 		t.Errorf("Expected healer to have 1 call, got: %d", healer.calls)
 	}
-	err = c.handleNodeError("stress-addr-1", expectedErr)
+	err = c.handleNodeError("stress-addr-1", expectedErr, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -668,7 +668,7 @@ func TestWrapError(t *testing.T) {
 	err := errors.New("my error")
 	node := node{addr: "199.222.111.10"}
 	wrapped := wrapError(node, err)
-	expected := "error in docker node 199.222.111.10: my error"
+	expected := "error in docker node \"199.222.111.10\": my error"
 	if wrapped.Error() != expected {
 		t.Fatalf("Expected to receive %s, got: %s", expected, wrapped.Error())
 	}

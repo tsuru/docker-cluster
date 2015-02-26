@@ -98,11 +98,13 @@ func (n *Node) Client() (*docker.Client, error) {
 	return docker.NewClient(n.Address)
 }
 
-func (n *Node) updateError(lastErr error) {
+func (n *Node) updateError(lastErr error, incrementFailures bool) {
 	if n.Metadata == nil {
 		n.Metadata = make(map[string]string)
 	}
-	n.Metadata["Failures"] = strconv.Itoa(n.FailureCount() + 1)
+	if incrementFailures {
+		n.Metadata["Failures"] = strconv.Itoa(n.FailureCount() + 1)
+	}
 	n.Metadata["LastError"] = lastErr.Error()
 }
 

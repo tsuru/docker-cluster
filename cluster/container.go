@@ -7,6 +7,7 @@ package cluster
 import (
 	"errors"
 	"fmt"
+	"net"
 	"sync"
 
 	"github.com/fsouza/go-dockerclient"
@@ -58,7 +59,15 @@ func (c *Cluster) CreateContainerSchedulerOpts(opts docker.CreateContainerOption
 			break
 		} else {
 			log.Errorf("Error trying to create container in node %q: %s. Trying again in another node...", addr, err.Error())
-			c.handleNodeError(addr, err)
+			shouldIncrementFailures := false
+			if nodeErr, ok := err.(DockerNodeError); ok {
+				baseErr := nodeErr.BaseError()
+				_, isNetErr := baseErr.(*net.OpError)
+				if isNetErr || baseErr == docker.ErrConnectionRefused || nodeErr.cmd == "createContainer" {
+					shouldIncrementFailures = true
+				}
+			}
+			c.handleNodeError(addr, err, shouldIncrementFailures)
 			if !useScheduler {
 				return addr, nil, err
 			}
@@ -78,7 +87,7 @@ func (c *Cluster) createContainerInNode(opts docker.CreateContainerOptions, node
 			Repository: opts.Config.Image,
 		}, docker.AuthConfiguration{}, nodeAddress)
 		if err != nil {
-			return nil, fmt.Errorf("Error trying to pull image in node %q: %s", nodeAddress, err.Error())
+			return nil, err
 		}
 	}
 	node, err := c.getNodeByAddr(nodeAddress)
@@ -86,7 +95,7 @@ func (c *Cluster) createContainerInNode(opts docker.CreateContainerOptions, node
 		return nil, err
 	}
 	cont, err := node.CreateContainer(opts)
-	return cont, wrapError(node, err)
+	return cont, wrapErrorWithCmd(node, err, "createContainer")
 }
 
 // InspectContainer returns information about a container by its ID, getting

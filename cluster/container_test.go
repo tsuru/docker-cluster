@@ -13,6 +13,7 @@ import (
 	"sort"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/fsouza/go-dockerclient"
 	dtesting "github.com/fsouza/go-dockerclient/testing"
@@ -101,7 +102,7 @@ func TestCreateContainerErrorImageInRepo(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer server1.Stop()
-	server1.PrepareFailure("createErr", "/images/create")
+	server1.PrepareFailure("createImgErr", "/images/create")
 	cluster, err := New(nil, &MapStorage{},
 		Node{Address: server1.URL()},
 	)
@@ -110,8 +111,71 @@ func TestCreateContainerErrorImageInRepo(t *testing.T) {
 	}
 	config := docker.Config{Memory: 67108864, Image: "myserver/user/myimg"}
 	_, _, err = cluster.CreateContainer(docker.CreateContainerOptions{Config: &config})
-	if err == nil || strings.Index(err.Error(), "Error trying to pull image") == -1 {
+	if err == nil || strings.Index(err.Error(), "createImgErr") == -1 {
 		t.Fatalf("Expected pull image error, got: %s", err)
+	}
+	time.Sleep(200 * time.Millisecond)
+	nodes, err := cluster.UnfilteredNodes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if nodes[0].FailureCount() != 0 {
+		t.Fatalf("Expected failure count to be 0, got: %d", nodes[0].FailureCount())
+	}
+}
+
+func TestCreateContainerErrorInCreateContainer(t *testing.T) {
+	server1, err := dtesting.NewServer("127.0.0.1:0", nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer server1.Stop()
+	server1.PrepareFailure("createContErr", "/containers/create")
+	cluster, err := New(nil, &MapStorage{},
+		Node{Address: server1.URL()},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	config := docker.Config{Memory: 67108864, Image: "myserver/user/myimg"}
+	_, _, err = cluster.CreateContainer(docker.CreateContainerOptions{Config: &config})
+	if err == nil || strings.Index(err.Error(), "createContErr") == -1 {
+		t.Fatalf("Expected create container error, got: %s", err)
+	}
+	time.Sleep(200 * time.Millisecond)
+	nodes, err := cluster.UnfilteredNodes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if nodes[0].FailureCount() != 1 {
+		t.Fatalf("Expected failure count to be 1, got: %d", nodes[0].FailureCount())
+	}
+}
+
+func TestCreateContainerErrorNetError(t *testing.T) {
+	server1, err := dtesting.NewServer("127.0.0.1:0", nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cluster, err := New(nil, &MapStorage{},
+		Node{Address: server1.URL()},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	server1.Stop()
+	config := docker.Config{Memory: 67108864, Image: "myserver/user/myimg"}
+	_, _, err = cluster.CreateContainer(docker.CreateContainerOptions{Config: &config})
+	if err == nil || strings.Index(err.Error(), "cannot connect to Docker endpoint") == -1 {
+		t.Fatalf("Expected create container error, got: %s", err)
+	}
+	time.Sleep(200 * time.Millisecond)
+	nodes, err := cluster.UnfilteredNodes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if nodes[0].FailureCount() != 1 {
+		t.Fatalf("Expected failure count to be 1, got: %d", nodes[0].FailureCount())
 	}
 }
 

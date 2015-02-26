@@ -93,11 +93,15 @@ type Cluster struct {
 
 type DockerNodeError struct {
 	node node
+	cmd  string
 	err  error
 }
 
 func (n DockerNodeError) Error() string {
-	return fmt.Sprintf("error in docker node %s: %s", n.node.addr, n.err.Error())
+	if n.cmd == "" {
+		return fmt.Sprintf("error in docker node %q: %s", n.node.addr, n.err.Error())
+	}
+	return fmt.Sprintf("error in docker node %q running command %q: %s", n.node.addr, n.cmd, n.err.Error())
 }
 
 func (n DockerNodeError) BaseError() error {
@@ -107,6 +111,13 @@ func (n DockerNodeError) BaseError() error {
 func wrapError(n node, err error) error {
 	if err != nil {
 		return DockerNodeError{node: n, err: err}
+	}
+	return nil
+}
+
+func wrapErrorWithCmd(n node, err error, cmd string) error {
+	if err != nil {
+		return DockerNodeError{node: n, err: err, cmd: cmd}
 	}
 	return nil
 }
@@ -230,7 +241,7 @@ func (c *Cluster) runPingForHost(addr string, wg *sync.WaitGroup) {
 		c.handleNodeSuccess(addr)
 	} else {
 		log.Errorf("[active-monitoring]: error in ping: %s", err.Error())
-		c.handleNodeError(addr, err)
+		c.handleNodeError(addr, err, true)
 	}
 }
 
@@ -283,7 +294,7 @@ func (c *Cluster) lockWithTimeout(addr string, isFailure bool) (func(), error) {
 	}, nil
 }
 
-func (c *Cluster) handleNodeError(addr string, lastErr error) error {
+func (c *Cluster) handleNodeError(addr string, lastErr error, incrementFailures bool) error {
 	unlock, err := c.lockWithTimeout(addr, true)
 	if err != nil {
 		return err
@@ -294,7 +305,7 @@ func (c *Cluster) handleNodeError(addr string, lastErr error) error {
 		if err != nil {
 			return
 		}
-		node.updateError(lastErr)
+		node.updateError(lastErr, incrementFailures)
 		duration := c.healer.HandleError(&node)
 		if duration > 0 {
 			node.updateDisabled(time.Now().Add(duration))

@@ -86,16 +86,24 @@ func TestNodeMarshalJSON(t *testing.T) {
 func TestNodeUpdateError(t *testing.T) {
 	node := Node{}
 	expectedErr := "some error"
-	node.updateError(errors.New(expectedErr))
+	node.updateError(errors.New(expectedErr), true)
 	if node.Metadata["Failures"] != "1" {
 		t.Fatalf("Expected failures counter 1, got: %s", node.Metadata["Failures"])
 	}
 	if node.Metadata["LastError"] != expectedErr {
 		t.Fatalf("Expected last error %q, got %q", expectedErr, node.Metadata["LastError"])
 	}
-	node.updateError(errors.New(expectedErr))
+	node.updateError(errors.New(expectedErr), true)
 	if node.Metadata["Failures"] != "2" {
 		t.Fatalf("Expected failures counter 2, got: %s", node.Metadata["Failures"])
+	}
+	nonIncrementErr := errors.New("non incrementing")
+	node.updateError(nonIncrementErr, false)
+	if node.Metadata["Failures"] != "2" {
+		t.Fatalf("Expected failures counter 2, got: %s", node.Metadata["Failures"])
+	}
+	if node.Metadata["LastError"] != nonIncrementErr.Error() {
+		t.Fatalf("Expected last error %q, got %q", nonIncrementErr.Error(), node.Metadata["LastError"])
 	}
 }
 
