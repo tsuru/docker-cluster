@@ -194,6 +194,8 @@ func (s *MapStorage) UpdateNode(node Node) error {
 }
 
 func (s *MapStorage) RetrieveNodesByMetadata(metadata map[string]string) ([]Node, error) {
+	s.nMut.Lock()
+	defer s.nMut.Unlock()
 	filteredNodes := []Node{}
 	for _, node := range s.nodes {
 		for key, value := range metadata {
