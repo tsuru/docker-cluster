@@ -168,6 +168,26 @@ func (c *Cluster) Register(address string, metadata map[string]string) (Node, er
 	return node, c.storage().StoreNode(node)
 }
 
+func (c *Cluster) UpdateNode(address string, metadata map[string]string) (Node, error) {
+	unlock, err := c.lockWithTimeout(address, false)
+	if err != nil {
+		return Node{}, err
+	}
+	defer unlock()
+	node, err := c.storage().RetrieveNode(address)
+	if err != nil {
+		return Node{}, err
+	}
+	for k, v := range metadata {
+		if v == "" {
+			delete(node.Metadata, k)
+		} else {
+			node.Metadata[k] = v
+		}
+	}
+	return node, c.storage().UpdateNode(node)
+}
+
 // Unregister removes nodes from the cluster.
 func (c *Cluster) Unregister(address string) error {
 	return c.storage().RemoveNode(address)

@@ -14,6 +14,7 @@ import (
 	"regexp"
 	"runtime"
 	"sort"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -122,6 +123,116 @@ func TestRegisterFailure(t *testing.T) {
 	_, err = cluster.Register("", nil)
 	if err == nil {
 		t.Error("Expected non-nil error, got <nil>.")
+	}
+}
+
+func TestUpdateNode(t *testing.T) {
+	cluster, err := New(nil, &MapStorage{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = cluster.Register("http://localhost1:4243", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	node, err := cluster.UpdateNode("http://localhost1:4243", map[string]string{
+		"k1": "v1",
+		"k2": "v2",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	expected := Node{Address: "http://localhost1:4243", Metadata: map[string]string{
+		"k1": "v1",
+		"k2": "v2",
+	}}
+	node.Healing = HealingData{}
+	if !reflect.DeepEqual(node, expected) {
+		t.Errorf("Expected nodes to be equal %+v, got %+v", expected, node)
+	}
+	nodes, err := cluster.Nodes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	nodes[0].Healing = HealingData{}
+	if !reflect.DeepEqual(nodes, []Node{expected}) {
+		t.Errorf("Expected nodes to be equal %+v, got %+v", []Node{expected}, nodes)
+	}
+}
+
+func TestUpdateNodeRemoveMetadata(t *testing.T) {
+	cluster, err := New(nil, &MapStorage{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = cluster.Register("http://localhost1:4243", map[string]string{
+		"k1": "v1",
+		"k2": "v2",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	node, err := cluster.UpdateNode("http://localhost1:4243", map[string]string{
+		"k1": "",
+		"k2": "v9",
+		"k3": "v10",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	expected := Node{Address: "http://localhost1:4243", Metadata: map[string]string{
+		"k2": "v9",
+		"k3": "v10",
+	}}
+	node.Healing = HealingData{}
+	if !reflect.DeepEqual(node, expected) {
+		t.Errorf("Expected nodes to be equal %+v, got %+v", expected, node)
+	}
+	nodes, err := cluster.Nodes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	nodes[0].Healing = HealingData{}
+	if !reflect.DeepEqual(nodes, []Node{expected}) {
+		t.Errorf("Expected nodes to be equal %+v, got %+v", []Node{expected}, nodes)
+	}
+}
+
+func TestUpdateNodeStress(t *testing.T) {
+	cluster, err := New(nil, &MapStorage{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = cluster.Register("http://localhost1:4243", map[string]string{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var errCount int32
+	wg := sync.WaitGroup{}
+	for i := 0; i < 100; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			_, err := cluster.UpdateNode("http://localhost1:4243", map[string]string{
+				fmt.Sprintf("k%d", i): fmt.Sprintf("v%d", i),
+			})
+			if err == errHealerInProgress {
+				atomic.AddInt32(&errCount, 1)
+			} else if err != nil {
+				t.Fatal(err)
+			}
+		}(i)
+	}
+	wg.Wait()
+	if errCount <= 0 {
+		t.Error("Expected errCount to me greater than 0")
+	}
+	nodes, err := cluster.Nodes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(nodes[0].Metadata) == 0 {
+		t.Error("Expected to have at least one metadata, got 0")
 	}
 }
 
