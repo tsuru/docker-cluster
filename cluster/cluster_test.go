@@ -809,8 +809,8 @@ func TestClusterGetNodeByAddr(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if node.HTTPClient != timeout10Client {
-		t.Fatalf("Expected client %#v, got %#v", timeout10Client, node.HTTPClient)
+	if node.HTTPClient != cluster.timeout10Client {
+		t.Fatalf("Expected client %#v, got %#v", cluster.timeout10Client, node.HTTPClient)
 	}
 }
 
@@ -824,7 +824,7 @@ func TestNodeSetPersistentClient(t *testing.T) {
 		t.Fatal(err)
 	}
 	node.setPersistentClient()
-	if node.HTTPClient != persistentClient {
-		t.Fatalf("Expected client %#v, got %#v", persistentClient, node.HTTPClient)
+	if node.HTTPClient != cluster.persistentClient {
+		t.Fatalf("Expected client %#v, got %#v", cluster.persistentClient, node.HTTPClient)
 	}
 }
