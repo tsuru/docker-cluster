@@ -1,4 +1,4 @@
-// Copyright 2014 docker-cluster authors. All rights reserved.
+// Copyright 2015 docker-cluster authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -96,8 +96,9 @@ func (c *Cluster) RemoveFromRegistry(imageId string) error {
 	if err != nil {
 		return err
 	}
+	request.Close = true
 	rsp, err := c.timeout10Client.Do(request)
-	if err != nil {
+	if err == nil {
 		rsp.Body.Close()
 	}
 	return err
