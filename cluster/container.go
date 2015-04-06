@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/url"
 	"sync"
 
 	"github.com/fsouza/go-dockerclient"
@@ -62,6 +63,9 @@ func (c *Cluster) CreateContainerSchedulerOpts(opts docker.CreateContainerOption
 			shouldIncrementFailures := false
 			if nodeErr, ok := err.(DockerNodeError); ok {
 				baseErr := nodeErr.BaseError()
+				if urlErr, ok := baseErr.(*url.Error); ok {
+					baseErr = urlErr.Err
+				}
 				_, isNetErr := baseErr.(*net.OpError)
 				if isNetErr || baseErr == docker.ErrConnectionRefused || nodeErr.cmd == "createContainer" {
 					shouldIncrementFailures = true

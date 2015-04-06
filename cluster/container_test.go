@@ -179,6 +179,28 @@ func TestCreateContainerErrorNetError(t *testing.T) {
 	}
 }
 
+func TestCreateContainerErrorDialError(t *testing.T) {
+	cluster, err := New(nil, &MapStorage{},
+		Node{Address: "http://192.0.2.10:1234"},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	config := docker.Config{Memory: 67108864, Image: "myserver/user/myimg"}
+	_, _, err = cluster.CreateContainer(docker.CreateContainerOptions{Config: &config})
+	if err == nil || strings.Index(err.Error(), "i/o timeout") == -1 {
+		t.Fatalf("Expected create container error, got: %s", err)
+	}
+	time.Sleep(200 * time.Millisecond)
+	nodes, err := cluster.UnfilteredNodes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if nodes[0].FailureCount() != 1 {
+		t.Fatalf("Expected failure count to be 1, got: %d", nodes[0].FailureCount())
+	}
+}
+
 func TestCreateContainerWithoutRepo(t *testing.T) {
 	server1, err := dtesting.NewServer("127.0.0.1:0", nil, nil)
 	if err != nil {
