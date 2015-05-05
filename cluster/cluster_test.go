@@ -282,7 +282,7 @@ func TestNodesShouldGetClusterNodesWithoutDisabledNodes(t *testing.T) {
 	stopChan := make(chan bool)
 	healer := &blockingHealer{stop: stopChan}
 	defer close(stopChan)
-	cluster.SetHealer(healer)
+	cluster.Healer = healer
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -534,7 +534,7 @@ func TestClusterHandleNodeErrorStress(t *testing.T) {
 	}
 	stopChan := make(chan bool)
 	healer := &blockingHealer{stop: stopChan}
-	c.SetHealer(healer)
+	c.Healer = healer
 	_, err = c.Register("stress-addr-1", nil)
 	if err != nil {
 		t.Fatal(err)

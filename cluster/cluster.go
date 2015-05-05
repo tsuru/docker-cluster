@@ -79,9 +79,9 @@ type Storage interface {
 // provide methods for interaction with those nodes, like CreateContainer,
 // which creates a container in one node of the cluster.
 type Cluster struct {
+	Healer           Healer
 	scheduler        Scheduler
 	stor             Storage
-	healer           Healer
 	monitoringDone   chan bool
 	dryServer        *dtesting.DockerServer
 	pingClient       *http.Client
@@ -138,7 +138,7 @@ func New(scheduler Scheduler, storage Storage, nodes ...Node) (*Cluster, error) 
 	c.persistentClient = clientWithTimeout(10*time.Second, 0)
 	c.stor = storage
 	c.scheduler = scheduler
-	c.healer = DefaultHealer{}
+	c.Healer = DefaultHealer{}
 	if scheduler == nil {
 		c.scheduler = &roundRobin{lastUsed: -1}
 	}
@@ -151,10 +151,6 @@ func New(scheduler Scheduler, storage Storage, nodes ...Node) (*Cluster, error) 
 		}
 	}
 	return &c, err
-}
-
-func (c *Cluster) SetHealer(healer Healer) {
-	c.healer = healer
 }
 
 // Register adds new nodes to the cluster.
@@ -327,7 +323,7 @@ func (c *Cluster) handleNodeError(addr string, lastErr error, incrementFailures 
 			return
 		}
 		node.updateError(lastErr, incrementFailures)
-		duration := c.healer.HandleError(&node)
+		duration := c.Healer.HandleError(&node)
 		if duration > 0 {
 			node.updateDisabled(time.Now().Add(duration))
 		}
