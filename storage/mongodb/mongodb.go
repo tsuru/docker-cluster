@@ -227,7 +227,6 @@ func Mongodb(addr, dbName string) (cluster.Storage, error) {
 	}
 	session.SetSyncTimeout(10 * time.Second)
 	session.SetSocketTimeout(1 * time.Minute)
-	session.SetMode(mgo.Monotonic, true)
 	storage := mongodbStorage{
 		session: session,
 		dbName:  dbName,
