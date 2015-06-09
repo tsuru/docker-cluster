@@ -211,15 +211,23 @@ func (s *mongodbStorage) RemoveNode(address string) error {
 }
 
 func (s *mongodbStorage) getColl(name string) *mgo.Collection {
-	session := s.session.Clone()
+	session := s.session.Copy()
 	return session.DB(s.dbName).C(name)
 }
 
 func Mongodb(addr, dbName string) (cluster.Storage, error) {
-	session, err := mgo.Dial(addr)
+	dialInfo, err := mgo.ParseURL(addr)
 	if err != nil {
 		return nil, err
 	}
+	dialInfo.FailFast = true
+	session, err := mgo.DialWithInfo(dialInfo)
+	if err != nil {
+		return nil, err
+	}
+	session.SetSyncTimeout(10 * time.Second)
+	session.SetSocketTimeout(1 * time.Minute)
+	session.SetMode(mgo.Monotonic, true)
 	storage := mongodbStorage{
 		session: session,
 		dbName:  dbName,
