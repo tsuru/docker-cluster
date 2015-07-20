@@ -141,6 +141,9 @@ func (n *Node) CleanMetadata() map[string]string {
 }
 
 func (n *Node) isEnabled() bool {
+	if n.CreationStatus != "" && n.CreationStatus != NodeCreationStatusCreated {
+		return false
+	}
 	if n.isHealing() {
 		return false
 	}

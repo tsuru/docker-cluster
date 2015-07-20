@@ -189,6 +189,18 @@ func TestNodeIsEnabled(t *testing.T) {
 	if !node.isEnabled() {
 		t.Fatal("node should be enabled")
 	}
+	node.CreationStatus = NodeCreationStatusCreated
+	if !node.isEnabled() {
+		t.Error("node should be enabled when CreationStatus=NodeCreationStatusCreated")
+	}
+	node.CreationStatus = NodeCreationStatusPending
+	if node.isEnabled() {
+		t.Error("node should not be enabled when CreationStatus=NodeCreationStatusPending")
+	}
+	node.CreationStatus = NodeCreationStatusError
+	if node.isEnabled() {
+		t.Error("node should not be enabled when CreationStatus=NodeCreationStatusError")
+	}
 	node = Node{Metadata: map[string]string{
 		"DisabledUntil": time.Now().Add(-1 * time.Minute).Format(time.RFC3339),
 	}}

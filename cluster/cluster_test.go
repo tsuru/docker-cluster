@@ -172,7 +172,7 @@ func TestUpdateNodeCreationStatus(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	nodes, err := cluster.Nodes()
+	nodes, err := cluster.UnfilteredNodes()
 	if err != nil {
 		t.Fatal(err)
 	}
