@@ -15,8 +15,8 @@ func TestRoundRobinSchedule(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err.Error())
 	}
-	c.Register("url1", nil)
-	c.Register("url2", nil)
+	c.Register(Node{Address: "url1"})
+	c.Register(Node{Address: "url2"})
 	opts := docker.CreateContainerOptions{Config: &docker.Config{}}
 	node, err := c.scheduler.Schedule(c, opts, nil)
 	if err != nil {

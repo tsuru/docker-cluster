@@ -144,7 +144,7 @@ func New(scheduler Scheduler, storage Storage, nodes ...Node) (*Cluster, error) 
 	}
 	if len(nodes) > 0 {
 		for _, n := range nodes {
-			_, err = c.Register(n.Address, n.Metadata)
+			err = c.Register(n)
 			if err != nil {
 				return &c, err
 			}
@@ -154,35 +154,37 @@ func New(scheduler Scheduler, storage Storage, nodes ...Node) (*Cluster, error) 
 }
 
 // Register adds new nodes to the cluster.
-func (c *Cluster) Register(address string, metadata map[string]string) (Node, error) {
-	if address == "" {
-		return Node{}, errors.New("Invalid address")
+func (c *Cluster) Register(node Node) error {
+	if node.Address == "" {
+		return errors.New("Invalid address")
 	}
-	node := Node{
-		Address:  address,
-		Metadata: metadata,
-	}
-	return node, c.storage().StoreNode(node)
+	return c.storage().StoreNode(node)
 }
 
-func (c *Cluster) UpdateNode(address string, metadata map[string]string) (Node, error) {
-	unlock, err := c.lockWithTimeout(address, false)
+func (c *Cluster) UpdateNode(node Node) (Node, error) {
+	unlock, err := c.lockWithTimeout(node.Address, false)
 	if err != nil {
 		return Node{}, err
 	}
 	defer unlock()
-	node, err := c.storage().RetrieveNode(address)
+	dbNode, err := c.storage().RetrieveNode(node.Address)
 	if err != nil {
 		return Node{}, err
 	}
-	for k, v := range metadata {
+	if node.CreationStatus != "" && node.CreationStatus != dbNode.CreationStatus {
+		if dbNode.CreationStatus != NodeCreationStatusPending && dbNode.CreationStatus != "" {
+			return Node{}, fmt.Errorf("cannot update node status when current status is %q", dbNode.CreationStatus)
+		}
+		dbNode.CreationStatus = node.CreationStatus
+	}
+	for k, v := range node.Metadata {
 		if v == "" {
-			delete(node.Metadata, k)
+			delete(dbNode.Metadata, k)
 		} else {
-			node.Metadata[k] = v
+			dbNode.Metadata[k] = v
 		}
 	}
-	return node, c.storage().UpdateNode(node)
+	return dbNode, c.storage().UpdateNode(dbNode)
 }
 
 // Unregister removes nodes from the cluster.
@@ -221,10 +223,10 @@ func (c *Cluster) StopActiveMonitoring() {
 	}
 }
 
-func (c *Cluster) WaitAndRegister(address string, metadata map[string]string, timeout time.Duration) (Node, error) {
-	client, err := c.getNodeByAddr(address)
+func (c *Cluster) WaitAndRegister(node Node, timeout time.Duration) error {
+	client, err := c.getNodeByAddr(node.Address)
 	if err != nil {
-		return Node{}, err
+		return err
 	}
 	doneChan := make(chan bool)
 	go func() {
@@ -240,9 +242,9 @@ func (c *Cluster) WaitAndRegister(address string, metadata map[string]string, ti
 	select {
 	case <-doneChan:
 	case <-time.After(timeout):
-		return Node{}, errors.New("timed out waiting for node to be ready")
+		return errors.New("timed out waiting for node to be ready")
 	}
-	return c.Register(address, metadata)
+	return c.Register(node)
 }
 
 func (c *Cluster) runPingForHost(addr string, wg *sync.WaitGroup) {
