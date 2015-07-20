@@ -20,6 +20,18 @@ func TestNodeStatus(t *testing.T) {
 	if node.Status() != NodeStatusWaiting {
 		t.Fatalf("Expected status NodeStatusWaiting, got %s", node.Status())
 	}
+	node.CreationStatus = NodeCreationStatusCreated
+	if node.Status() != NodeStatusWaiting {
+		t.Fatalf("Expected status NodeStatusWaiting, got %s", node.Status())
+	}
+	node.CreationStatus = NodeCreationStatusError
+	if node.Status() != NodeCreationStatusError {
+		t.Fatalf("Expected status NodeCreationStatusError, got %s", node.Status())
+	}
+	node.CreationStatus = NodeCreationStatusPending
+	if node.Status() != NodeCreationStatusPending {
+		t.Fatalf("Expected status NodeCreationStatusPending, got %s", node.Status())
+	}
 	node = Node{Metadata: map[string]string{
 		"Failures": "1",
 	}}

@@ -19,9 +19,10 @@ import (
 // (in the form <scheme>://<host>:<port>/) and map with arbritary
 // metadata.
 type Node struct {
-	Address  string `bson:"_id"`
-	Healing  HealingData
-	Metadata map[string]string
+	Address        string `bson:"_id"`
+	Healing        HealingData
+	Metadata       map[string]string
+	CreationStatus string
 }
 
 type HealingData struct {
@@ -37,6 +38,10 @@ const (
 	NodeStatusRetry    = "ready for retry"
 	NodeStatusDisabled = "disabled"
 	NodeStatusHealing  = "healing"
+
+	NodeCreationStatusCreated = "created"
+	NodeCreationStatusError   = "error"
+	NodeCreationStatusPending = "pending"
 )
 
 func (a NodeList) Len() int           { return len(a) }
@@ -57,6 +62,9 @@ func (n *Node) HasSuccess() bool {
 }
 
 func (n *Node) Status() string {
+	if n.CreationStatus != "" && n.CreationStatus != NodeCreationStatusCreated {
+		return n.CreationStatus
+	}
 	if n.isHealing() {
 		return NodeStatusHealing
 	}
