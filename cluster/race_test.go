@@ -1,4 +1,4 @@
-// Copyright 2014 docker-cluster authors. All rights reserved.
+// Copyright 2015 docker-cluster authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -21,8 +21,8 @@ func TestRoundRobinScheduleIsRaceFree(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err.Error())
 	}
-	c.Register("url1", nil)
-	c.Register("url2", nil)
+	c.Register(Node{Address: "url1"})
+	c.Register(Node{Address: "url2"})
 	opts := docker.CreateContainerOptions{Config: &docker.Config{}}
 	var wg sync.WaitGroup
 	wg.Add(8)
