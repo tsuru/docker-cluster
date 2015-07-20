@@ -17,7 +17,7 @@ import (
 	"time"
 
 	"github.com/fsouza/go-dockerclient"
-	dtesting "github.com/fsouza/go-dockerclient/testing"
+	"github.com/fsouza/go-dockerclient/testing"
 	"github.com/tsuru/docker-cluster/log"
 )
 
@@ -83,7 +83,7 @@ type Cluster struct {
 	scheduler        Scheduler
 	stor             Storage
 	monitoringDone   chan bool
-	dryServer        *dtesting.DockerServer
+	dryServer        *testing.DockerServer
 	pingClient       *http.Client
 	timeout10Client  *http.Client
 	persistentClient *http.Client
@@ -455,7 +455,7 @@ func (c *Cluster) StopDryMode() {
 
 func (c *Cluster) DryMode() error {
 	var err error
-	c.dryServer, err = dtesting.NewServer("127.0.0.1:0", nil, nil)
+	c.dryServer, err = testing.NewServer("127.0.0.1:0", nil, nil)
 	if err != nil {
 		return err
 	}
