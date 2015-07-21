@@ -223,30 +223,6 @@ func (c *Cluster) StopActiveMonitoring() {
 	}
 }
 
-func (c *Cluster) WaitAndRegister(node Node, timeout time.Duration) error {
-	client, err := c.getNodeByAddr(node.Address)
-	if err != nil {
-		return err
-	}
-	doneChan := make(chan bool)
-	go func() {
-		for {
-			err = client.Ping()
-			if err == nil {
-				break
-			}
-			time.Sleep(100 * time.Millisecond)
-		}
-		close(doneChan)
-	}()
-	select {
-	case <-doneChan:
-	case <-time.After(timeout):
-		return errors.New("timed out waiting for node to be ready")
-	}
-	return c.Register(node)
-}
-
 func (c *Cluster) runPingForHost(addr string, wg *sync.WaitGroup) {
 	defer wg.Done()
 	client, err := c.getNodeByAddr(addr)
