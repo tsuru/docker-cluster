@@ -335,6 +335,26 @@ func testStorageStoreRemoveNode(storage cluster.Storage, t *testing.T) {
 	}
 }
 
+func testStorageStoreRemoveNodes(storage cluster.Storage, t *testing.T) {
+	node1 := cluster.Node{Address: "my-addr-1"}
+	err := storage.StoreNode(node1)
+	assertIsNil(err, t)
+	node2 := cluster.Node{Address: "my-addr-2"}
+	err = storage.StoreNode(node2)
+	assertIsNil(err, t)
+	err = storage.RemoveNodes([]string{"my-addr-1", "my-addr-2", "my-addr-3"})
+	assertIsNil(err, t)
+	err = storage.RemoveNodes([]string{"my-addr-1", "my-addr-2"})
+	if err != cstorage.ErrNoSuchNode {
+		t.Errorf("cstorage.ErrNoSuchNode was expected, got: %s", err)
+	}
+	nodes, err := storage.RetrieveNodes()
+	assertIsNil(err, t)
+	if len(nodes) > 0 {
+		t.Errorf("nodes should be empty, found: %#v", nodes)
+	}
+}
+
 func testStorageLockNodeHealing(storage cluster.Storage, t *testing.T) {
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(100))
 	node := cluster.Node{Address: "addr-xyz"}
@@ -507,6 +527,7 @@ func RunTestsForStorage(storage cluster.Storage, t *testing.T) {
 	testStorageStoreRetrieveNodes(storage, t)
 	testStorageStoreRepeatedNodes(storage, t)
 	testStorageStoreRemoveNode(storage, t)
+	testStorageStoreRemoveNodes(storage, t)
 	testStorageStoreRetrieveNodesForMetadata(storage, t)
 	testStorageStoreEmptyMetadata(storage, t)
 	testStorageStoreClearMetadata(storage, t)

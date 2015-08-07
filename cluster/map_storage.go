@@ -226,6 +226,27 @@ func (s *MapStorage) RemoveNode(addr string) error {
 	return nil
 }
 
+func (s *MapStorage) RemoveNodes(addresses []string) error {
+	s.nMut.Lock()
+	defer s.nMut.Unlock()
+	addrMap := map[string]struct{}{}
+	for _, addr := range addresses {
+		addrMap[addr] = struct{}{}
+	}
+	dup := make([]Node, 0, len(s.nodes))
+	for _, node := range s.nodes {
+		if _, ok := addrMap[node.Address]; !ok {
+			dup = append(dup, node)
+		}
+	}
+	if len(dup) == len(s.nodes) {
+		return storage.ErrNoSuchNode
+	}
+	s.nodes = dup
+	s.updateNodeMap()
+	return nil
+}
+
 func (s *MapStorage) LockNodeForHealing(address string, isFailure bool, timeout time.Duration) (bool, error) {
 	s.nMut.Lock()
 	defer s.nMut.Unlock()

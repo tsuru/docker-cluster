@@ -64,6 +64,7 @@ type NodeStorage interface {
 	RetrieveNode(address string) (Node, error)
 	UpdateNode(node Node) error
 	RemoveNode(address string) error
+	RemoveNodes(addresses []string) error
 	LockNodeForHealing(address string, isFailure bool, timeout time.Duration) (bool, error)
 	ExtendNodeLock(address string, timeout time.Duration) error
 	UnlockNode(address string) error
@@ -190,6 +191,10 @@ func (c *Cluster) UpdateNode(node Node) (Node, error) {
 // Unregister removes nodes from the cluster.
 func (c *Cluster) Unregister(address string) error {
 	return c.storage().RemoveNode(address)
+}
+
+func (c *Cluster) UnregisterNodes(addresses ...string) error {
+	return c.storage().RemoveNodes(addresses)
 }
 
 func (c *Cluster) UnfilteredNodes() ([]Node, error) {

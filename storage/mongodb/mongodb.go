@@ -210,6 +210,19 @@ func (s *mongodbStorage) RemoveNode(address string) error {
 	return err
 }
 
+func (s *mongodbStorage) RemoveNodes(addresses []string) error {
+	coll := s.getColl("nodes")
+	defer coll.Database.Session.Close()
+	change, err := coll.RemoveAll(bson.M{"_id": bson.M{"$in": addresses}})
+	if err != nil {
+		return err
+	}
+	if change.Removed == 0 {
+		return storage.ErrNoSuchNode
+	}
+	return nil
+}
+
 func (s *mongodbStorage) getColl(name string) *mgo.Collection {
 	session := s.session.Copy()
 	return session.DB(s.dbName).C(name)
