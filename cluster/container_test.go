@@ -7,13 +7,14 @@ package cluster
 import (
 	"bytes"
 	"fmt"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
 	"sort"
 	"strings"
+	"sync"
 	"testing"
-	"time"
 
 	"github.com/fsouza/go-dockerclient"
 	dtesting "github.com/fsouza/go-dockerclient/testing"
@@ -110,17 +111,30 @@ func TestCreateContainerErrorImageInRepo(t *testing.T) {
 		t.Fatal(err)
 	}
 	config := docker.Config{Memory: 67108864, Image: "myserver/user/myimg"}
+	wait := registerErrorWait()
 	_, _, err = cluster.CreateContainer(docker.CreateContainerOptions{Config: &config})
 	if err == nil || strings.Index(err.Error(), "createImgErr") == -1 {
 		t.Fatalf("Expected pull image error, got: %s", err)
 	}
-	time.Sleep(200 * time.Millisecond)
+	wait()
 	nodes, err := cluster.UnfilteredNodes()
 	if err != nil {
 		t.Fatal(err)
 	}
 	if nodes[0].FailureCount() != 0 {
 		t.Fatalf("Expected failure count to be 0, got: %d", nodes[0].FailureCount())
+	}
+}
+
+func registerErrorWait() func() {
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+	nodeUpdatedOnError = func() {
+		wg.Done()
+	}
+	return func() {
+		wg.Wait()
+		nodeUpdatedOnError = nil
 	}
 }
 
@@ -137,12 +151,13 @@ func TestCreateContainerErrorInCreateContainer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	wait := registerErrorWait()
 	config := docker.Config{Memory: 67108864, Image: "myserver/user/myimg"}
 	_, _, err = cluster.CreateContainer(docker.CreateContainerOptions{Config: &config})
 	if err == nil || strings.Index(err.Error(), "createContErr") == -1 {
 		t.Fatalf("Expected create container error, got: %s", err)
 	}
-	time.Sleep(200 * time.Millisecond)
+	wait()
 	nodes, err := cluster.UnfilteredNodes()
 	if err != nil {
 		t.Fatal(err)
@@ -165,11 +180,12 @@ func TestCreateContainerErrorNetError(t *testing.T) {
 	}
 	server1.Stop()
 	config := docker.Config{Memory: 67108864, Image: "myserver/user/myimg"}
+	wait := registerErrorWait()
 	_, _, err = cluster.CreateContainer(docker.CreateContainerOptions{Config: &config})
 	if err == nil || strings.Index(err.Error(), "cannot connect to Docker endpoint") == -1 {
 		t.Fatalf("Expected create container error, got: %s", err)
 	}
-	time.Sleep(200 * time.Millisecond)
+	wait()
 	nodes, err := cluster.UnfilteredNodes()
 	if err != nil {
 		t.Fatal(err)
@@ -187,11 +203,12 @@ func TestCreateContainerErrorDialError(t *testing.T) {
 		t.Fatal(err)
 	}
 	config := docker.Config{Memory: 67108864, Image: "myserver/user/myimg"}
+	wait := registerErrorWait()
 	_, _, err = cluster.CreateContainer(docker.CreateContainerOptions{Config: &config})
 	if err == nil || strings.Index(err.Error(), "i/o timeout") == -1 {
 		t.Fatalf("Expected create container error, got: %s", err)
 	}
-	time.Sleep(200 * time.Millisecond)
+	wait()
 	nodes, err := cluster.UnfilteredNodes()
 	if err != nil {
 		t.Fatal(err)
@@ -449,6 +466,120 @@ func TestCreateContainerTryAnotherNodeInFailure(t *testing.T) {
 	}
 	if container.ID != "e90302" {
 		t.Errorf("CreateContainer: wrong container ID. Want %q. Got %q.", "e90302", container.ID)
+	}
+}
+
+type myHook func(node Node) error
+
+func (fn myHook) BeforeCreateContainer(node Node) error {
+	return fn(node)
+}
+
+func TestCreateContainerTryAnotherNodeAfterFailureInHook(t *testing.T) {
+	called1 := false
+	called2 := false
+	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called1 = true
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"Id":"e90301"}`))
+	}))
+	defer server1.Close()
+	server2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called2 = true
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"Id":"e90302"}`))
+	}))
+	defer server2.Close()
+	cluster, err := New(firstNodeScheduler{}, &MapStorage{},
+		Node{Address: server1.URL},
+		Node{Address: server2.URL},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	hookCalled := false
+	cluster.Hook = myHook(func(node Node) error {
+		hookCalled = true
+		if node.Address == server1.URL {
+			return fmt.Errorf("my hook err")
+		}
+		return nil
+	})
+	config := docker.Config{Memory: 67108864, Image: "myimg"}
+	wait := registerErrorWait()
+	nodeAddr, container, err := cluster.CreateContainer(docker.CreateContainerOptions{Config: &config})
+	if err != nil {
+		t.Fatal(err)
+	}
+	wait()
+	if !hookCalled {
+		t.Error("CreateContainer: hook should've have been called.")
+	}
+	if called1 {
+		t.Error("CreateContainer: server1 should NOT have been called.")
+	}
+	if !called2 {
+		t.Error("CreateContainer: server2 should've been called.")
+	}
+	if nodeAddr != server2.URL {
+		t.Errorf("CreateContainer: wrong node  ID. Want %q. Got %q.", server2.URL, nodeAddr)
+	}
+	if container.ID != "e90302" {
+		t.Errorf("CreateContainer: wrong container ID. Want %q. Got %q.", "e90302", container.ID)
+	}
+	nodes, err := cluster.UnfilteredNodes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(nodes) != 2 {
+		t.Fatalf("Expected node len to be 2, got %d", len(nodes))
+	}
+	if nodes[0].FailureCount() != 0 || nodes[1].FailureCount() != 0 {
+		t.Fatalf("Expected failure count to be 0, got: %d - %d", nodes[0].FailureCount(), nodes[1].FailureCount())
+	}
+}
+
+func TestCreateContainerNetworkFailureInHook(t *testing.T) {
+	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"Id":"e90301"}`))
+	}))
+	defer server1.Close()
+	cluster, err := New(firstNodeScheduler{}, &MapStorage{},
+		Node{Address: server1.URL},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	hookCalled := false
+	cluster.Hook = myHook(func(node Node) error {
+		hookCalled = true
+		if node.Address == server1.URL {
+			return &net.OpError{
+				Op:   "read",
+				Net:  "tcp",
+				Addr: &net.TCPAddr{IP: net.IP{}, Port: 0, Zone: ""},
+				Err:  fmt.Errorf("my hook net err"),
+			}
+		}
+		return nil
+	})
+	config := docker.Config{Memory: 67108864, Image: "myimg"}
+	wait := registerErrorWait()
+	_, _, err = cluster.CreateContainer(docker.CreateContainerOptions{Config: &config})
+	if err == nil || strings.Index(err.Error(), "my hook net err") == -1 {
+		t.Fatalf("Expected hook error, got: %s", err)
+	}
+	wait()
+	if !hookCalled {
+		t.Error("CreateContainer: hook should've have been called.")
+	}
+	nodes, err := cluster.UnfilteredNodes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if nodes[0].FailureCount() != 1 {
+		t.Fatalf("Expected failure count to be 1, got: %d", nodes[0].FailureCount())
 	}
 }
 

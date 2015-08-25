@@ -76,11 +76,16 @@ type Storage interface {
 	NodeStorage
 }
 
+type ClusterHook interface {
+	BeforeCreateContainer(node Node) error
+}
+
 // Cluster is the basic type of the package. It manages internal nodes, and
 // provide methods for interaction with those nodes, like CreateContainer,
 // which creates a container in one node of the cluster.
 type Cluster struct {
 	Healer           Healer
+	Hook             ClusterHook
 	scheduler        Scheduler
 	stor             Storage
 	monitoringDone   chan bool
@@ -308,9 +313,15 @@ func (c *Cluster) handleNodeError(addr string, lastErr error, incrementFailures 
 			node.updateDisabled(time.Now().Add(duration))
 		}
 		c.storage().UpdateNode(node)
+		if nodeUpdatedOnError != nil {
+			nodeUpdatedOnError()
+		}
 	}()
 	return nil
 }
+
+// Modified by tests
+var nodeUpdatedOnError func()
 
 func (c *Cluster) handleNodeSuccess(addr string) error {
 	unlock, err := c.lockWithTimeout(addr, false)

@@ -54,27 +54,43 @@ func (c *Cluster) CreateContainerSchedulerOpts(opts docker.CreateContainerOption
 		if addr == "" {
 			return addr, nil, errors.New("CreateContainer needs a non empty node addr")
 		}
-		container, err = c.createContainerInNode(opts, addr)
+		err = nil
+		if c.Hook != nil {
+			dbNode, retrieveErr := c.storage().RetrieveNode(addr)
+			if retrieveErr != nil {
+				retrieveErr = fmt.Errorf("could not retrieve node from cluster: %s", retrieveErr)
+				return addr, nil, retrieveErr
+			}
+			err = c.Hook.BeforeCreateContainer(dbNode)
+			if err != nil {
+				log.Errorf("Error in before create container hook in node %q: %s. Trying again in another node...", addr, err)
+			}
+		}
 		if err == nil {
-			c.handleNodeSuccess(addr)
-			break
-		} else {
+			container, err = c.createContainerInNode(opts, addr)
+			if err == nil {
+				c.handleNodeSuccess(addr)
+				break
+			}
 			log.Errorf("Error trying to create container in node %q: %s. Trying again in another node...", addr, err.Error())
-			shouldIncrementFailures := false
-			if nodeErr, ok := err.(DockerNodeError); ok {
-				baseErr := nodeErr.BaseError()
-				if urlErr, ok := baseErr.(*url.Error); ok {
-					baseErr = urlErr.Err
-				}
-				_, isNetErr := baseErr.(*net.OpError)
-				if isNetErr || baseErr == docker.ErrConnectionRefused || nodeErr.cmd == "createContainer" {
-					shouldIncrementFailures = true
-				}
-			}
-			c.handleNodeError(addr, err, shouldIncrementFailures)
-			if !useScheduler {
-				return addr, nil, err
-			}
+		}
+		shouldIncrementFailures := false
+		isCreateContainerErr := false
+		baseErr := err
+		if nodeErr, ok := baseErr.(DockerNodeError); ok {
+			isCreateContainerErr = nodeErr.cmd == "createContainer"
+			baseErr = nodeErr.BaseError()
+		}
+		if urlErr, ok := baseErr.(*url.Error); ok {
+			baseErr = urlErr.Err
+		}
+		_, isNetErr := baseErr.(*net.OpError)
+		if isNetErr || isCreateContainerErr || baseErr == docker.ErrConnectionRefused {
+			shouldIncrementFailures = true
+		}
+		c.handleNodeError(addr, err, shouldIncrementFailures)
+		if !useScheduler {
+			return addr, nil, err
 		}
 	}
 	if err != nil {
