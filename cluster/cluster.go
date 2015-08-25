@@ -173,9 +173,6 @@ func (c *Cluster) UpdateNode(node Node) (Node, error) {
 		return Node{}, err
 	}
 	if node.CreationStatus != "" && node.CreationStatus != dbNode.CreationStatus {
-		if dbNode.CreationStatus != NodeCreationStatusPending && dbNode.CreationStatus != "" {
-			return Node{}, fmt.Errorf("cannot update node status when current status is %q", dbNode.CreationStatus)
-		}
 		dbNode.CreationStatus = node.CreationStatus
 	}
 	for k, v := range node.Metadata {

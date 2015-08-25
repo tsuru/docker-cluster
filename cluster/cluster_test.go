@@ -179,10 +179,34 @@ func TestUpdateNodeCreationStatus(t *testing.T) {
 	if nodes[0].CreationStatus != NodeCreationStatusError {
 		t.Errorf("UpdateNode: wrong status. Want NodeCreationStatusError. Got %s", nodes[0].CreationStatus)
 	}
-	node.CreationStatus = NodeCreationStatusPending
+}
+
+func TestUpdateNodeCreationStatusDisabled(t *testing.T) {
+	cluster, err := New(nil, &MapStorage{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	node := Node{
+		Address:        "http://localhost1:4243",
+		CreationStatus: NodeCreationStatusCreated,
+		Metadata:       map[string]string{"k1": "v1", "k2": "v2"},
+	}
+	err = cluster.Register(node)
+	if err != nil {
+		t.Fatal(err)
+	}
+	node.Metadata["k1"] = "v3"
+	node.CreationStatus = NodeCreationStatusDisabled
 	_, err = cluster.UpdateNode(node)
-	if err == nil || err.Error() != `cannot update node status when current status is "error"` {
-		t.Errorf("UpdateNode: unexpected error %v", err)
+	if err != nil {
+		t.Fatal(err)
+	}
+	nodes, err := cluster.UnfilteredNodes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if nodes[0].CreationStatus != NodeCreationStatusDisabled {
+		t.Errorf("UpdateNode: wrong status. Want NodeCreationStatusDisabled. Got %s", nodes[0].CreationStatus)
 	}
 }
 
