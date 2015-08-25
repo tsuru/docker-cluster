@@ -48,8 +48,8 @@ func TestNodeStatus(t *testing.T) {
 		"DisabledUntil": time.Now().Add(1 * time.Minute).Format(time.RFC3339),
 		"Failures":      "1",
 	}}
-	if node.Status() != NodeStatusDisabled {
-		t.Fatalf("Expected status NodeStatusDisabled, got %s", node.Status())
+	if node.Status() != NodeStatusTemporarilyDisabled {
+		t.Fatalf("Expected status NodeStatusTemporarilyDisabled, got %s", node.Status())
 	}
 	future := time.Now().UTC().Add(5 * time.Second)
 	node = Node{Healing: HealingData{LockedUntil: future}, Metadata: map[string]string{
@@ -64,6 +64,10 @@ func TestNodeStatus(t *testing.T) {
 	}}
 	if node.Status() != NodeStatusHealing {
 		t.Fatalf("Expected status NodeStatusHealing got %s", node.Status())
+	}
+	node = Node{CreationStatus: NodeCreationStatusDisabled}
+	if node.Status() != NodeCreationStatusDisabled {
+		t.Fatalf("Expected status NodeStatusDisabled got %s", node.Status())
 	}
 }
 
@@ -84,7 +88,7 @@ func TestNodeMarshalJSON(t *testing.T) {
 			"DisabledUntil": dt,
 			"Failures":      "1",
 		},
-		"Status": NodeStatusDisabled,
+		"Status": NodeStatusTemporarilyDisabled,
 	}
 	err = json.Unmarshal(bytes, &val)
 	if err != nil {
@@ -119,7 +123,7 @@ func TestNodeUpdateError(t *testing.T) {
 	}
 }
 
-func TestNodeUpdateDisabled(t *testing.T) {
+func TestNodeUpdateTemporarilyDisabled(t *testing.T) {
 	node := Node{}
 	disabledUntil := time.Now().Add(5 * time.Minute)
 	node.updateDisabled(disabledUntil)
@@ -219,6 +223,10 @@ func TestNodeIsEnabled(t *testing.T) {
 		t.Fatal("node should be enabled")
 	}
 	node = Node{Healing: HealingData{LockedUntil: future, IsFailure: true}}
+	if node.isEnabled() {
+		t.Fatal("node should be disabled")
+	}
+	node = Node{CreationStatus: NodeCreationStatusDisabled}
 	if node.isEnabled() {
 		t.Fatal("node should be disabled")
 	}

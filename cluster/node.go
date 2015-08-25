@@ -33,15 +33,16 @@ type HealingData struct {
 type NodeList []Node
 
 const (
-	NodeStatusWaiting  = "waiting"
-	NodeStatusReady    = "ready"
-	NodeStatusRetry    = "ready for retry"
-	NodeStatusDisabled = "disabled"
-	NodeStatusHealing  = "healing"
+	NodeStatusWaiting             = "waiting"
+	NodeStatusReady               = "ready"
+	NodeStatusRetry               = "ready for retry"
+	NodeStatusTemporarilyDisabled = "temporarily disabled"
+	NodeStatusHealing             = "healing"
 
-	NodeCreationStatusCreated = "created"
-	NodeCreationStatusError   = "error"
-	NodeCreationStatusPending = "pending"
+	NodeCreationStatusCreated  = "created"
+	NodeCreationStatusError    = "error"
+	NodeCreationStatusPending  = "pending"
+	NodeCreationStatusDisabled = "disabled"
 )
 
 func (a NodeList) Len() int           { return len(a) }
@@ -81,7 +82,7 @@ func (n *Node) Status() string {
 		}
 		return NodeStatusReady
 	}
-	return NodeStatusDisabled
+	return NodeStatusTemporarilyDisabled
 }
 
 func (n *Node) FailureCount() int {
