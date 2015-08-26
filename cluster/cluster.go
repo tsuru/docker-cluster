@@ -220,6 +220,10 @@ func (c *Cluster) NodesForMetadata(metadata map[string]string) ([]Node, error) {
 	return NodeList(nodes).filterDisabled(), nil
 }
 
+func (c *Cluster) UnfilteredNodesForMetadata(metadata map[string]string) ([]Node, error) {
+	return c.storage().RetrieveNodesByMetadata(metadata)
+}
+
 func (c *Cluster) StartActiveMonitoring(updateInterval time.Duration) {
 	c.monitoringDone = make(chan bool)
 	go c.runActiveMonitoring(updateInterval)

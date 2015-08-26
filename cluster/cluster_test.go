@@ -459,6 +459,42 @@ func TestNodesShouldReturnEmptyListWhenNoNodeIsFound(t *testing.T) {
 	}
 }
 
+func TestUnfilteredNodesForMetadataShouldGetClusterNodesWithMetadata(t *testing.T) {
+	cluster, err := New(nil, &MapStorage{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = cluster.Register(Node{
+		Address:  "http://server1:4243",
+		Metadata: map[string]string{"key1": "val1"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = cluster.Register(Node{
+		Address:        "http://server2:4243",
+		Metadata:       map[string]string{"key1": "val2"},
+		CreationStatus: NodeCreationStatusDisabled,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cluster.Unregister("http://server1:4243")
+	defer cluster.Unregister("http://server2:4243")
+	nodes, err := cluster.UnfilteredNodesForMetadata(map[string]string{"key1": "val2"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	expected := []Node{{
+		Address:        "http://server2:4243",
+		Metadata:       map[string]string{"key1": "val2"},
+		CreationStatus: NodeCreationStatusDisabled},
+	}
+	if !reflect.DeepEqual(nodes, expected) {
+		t.Errorf("Expected nodes to be equal %+v, got %+v", expected, nodes)
+	}
+}
+
 func TestRunOnNodesWhenReceiveingNodeShouldntLoadStorage(t *testing.T) {
 	id := "e90302"
 	body := fmt.Sprintf(`{"Id":"%s","Path":"date","Args":[]}`, id)
