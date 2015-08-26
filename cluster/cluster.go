@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"reflect"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/fsouza/go-dockerclient"
@@ -313,15 +314,26 @@ func (c *Cluster) handleNodeError(addr string, lastErr error, incrementFailures 
 			node.updateDisabled(time.Now().Add(duration))
 		}
 		c.storage().UpdateNode(node)
-		if nodeUpdatedOnError != nil {
-			nodeUpdatedOnError()
+		if fn := nodeUpdatedOnError.Val(); fn != nil {
+			fn()
 		}
 	}()
 	return nil
 }
 
 // Modified by tests
-var nodeUpdatedOnError func()
+var nodeUpdatedOnError nodeUpdatedHook
+
+type nodeUpdatedHook struct {
+	atomic.Value
+}
+
+func (v *nodeUpdatedHook) Val() func() {
+	if fn := v.Load(); fn != nil {
+		return fn.(func())
+	}
+	return nil
+}
 
 func (c *Cluster) handleNodeSuccess(addr string) error {
 	unlock, err := c.lockWithTimeout(addr, false)

@@ -129,12 +129,12 @@ func TestCreateContainerErrorImageInRepo(t *testing.T) {
 func registerErrorWait() func() {
 	wg := sync.WaitGroup{}
 	wg.Add(1)
-	nodeUpdatedOnError = func() {
+	nodeUpdatedOnError.Store(func() {
 		wg.Done()
-	}
+	})
 	return func() {
 		wg.Wait()
-		nodeUpdatedOnError = nil
+		nodeUpdatedOnError.Store(func() {})
 	}
 }
 
