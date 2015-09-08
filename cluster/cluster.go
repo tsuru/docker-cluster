@@ -170,6 +170,10 @@ func (c *Cluster) Register(node Node) error {
 }
 
 func (c *Cluster) UpdateNode(node Node) (Node, error) {
+	_, err := c.storage().RetrieveNode(node.Address)
+	if err != nil {
+		return Node{}, err
+	}
 	unlock, err := c.lockWithTimeout(node.Address, false)
 	if err != nil {
 		return Node{}, err
