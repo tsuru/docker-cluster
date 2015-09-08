@@ -25,16 +25,23 @@ import (
 var (
 	errStorageMandatory = errors.New("Storage parameter is mandatory")
 	errHealerInProgress = errors.New("Healer already running")
+
+	pingClient       = clientWithTimeout(5*time.Second, 1*time.Minute)
+	timeout10Client  = clientWithTimeout(10*time.Second, 1*time.Hour)
+	persistentClient = clientWithTimeout(10*time.Second, 0)
+	timeout10Dialer  = &net.Dialer{
+		Timeout:   10 * time.Second,
+		KeepAlive: 30 * time.Second,
+	}
 )
 
 type node struct {
 	*docker.Client
-	persistentClient *http.Client
-	addr             string
+	addr string
 }
 
 func (n *node) setPersistentClient() {
-	n.HTTPClient = n.persistentClient
+	n.HTTPClient = persistentClient
 }
 
 // ContainerStorage provides methods to store and retrieve information about
@@ -85,15 +92,12 @@ type ClusterHook interface {
 // provide methods for interaction with those nodes, like CreateContainer,
 // which creates a container in one node of the cluster.
 type Cluster struct {
-	Healer           Healer
-	Hook             ClusterHook
-	scheduler        Scheduler
-	stor             Storage
-	monitoringDone   chan bool
-	dryServer        *testing.DockerServer
-	pingClient       *http.Client
-	timeout10Client  *http.Client
-	persistentClient *http.Client
+	Healer         Healer
+	Hook           ClusterHook
+	scheduler      Scheduler
+	stor           Storage
+	monitoringDone chan bool
+	dryServer      *testing.DockerServer
 }
 
 type DockerNodeError struct {
@@ -140,9 +144,6 @@ func New(scheduler Scheduler, storage Storage, nodes ...Node) (*Cluster, error) 
 	if storage == nil {
 		return nil, errStorageMandatory
 	}
-	c.pingClient = clientWithTimeout(5*time.Second, 1*time.Minute)
-	c.timeout10Client = clientWithTimeout(10*time.Second, 1*time.Hour)
-	c.persistentClient = clientWithTimeout(10*time.Second, 0)
 	c.stor = storage
 	c.scheduler = scheduler
 	c.Healer = DefaultHealer{}
@@ -242,7 +243,7 @@ func (c *Cluster) runPingForHost(addr string, wg *sync.WaitGroup) {
 		log.Errorf("[active-monitoring]: error creating client: %s", err.Error())
 		return
 	}
-	client.HTTPClient = c.pingClient
+	client.HTTPClient = pingClient
 	err = client.Ping()
 	if err == nil {
 		c.handleNodeSuccess(addr)
@@ -449,7 +450,7 @@ func clientWithTimeout(dialTimeout time.Duration, fullTimeout time.Duration) *ht
 func (c *Cluster) StopDryMode() {
 	if c.dryServer != nil {
 		c.dryServer.Stop()
-		clients := []*http.Client{c.timeout10Client, c.persistentClient, c.pingClient}
+		clients := []*http.Client{timeout10Client, persistentClient, pingClient}
 		for _, cli := range clients {
 			if trans, ok := cli.Transport.(*http.Transport); ok {
 				trans.CloseIdleConnections()
@@ -520,6 +521,7 @@ func (c *Cluster) getNodeByAddr(address string) (node, error) {
 	if err != nil {
 		return n, err
 	}
-	client.HTTPClient = c.timeout10Client
-	return node{addr: address, Client: client, persistentClient: c.persistentClient}, nil
+	client.HTTPClient = timeout10Client
+	client.Dialer = timeout10Dialer
+	return node{addr: address, Client: client}, nil
 }

@@ -104,7 +104,13 @@ func (n *Node) ResetFailures() {
 }
 
 func (n *Node) Client() (*docker.Client, error) {
-	return docker.NewClient(n.Address)
+	client, err := docker.NewClient(n.Address)
+	if err != nil {
+		return nil, err
+	}
+	client.HTTPClient = timeout10Client
+	client.Dialer = timeout10Dialer
+	return client, nil
 }
 
 func (n *Node) updateError(lastErr error, incrementFailures bool) {

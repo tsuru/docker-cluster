@@ -97,7 +97,7 @@ func (c *Cluster) RemoveFromRegistry(imageId string) error {
 		return err
 	}
 	request.Close = true
-	rsp, err := c.timeout10Client.Do(request)
+	rsp, err := timeout10Client.Do(request)
 	if err == nil {
 		rsp.Body.Close()
 	}
