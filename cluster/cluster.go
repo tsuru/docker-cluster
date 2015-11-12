@@ -27,7 +27,7 @@ var (
 	errHealerInProgress = errors.New("Healer already running")
 
 	pingClient       = clientWithTimeout(5*time.Second, 1*time.Minute)
-	timeout10Client  = clientWithTimeout(10*time.Second, 1*time.Hour)
+	timeout10Client  = clientWithTimeout(10*time.Second, 5*time.Minute)
 	persistentClient = clientWithTimeout(10*time.Second, 0)
 	timeout10Dialer  = &net.Dialer{
 		Timeout:   10 * time.Second,
@@ -443,7 +443,8 @@ func clientWithTimeout(dialTimeout time.Duration, fullTimeout time.Duration) *ht
 			Timeout:   dialTimeout,
 			KeepAlive: 30 * time.Second,
 		}).Dial,
-		TLSHandshakeTimeout: dialTimeout,
+		TLSHandshakeTimeout:   dialTimeout,
+		ResponseHeaderTimeout: dialTimeout,
 	}
 	return &http.Client{
 		Transport: &transport,
