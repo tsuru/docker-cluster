@@ -12,9 +12,8 @@ import (
 	"github.com/tsuru/docker-cluster/storage/mongodb"
 )
 
-//a
 func TestUpdateNodeDoesNotExist(t *testing.T) {
-	mongo, err := mongodb.Mongodb("mongodb://localhost:23017", "test-docker-node-update")
+	mongo, err := mongodb.Mongodb("mongodb://localhost:27017", "test-docker-node-update")
 	if err != nil {
 		t.Fatal(err)
 	}
