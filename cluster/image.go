@@ -112,6 +112,7 @@ func (c *Cluster) RemoveFromRegistry(imageId string) error {
 func (c *Cluster) PullImage(opts docker.PullImageOptions, auth docker.AuthConfiguration, nodes ...string) error {
 	_, err := c.runOnNodes(func(n node) (interface{}, error) {
 		key := imageKey(opts.Repository, opts.Tag)
+		n.setPersistentClient()
 		err := n.PullImage(opts, auth)
 		if err != nil {
 			return nil, err
@@ -156,6 +157,7 @@ func (c *Cluster) PushImage(opts docker.PushImageOptions, auth docker.AuthConfig
 	if err != nil {
 		return err
 	}
+	node.setPersistentClient()
 	return wrapError(node, node.PushImage(opts, auth))
 }
 
@@ -234,6 +236,7 @@ func (c *Cluster) BuildImage(buildOptions docker.BuildImageOptions) error {
 	if err != nil {
 		return err
 	}
+	node.setPersistentClient()
 	err = node.BuildImage(buildOptions)
 	if err != nil {
 		return wrapError(node, err)
