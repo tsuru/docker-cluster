@@ -6,19 +6,19 @@ package cluster_test
 
 import (
 	"testing"
-	
+
 	"github.com/tsuru/docker-cluster/cluster"
+	"github.com/tsuru/docker-cluster/storage"
 	"github.com/tsuru/docker-cluster/storage/mongodb"
-	"github.com/tsuru/docker-cluster/storage" 
 )
 
 //a
 func TestUpdateNodeDoesNotExist(t *testing.T) {
-	mongo, err := mongodb.Mongodb("mongodb://localhost", "test-docker-node-update")
-   	if err != nil {
-  		t.Fatal(err)
-   	}
-  	clu, err := cluster.New(nil, mongo)
+	mongo, err := mongodb.Mongodb("mongodb://localhost:23017", "test-docker-node-update")
+	if err != nil {
+		t.Fatal(err)
+	}
+	clu, err := cluster.New(nil, mongo)
 	if err != nil {
 		t.Fatal(err)
 	}
