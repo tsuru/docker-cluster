@@ -225,6 +225,10 @@ func (c *Cluster) NodesForMetadata(metadata map[string]string) ([]Node, error) {
 	return NodeList(nodes).filterDisabled(), nil
 }
 
+func (c *Cluster) GetNode(address string) (Node, error) {
+	return c.storage().RetrieveNode(address)
+}
+
 func (c *Cluster) UnfilteredNodesForMetadata(metadata map[string]string) ([]Node, error) {
 	return c.storage().RetrieveNodesByMetadata(metadata)
 }

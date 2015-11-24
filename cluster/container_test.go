@@ -2023,7 +2023,7 @@ func TestExportContainerNoStorage(t *testing.T) {
 	}
 }
 
-func TestGetNode(t *testing.T) {
+func TestGetNodeForContainer(t *testing.T) {
 	var storage MapStorage
 	storage.StoreContainer("e90301", "http://localhost:4242")
 	storage.StoreContainer("e90304", "http://localhost:4242")

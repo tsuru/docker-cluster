@@ -286,6 +286,27 @@ func TestUpdateNodeStress(t *testing.T) {
 	}
 }
 
+func TestGetNode(t *testing.T) {
+	cluster, err := New(nil, &MapStorage{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	addr := "http://localhost:4243"
+	nd := Node{Address: addr}
+	err = cluster.Register(nd)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cluster.Unregister(addr)
+	node, err := cluster.GetNode(addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if node.Address != nd.Address {
+		t.Errorf("GetNode(%q): wrong node. Want %s. Got %s", addr, nd.Address, node.Address)
+	}
+}
+
 func TestUnregister(t *testing.T) {
 	scheduler := &roundRobin{}
 	cluster, err := New(scheduler, &MapStorage{})
