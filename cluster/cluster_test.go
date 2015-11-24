@@ -861,7 +861,7 @@ func TestClusterGetNodeByAddr(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	node, err := cluster.getNodeByAddr("http://199.222.111.10")
+	node, err := cluster.GetNode("http://199.222.111.10")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -875,7 +875,7 @@ func TestNodeSetPersistentClient(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	node, err := cluster.getNodeByAddr("http://199.222.111.10")
+	node, err := cluster.GetNode("http://199.222.111.10")
 	if err != nil {
 		t.Fatal(err)
 	}

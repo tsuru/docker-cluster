@@ -133,7 +133,7 @@ func (c *Cluster) TagImage(name string, opts docker.TagImageOptions) error {
 	if err != nil {
 		return err
 	}
-	node, err := c.getNodeByAddr(img.LastNode)
+	node, err := c.GetNode(img.LastNode)
 	if err != nil {
 		return err
 	}
@@ -153,7 +153,7 @@ func (c *Cluster) PushImage(opts docker.PushImageOptions, auth docker.AuthConfig
 	if err != nil {
 		return err
 	}
-	node, err := c.getNodeByAddr(img.LastNode)
+	node, err := c.GetNode(img.LastNode)
 	if err != nil {
 		return err
 	}
@@ -167,7 +167,7 @@ func (c *Cluster) InspectImage(repo string) (*docker.Image, error) {
 	if err != nil {
 		return nil, err
 	}
-	node, err := c.getNodeByAddr(img.LastNode)
+	node, err := c.GetNode(img.LastNode)
 	if err != nil {
 		return nil, err
 	}
@@ -188,7 +188,7 @@ func (c *Cluster) ListImages(opts docker.ListImagesOptions) ([]docker.APIImages,
 		wg.Add(1)
 		go func(addr string) {
 			defer wg.Done()
-			client, err := c.getNodeByAddr(addr)
+			client, err := c.GetNode(addr)
 			if err != nil {
 				errChan <- err
 			}
@@ -232,7 +232,7 @@ func (c *Cluster) BuildImage(buildOptions docker.BuildImageOptions) error {
 		return errors.New("There is no docker node. Please list one in tsuru.conf or add one with `tsuru docker-node-add`.")
 	}
 	nodeAddress := nodes[0].Address
-	node, err := c.getNodeByAddr(nodeAddress)
+	node, err := c.GetNode(nodeAddress)
 	if err != nil {
 		return err
 	}
