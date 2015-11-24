@@ -110,7 +110,7 @@ func (c *Cluster) createContainerInNode(opts docker.CreateContainerOptions, node
 			return nil, err
 		}
 	}
-	node, err := c.GetNode(nodeAddress)
+	node, err := c.getNodeByAddr(nodeAddress)
 	if err != nil {
 		return nil, err
 	}
@@ -150,7 +150,7 @@ func (c *Cluster) ListContainers(opts docker.ListContainersOptions) ([]docker.AP
 	errs := make(chan error, len(nodes))
 	for _, n := range nodes {
 		wg.Add(1)
-		client, _ := c.GetNode(n.Address)
+		client, _ := c.getNodeByAddr(n.Address)
 		go func(n node) {
 			defer wg.Done()
 			if containers, err := n.ListContainers(opts); err != nil {

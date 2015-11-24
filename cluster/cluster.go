@@ -242,7 +242,7 @@ func (c *Cluster) StopActiveMonitoring() {
 
 func (c *Cluster) runPingForHost(addr string, wg *sync.WaitGroup) {
 	defer wg.Done()
-	client, err := c.GetNode(addr)
+	client, err := c.getNodeByAddr(addr)
 	if err != nil {
 		log.Errorf("[active-monitoring]: error creating client: %s", err.Error())
 		return
@@ -381,7 +381,7 @@ func (c *Cluster) runOnNodes(fn nodeFunc, errNotFound error, wait bool, nodeAddr
 	result := make(chan interface{}, len(nodeAddresses))
 	for _, addr := range nodeAddresses {
 		wg.Add(1)
-		client, err := c.GetNode(addr)
+		client, err := c.getNodeByAddr(addr)
 		if err != nil {
 			return nil, err
 		}
@@ -434,7 +434,7 @@ func (c *Cluster) getNode(retrieveFn func(Storage) (string, error)) (node, error
 	if err != nil {
 		return n, err
 	}
-	return c.GetNode(address)
+	return c.getNodeByAddr(address)
 }
 
 func clientWithTimeout(dialTimeout time.Duration, fullTimeout time.Duration) *http.Client {
@@ -517,7 +517,7 @@ func (c *Cluster) DryMode() error {
 	return nil
 }
 
-func (c *Cluster) GetNode(address string) (node, error) {
+func (c *Cluster) getNodeByAddr(address string) (node, error) {
 	if c.dryServer != nil {
 		address = c.dryServer.URL()
 	}
