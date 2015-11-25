@@ -447,8 +447,7 @@ func clientWithTimeout(dialTimeout time.Duration, fullTimeout time.Duration) *ht
 			Timeout:   dialTimeout,
 			KeepAlive: 30 * time.Second,
 		}).Dial,
-		TLSHandshakeTimeout:   dialTimeout,
-		ResponseHeaderTimeout: time.Minute,
+		TLSHandshakeTimeout: dialTimeout,
 	}
 	return &http.Client{
 		Transport: &transport,
