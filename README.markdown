@@ -7,4 +7,4 @@ Support for running Docker on multiple hosts, with autoscaling capabilities and
 pluggable scheduling algorithms.
 
 For more details on the API, check the [Docker remote API docs](
-http://docs.docker.io/en/latest/reference/api/docker_remote_api/).
+http://docs.docker.com/engine/reference/api/docker_remote_api/).
