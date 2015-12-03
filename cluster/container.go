@@ -276,6 +276,7 @@ func (c *Cluster) CommitContainer(opts docker.CommitContainerOptions) (*docker.I
 	if err != nil {
 		return nil, err
 	}
+	node.setPersistentClient()
 	image, err := node.CommitContainer(opts)
 	if err != nil {
 		return nil, wrapError(node, err)
