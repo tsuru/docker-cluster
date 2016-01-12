@@ -1654,6 +1654,40 @@ func TestAttachToContainerNotFoundWithStorage(t *testing.T) {
 	}
 }
 
+func TestAttachToContainerNonBlocking(t *testing.T) {
+	var called bool
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		w.Write([]byte{1, 0, 0, 0, 0, 0, 0, 18})
+		w.Write([]byte("something happened"))
+	}))
+	defer server.Close()
+	storage := MapStorage{}
+	err := storage.StoreContainer("abc", server.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cluster, err := New(nil, &storage,
+		Node{Address: server.URL},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	opts := docker.AttachToContainerOptions{
+		Container:    "abc",
+		OutputStream: &safe.Buffer{},
+		Stdout:       true,
+	}
+	waiter, err := cluster.AttachToContainerNonBlocking(opts)
+	if err != nil {
+		t.Errorf("AttachToContainerNonBlocking: unexpected error. Want <nil>. Got %#v.", err)
+	}
+	waiter.Wait()
+	if !called {
+		t.Error("AttachToContainerNonBlocking: Did not call the remote HTTP API")
+	}
+}
+
 func TestLogs(t *testing.T) {
 	var called bool
 	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
