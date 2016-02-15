@@ -1,4 +1,4 @@
-// Copyright 2014 docker-cluster authors. All rights reserved.
+// Copyright 2016 docker-cluster authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -11,6 +11,7 @@ import (
 	"reflect"
 	"regexp"
 	"sort"
+	"strings"
 	"testing"
 
 	"github.com/fsouza/go-dockerclient"
@@ -698,5 +699,75 @@ func TestInspectImageNotFound(t *testing.T) {
 	_, err = cluster.InspectImage("tsuru/ruby")
 	if err != storage.ErrNoSuchImage {
 		t.Fatalf("Expected no such image error, got: %#v", err)
+	}
+}
+
+func TestRemoveImageFromRegistry(t *testing.T) {
+	var called bool
+	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/v1/repositories/test/test/" {
+			called = true
+		}
+	}))
+	defer server1.Close()
+	hostPort := strings.TrimPrefix(server1.URL, "http://")
+	name := hostPort + "/test/test"
+	stor := &MapStorage{}
+	err := stor.StoreImage(name, "id1", server1.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cluster, err := New(nil, stor,
+		Node{Address: server1.URL},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = cluster.RemoveFromRegistry(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !called {
+		t.Fatal("Should call registry v1, but don't")
+	}
+}
+
+func TestRemoveImageFromRegistryV2(t *testing.T) {
+	var called bool
+	server1, err := dtesting.NewServer("127.0.0.1:0", nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer server1.Stop()
+	server1.CustomHandler("/v2/test/test/manifests/sha256:digest", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called = true
+	}))
+	server1.CustomHandler("/v1/repositories/test/test/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+		called = false
+	}))
+	server1.CustomHandler("/images/create", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("Digest: sha256:digest"))
+		server1.DefaultHandler().ServeHTTP(w, r)
+	}))
+	hostPort := strings.TrimPrefix(server1.URL(), "http://")
+	name := hostPort + "test/test"
+	stor := &MapStorage{}
+	err = stor.StoreImage(name, "id1", server1.URL())
+	if err != nil {
+		t.Fatal(err)
+	}
+	cluster, err := New(nil, stor,
+		Node{Address: server1.URL()},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = cluster.RemoveFromRegistry(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !called {
+		t.Fatal("Should call registry v2, but don't")
 	}
 }
