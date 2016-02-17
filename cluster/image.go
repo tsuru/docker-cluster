@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"strings"
@@ -145,6 +146,9 @@ func (c *Cluster) PullImage(opts docker.PullImageOptions, auth docker.AuthConfig
 	_, err := c.runOnNodes(func(n node) (interface{}, error) {
 		key := imageKey(opts.Repository, opts.Tag)
 		n.setPersistentClient()
+		var w bytes.Buffer
+		mw := io.MultiWriter(&w, opts.OutputStream)
+		opts.OutputStream = mw
 		err := n.PullImage(opts, auth)
 		if err != nil {
 			return nil, err
@@ -153,7 +157,12 @@ func (c *Cluster) PullImage(opts docker.PullImageOptions, auth docker.AuthConfig
 		if err != nil {
 			return nil, err
 		}
-		return nil, c.storage().StoreImage(key, img.ID, n.addr)
+		err = c.storage().StoreImage(key, img.ID, n.addr)
+		if err != nil {
+			return nil, err
+		}
+		digest, _ := fix.GetImageDigest(w.String())
+		return nil, c.storage().SetImageDigest(key, digest)
 	}, docker.ErrNoSuchImage, true, nodes...)
 	return err
 }
