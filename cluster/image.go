@@ -96,45 +96,36 @@ func (c *Cluster) RemoveFromRegistry(imageId string) error {
 		return nil
 	}
 	url := fmt.Sprintf("http://%s/v1/repositories/%s/", registryServer, imageTag)
-	request, err := http.NewRequest("DELETE", url, nil)
+	resp, err := deleteImage(url)
 	if err != nil {
 		return err
 	}
-	request.Close = true
-	rsp, err := timeout10Client.Do(request)
-	if err != nil {
-		return err
-	}
-	rsp.Body.Close()
-	if rsp.StatusCode == 404 {
-		var w bytes.Buffer
-		pullOpts := docker.PullImageOptions{
-			Registry:     registryServer,
-			Tag:          imageTag,
-			Repository:   imageId,
-			OutputStream: &w,
-		}
-		pullErr := c.PullImage(pullOpts, docker.AuthConfiguration{})
-		if pullErr != nil {
-			return pullErr
-		}
-		digest, pullErr := fix.GetImageDigest(w.String())
-		if pullErr != nil {
-			return pullErr
-		}
-		url := fmt.Sprintf("http://%s/v2/%s/manifests/%s", registryServer, imageTag, digest)
-		request, err = http.NewRequest("DELETE", url, nil)
+	if resp.StatusCode == 404 {
+		var imageTagName string
+		imageData := strings.SplitN(imageTag, ":", 2)
+		imageTagName = imageData[0]
+		img, err := c.storage().RetrieveImage(imageId)
 		if err != nil {
 			return err
 		}
-		request.Close = true
-		rsp, err := timeout10Client.Do(request)
-		if err == nil {
-			rsp.Body.Close()
-		}
+		url := fmt.Sprintf("http://%s/v2/%s/manifests/%s", registryServer, imageTagName, img.LastDigest)
+		_, err = deleteImage(url)
 		return err
 	}
 	return nil
+}
+
+func deleteImage(url string) (*http.Response, error) {
+	request, err := http.NewRequest("DELETE", url, nil)
+	if err != nil {
+		return nil, err
+	}
+	request.Close = true
+	rsp, err := timeout10Client.Do(request)
+	if err == nil {
+		rsp.Body.Close()
+	}
+	return rsp, err
 }
 
 // PullImage pulls an image from a remote registry server, returning an error

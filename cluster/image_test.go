@@ -776,14 +776,14 @@ func TestRemoveImageFromRegistryV2(t *testing.T) {
 		w.WriteHeader(http.StatusNotFound)
 		called = false
 	}))
-	server1.CustomHandler("/images/create", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("Digest: sha256:digest"))
-		server1.DefaultHandler().ServeHTTP(w, r)
-	}))
 	hostPort := strings.TrimPrefix(server1.URL(), "http://")
 	name := hostPort + "test/test"
 	stor := &MapStorage{}
 	err = stor.StoreImage(name, "id1", server1.URL())
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = stor.SetImageDigest(name, "sha256:digest")
 	if err != nil {
 		t.Fatal(err)
 	}
