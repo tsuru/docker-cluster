@@ -105,7 +105,7 @@ func (c *Cluster) RemoveFromRegistry(imageId string) error {
 		imageData := strings.SplitN(imageTag, ":", 2)
 		imageTagName = imageData[0]
 		img, err := c.storage().RetrieveImage(imageId)
-		if err != nil {
+		if err != nil && img.LastDigest == "" {
 			return err
 		}
 		url := fmt.Sprintf("http://%s/v2/%s/manifests/%s", registryServer, imageTagName, img.LastDigest)
@@ -138,8 +138,12 @@ func (c *Cluster) PullImage(opts docker.PullImageOptions, auth docker.AuthConfig
 		key := imageKey(opts.Repository, opts.Tag)
 		n.setPersistentClient()
 		var w bytes.Buffer
-		mw := io.MultiWriter(&w, opts.OutputStream)
-		opts.OutputStream = mw
+		if opts.OutputStream != nil {
+			mw := io.MultiWriter(&w, opts.OutputStream)
+			opts.OutputStream = mw
+		} else {
+			opts.OutputStream = &w
+		}
 		err := n.PullImage(opts, auth)
 		if err != nil {
 			return nil, err

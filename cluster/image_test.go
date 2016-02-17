@@ -340,6 +340,35 @@ func TestPullImageSaveDigest(t *testing.T) {
 	}
 }
 
+func TestPullImageSaveDigestWithNilOutputStream(t *testing.T) {
+	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/images/tsuru/python/json" {
+			w.Write([]byte(`{"Id": "id1"}`))
+		} else {
+			w.Write([]byte("Pulling from 1!\nDigest: sha256:test"))
+		}
+	}))
+	defer server1.Close()
+	cluster, err := New(nil, &MapStorage{},
+		Node{Address: server1.URL},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	opts := docker.PullImageOptions{Repository: "tsuru/python", OutputStream: nil}
+	err = cluster.PullImage(opts, docker.AuthConfiguration{})
+	if err != nil {
+		t.Error(err)
+	}
+	img, err := cluster.storage().RetrieveImage("tsuru/python")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if img.LastDigest != "sha256:test" {
+		t.Errorf("Wrong digest: Want %s. Got %s.", "sha256:test", img.LastDigest)
+	}
+}
+
 func TestPushImage(t *testing.T) {
 	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("Pushing to server 1!"))
