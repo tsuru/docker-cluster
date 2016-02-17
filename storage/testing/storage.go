@@ -110,6 +110,27 @@ func testStorageStoreRetrieveImage(storage cluster.Storage, t *testing.T) {
 	compareImage(img, expected, t)
 }
 
+func testStorageSetImageDigest(storage cluster.Storage, t *testing.T) {
+	defer storage.RemoveImage("img-y", "id5", "host-1.something")
+	err := storage.StoreImage("img-y", "id5", "host-1.something")
+	assertIsNil(err, t)
+	err = storage.SetImageDigest("img-y", "digest")
+	assertIsNil(err, t)
+	img, err := storage.RetrieveImage("img-y")
+	assertIsNil(err, t)
+	expected := cluster.Image{
+		Repository: "img-y",
+		LastId:     "id5",
+		LastNode:   "host-1.something",
+		LastDigest: "digest",
+		History: []cluster.ImageHistory{{
+			Node:    "host-1.something",
+			ImageId: "id5",
+		}},
+	}
+	compareImage(img, expected, t)
+}
+
 func testStorageStoreImageIgnoreDups(storage cluster.Storage, t *testing.T) {
 	defer storage.RemoveImage("img-x", "id1", "host-1")
 	err := storage.StoreImage("img-x", "id1", "host-1")
@@ -512,8 +533,8 @@ func testRetrieveImages(storage cluster.Storage, t *testing.T) {
 	assertIsNil(err, t)
 	imgs, err := storage.RetrieveImages()
 	assertIsNil(err, t)
-	if len(imgs) != 2 {
-		t.Errorf("Unexpected len %d - expected %d", len(imgs), 2)
+	if len(imgs) != 3 {
+		t.Errorf("Unexpected len %d - expected %d", len(imgs), 3)
 	}
 }
 
@@ -522,6 +543,7 @@ func RunTestsForStorage(storage cluster.Storage, t *testing.T) {
 	testRetrieveContainers(storage, t)
 	testStorageStoreRemoveContainer(storage, t)
 	testStorageStoreRetrieveImage(storage, t)
+	testStorageSetImageDigest(storage, t)
 	testStorageStoreImageIgnoreDups(storage, t)
 	testStorageStoreRemoveImage(storage, t)
 	testStorageStoreRetrieveNodes(storage, t)

@@ -43,6 +43,9 @@ func (failingStorage) RetrieveContainers() ([]Container, error) {
 func (failingStorage) StoreImage(repository, id, host string) error {
 	return errors.New("storage error")
 }
+func (failingStorage) SetImageDigest(repository, digest string) error {
+	return errors.New("digest error")
+}
 func (failingStorage) RetrieveImage(repository string) (Image, error) {
 	return Image{}, errors.New("storage error")
 }
