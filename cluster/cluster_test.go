@@ -402,7 +402,7 @@ func TestNodesShouldGetClusterNodesWithoutDisabledNodes(t *testing.T) {
 	}
 }
 
-func TesteUnfilteredNodesReturnAllNodes(t *testing.T) {
+func TestUnfilteredNodesReturnAllNodes(t *testing.T) {
 	cluster, err := New(nil, &MapStorage{})
 	if err != nil {
 		t.Fatal(err)
