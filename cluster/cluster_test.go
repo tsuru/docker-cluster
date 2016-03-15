@@ -430,6 +430,10 @@ func TestUnfilteredNodesReturnAllNodes(t *testing.T) {
 		{Address: "http://server2:4243", Metadata: map[string]string{}},
 	}
 	sort.Sort(NodeList(nodes))
+	if len(nodes) != 2 {
+		t.Errorf("Expected nodes length to be equal %d, got %d", 2, len(nodes))
+	}
+	nodes[0].Healing = HealingData{}
 	if !reflect.DeepEqual(nodes, expected) {
 		t.Errorf("Expected nodes to be equal %+v, got %+v", expected, nodes)
 	}
