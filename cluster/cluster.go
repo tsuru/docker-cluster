@@ -183,7 +183,7 @@ func (c *Cluster) Register(node Node) error {
 }
 
 func (c *Cluster) UpdateNode(node Node) (Node, error) {
-	dbNode, err := c.storage().RetrieveNode(node.Address)
+	_, err := c.storage().RetrieveNode(node.Address)
 	if err != nil {
 		return Node{}, err
 	}
@@ -192,6 +192,10 @@ func (c *Cluster) UpdateNode(node Node) (Node, error) {
 		return Node{}, err
 	}
 	defer unlock()
+	dbNode, err := c.storage().RetrieveNode(node.Address)
+	if err != nil {
+		return Node{}, err
+	}
 	if node.CreationStatus != "" && node.CreationStatus != dbNode.CreationStatus {
 		dbNode.CreationStatus = node.CreationStatus
 	}
