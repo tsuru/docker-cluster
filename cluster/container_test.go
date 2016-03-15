@@ -469,10 +469,10 @@ func TestCreateContainerTryAnotherNodeInFailure(t *testing.T) {
 	}
 }
 
-type myHook func(node Node) error
+type myHook func(evt HookEvent, node *Node) error
 
-func (fn myHook) BeforeCreateContainer(node Node) error {
-	return fn(node)
+func (fn myHook) RunClusterHook(evt HookEvent, node *Node) error {
+	return fn(evt, node)
 }
 
 func TestCreateContainerTryAnotherNodeAfterFailureInHook(t *testing.T) {
@@ -498,13 +498,13 @@ func TestCreateContainerTryAnotherNodeAfterFailureInHook(t *testing.T) {
 		t.Fatal(err)
 	}
 	hookCalled := false
-	cluster.Hook = myHook(func(node Node) error {
+	cluster.AddHook(HookEventBeforeContainerCreate, myHook(func(evt HookEvent, node *Node) error {
 		hookCalled = true
 		if node.Address == server1.URL {
 			return fmt.Errorf("my hook err")
 		}
 		return nil
-	})
+	}))
 	config := docker.Config{Memory: 67108864, Image: "myimg"}
 	wait := registerErrorWait()
 	nodeAddr, container, err := cluster.CreateContainer(docker.CreateContainerOptions{Config: &config})
@@ -552,7 +552,7 @@ func TestCreateContainerNetworkFailureInHook(t *testing.T) {
 		t.Fatal(err)
 	}
 	hookCalled := false
-	cluster.Hook = myHook(func(node Node) error {
+	cluster.AddHook(HookEventBeforeContainerCreate, myHook(func(evt HookEvent, node *Node) error {
 		hookCalled = true
 		if node.Address == server1.URL {
 			return &net.OpError{
@@ -563,7 +563,7 @@ func TestCreateContainerNetworkFailureInHook(t *testing.T) {
 			}
 		}
 		return nil
-	})
+	}))
 	config := docker.Config{Memory: 67108864, Image: "myimg"}
 	wait := registerErrorWait()
 	_, _, err = cluster.CreateContainer(docker.CreateContainerOptions{Config: &config})
