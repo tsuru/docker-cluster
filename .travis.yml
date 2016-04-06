@@ -1,13 +1,11 @@
 language: go
 sudo: false
 go:
-  - 1.4.3
   - 1.5.3
   - 1.6
   - tip
 install:
   - go get -d -t ./...
-  - go get golang.org/x/tools/cmd/vet
 script:
   - go test -race ./...
   - go vet ./...
