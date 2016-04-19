@@ -315,9 +315,11 @@ func (c *Cluster) TopContainer(id string, psArgs string) (docker.TopResult, erro
 }
 
 func (c *Cluster) getNodeForContainer(container string) (node, error) {
-	return c.getNode(func(s Storage) (string, error) {
-		return s.RetrieveContainer(container)
-	})
+	addr, err := c.storage().RetrieveContainer(container)
+	if err != nil {
+		return node{}, err
+	}
+	return c.getNodeByAddr(addr)
 }
 
 func (c *Cluster) CreateExec(opts docker.CreateExecOptions) (*docker.Exec, error) {
