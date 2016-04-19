@@ -1,17 +1,20 @@
 language: go
 sudo: false
 go:
-  - 1.5.4
-  - 1.6.1
-  - tip
+- 1.5.4
+- 1.6.1
+- tip
 install:
-  - go get -d -t ./...
+- go get -d -t ./...
 script:
-  - go test -race ./...
-  - go vet ./...
+- go test -race ./...
+- go vet ./...
 services:
-  - redis-server
-  - mongodb
+- redis-server
+- mongodb
 matrix:
   allow_failures:
-    - go: tip
+  - go: tip
+notifications:
+  slack:
+    secure: Hew26a31mf/61YFogDUIOub/W5NkUof2INPu4DzOyBLNTSN7kn1Hl3g7rV4QxJ5uRbpNBxn13EW75A/KK1Vdja3DguWKeQXgi/0/hnQK9R6fZkECbdcZONZ4dOD0GsaAq9p09MroY8pOAEgtjwcVd2E18W4WqnNH4EpwfXiF5Sc=
