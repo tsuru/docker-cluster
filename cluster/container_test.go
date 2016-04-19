@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -359,8 +360,8 @@ func TestCreateContainerSpecifyNode(t *testing.T) {
 	if requests[1] != expectedReq {
 		t.Errorf("Incorrect request 1. Want %#v. Got %#v", expectedReq, requests[1])
 	}
-	expectedReq = "/containers/create"
-	if requests[2] != expectedReq {
+	expectedReq = `^/containers/create\??$`
+	if !regexp.MustCompile(expectedReq).MatchString(requests[2]) {
 		t.Errorf("Incorrect request 2. Want %#v. Got %#v", expectedReq, requests[2])
 	}
 }
