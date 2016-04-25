@@ -16,6 +16,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/fsouza/go-dockerclient"
 	dtesting "github.com/fsouza/go-dockerclient/testing"
@@ -43,7 +44,7 @@ func TestCreateContainer(t *testing.T) {
 		t.Fatal(err)
 	}
 	config := docker.Config{Memory: 67108864, Image: "myhost/somwhere/myimg"}
-	nodeAddr, container, err := cluster.CreateContainer(docker.CreateContainerOptions{Config: &config})
+	nodeAddr, container, err := cluster.CreateContainer(docker.CreateContainerOptions{Config: &config}, time.Minute)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -86,7 +87,7 @@ func TestCreateContainerOptions(t *testing.T) {
 	}
 	config := docker.Config{Memory: 67108864, Image: "myimg"}
 	opts := docker.CreateContainerOptions{Name: "name", Config: &config}
-	nodeAddr, container, err := cluster.CreateContainer(opts)
+	nodeAddr, container, err := cluster.CreateContainer(opts, time.Minute)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -113,7 +114,7 @@ func TestCreateContainerErrorImageInRepo(t *testing.T) {
 	}
 	config := docker.Config{Memory: 67108864, Image: "myserver/user/myimg"}
 	wait := registerErrorWait()
-	_, _, err = cluster.CreateContainer(docker.CreateContainerOptions{Config: &config})
+	_, _, err = cluster.CreateContainer(docker.CreateContainerOptions{Config: &config}, time.Minute)
 	if err == nil || strings.Index(err.Error(), "createImgErr") == -1 {
 		t.Fatalf("Expected pull image error, got: %s", err)
 	}
@@ -154,7 +155,7 @@ func TestCreateContainerErrorInCreateContainer(t *testing.T) {
 	}
 	wait := registerErrorWait()
 	config := docker.Config{Memory: 67108864, Image: "myserver/user/myimg"}
-	_, _, err = cluster.CreateContainer(docker.CreateContainerOptions{Config: &config})
+	_, _, err = cluster.CreateContainer(docker.CreateContainerOptions{Config: &config}, time.Minute)
 	if err == nil || strings.Index(err.Error(), "createContErr") == -1 {
 		t.Fatalf("Expected create container error, got: %s", err)
 	}
@@ -182,7 +183,7 @@ func TestCreateContainerErrorNetError(t *testing.T) {
 	server1.Stop()
 	config := docker.Config{Memory: 67108864, Image: "myserver/user/myimg"}
 	wait := registerErrorWait()
-	_, _, err = cluster.CreateContainer(docker.CreateContainerOptions{Config: &config})
+	_, _, err = cluster.CreateContainer(docker.CreateContainerOptions{Config: &config}, time.Minute)
 	if err == nil || strings.Index(err.Error(), "cannot connect to Docker endpoint") == -1 {
 		t.Fatalf("Expected create container error, got: %s", err)
 	}
@@ -205,7 +206,7 @@ func TestCreateContainerErrorDialError(t *testing.T) {
 	}
 	config := docker.Config{Memory: 67108864, Image: "myserver/user/myimg"}
 	wait := registerErrorWait()
-	_, _, err = cluster.CreateContainer(docker.CreateContainerOptions{Config: &config})
+	_, _, err = cluster.CreateContainer(docker.CreateContainerOptions{Config: &config}, time.Minute)
 	if err == nil || strings.Index(err.Error(), "i/o timeout") == -1 {
 		t.Fatalf("Expected create container error, got: %s", err)
 	}
@@ -239,7 +240,7 @@ func TestCreateContainerWithoutRepo(t *testing.T) {
 	}
 	server1.PrepareFailure("createErr", "/images/create")
 	config := docker.Config{Memory: 67108864, Image: "user/myimg"}
-	nodeAddr, container, err := cluster.CreateContainer(docker.CreateContainerOptions{Config: &config})
+	nodeAddr, container, err := cluster.CreateContainer(docker.CreateContainerOptions{Config: &config}, time.Minute)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -274,7 +275,7 @@ func TestCreateContainerSchedulerOpts(t *testing.T) {
 	config := docker.Config{Memory: 67108864, Image: "myimg"}
 	opts := docker.CreateContainerOptions{Name: "name", Config: &config}
 	schedulerOpts := "myOpt"
-	nodeAddr, container, err := cluster.CreateContainerSchedulerOpts(opts, schedulerOpts)
+	nodeAddr, container, err := cluster.CreateContainerSchedulerOpts(opts, schedulerOpts, time.Minute)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -285,7 +286,7 @@ func TestCreateContainerSchedulerOpts(t *testing.T) {
 		t.Errorf("CreateContainer: wrong container ID. Want %q. Got %q.", "e90302", container.ID)
 	}
 	schedulerOpts = "myOptX"
-	nodeAddr, container, err = cluster.CreateContainerSchedulerOpts(opts, schedulerOpts)
+	nodeAddr, container, err = cluster.CreateContainerSchedulerOpts(opts, schedulerOpts, time.Minute)
 	if err == nil || err.Error() != "Invalid option myOptX" {
 		t.Fatal("Expected error but none returned.")
 	}
@@ -301,7 +302,7 @@ func TestCreateContainerFailure(t *testing.T) {
 		t.Fatal(err)
 	}
 	config := docker.Config{Memory: 67108864}
-	_, _, err = cluster.CreateContainer(docker.CreateContainerOptions{Config: &config})
+	_, _, err = cluster.CreateContainer(docker.CreateContainerOptions{Config: &config}, time.Minute)
 	expected := "no such image"
 	if err == nil || strings.Index(err.Error(), expected) == -1 {
 		t.Errorf("Expected error %q, got: %#v", expected, err)
@@ -335,7 +336,7 @@ func TestCreateContainerSpecifyNode(t *testing.T) {
 		Memory: 67108864,
 		Image:  "some.host/user/myImage",
 	}}
-	nodeAddr, container, err := cluster.CreateContainer(opts, server2.URL)
+	nodeAddr, container, err := cluster.CreateContainer(opts, time.Minute, server2.URL)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -380,7 +381,7 @@ func TestCreateContainerSpecifyUnknownNode(t *testing.T) {
 		t.Fatal(err)
 	}
 	opts := docker.CreateContainerOptions{Config: &docker.Config{Memory: 67108864}}
-	nodeAddr, container, err := cluster.CreateContainer(opts, "invalid.addr")
+	nodeAddr, container, err := cluster.CreateContainer(opts, time.Minute, "invalid.addr")
 	if nodeAddr != "invalid.addr" {
 		t.Errorf("Got wrong node ID. Want %q. Got %q.", "invalid.addr", nodeAddr)
 	}
@@ -410,7 +411,7 @@ func TestCreateContainerWithStorage(t *testing.T) {
 		t.Fatal(err)
 	}
 	config := docker.Config{Memory: 67108864, Image: "myimg"}
-	_, _, err = cluster.CreateContainer(docker.CreateContainerOptions{Config: &config})
+	_, _, err = cluster.CreateContainer(docker.CreateContainerOptions{Config: &config}, time.Minute)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -455,7 +456,7 @@ func TestCreateContainerTryAnotherNodeInFailure(t *testing.T) {
 		t.Fatal(err)
 	}
 	config := docker.Config{Memory: 67108864, Image: "myimg"}
-	nodeAddr, container, err := cluster.CreateContainer(docker.CreateContainerOptions{Config: &config})
+	nodeAddr, container, err := cluster.CreateContainer(docker.CreateContainerOptions{Config: &config}, time.Minute)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -508,7 +509,7 @@ func TestCreateContainerTryAnotherNodeAfterFailureInHook(t *testing.T) {
 	}))
 	config := docker.Config{Memory: 67108864, Image: "myimg"}
 	wait := registerErrorWait()
-	nodeAddr, container, err := cluster.CreateContainer(docker.CreateContainerOptions{Config: &config})
+	nodeAddr, container, err := cluster.CreateContainer(docker.CreateContainerOptions{Config: &config}, time.Minute)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -567,7 +568,7 @@ func TestCreateContainerNetworkFailureInHook(t *testing.T) {
 	}))
 	config := docker.Config{Memory: 67108864, Image: "myimg"}
 	wait := registerErrorWait()
-	_, _, err = cluster.CreateContainer(docker.CreateContainerOptions{Config: &config})
+	_, _, err = cluster.CreateContainer(docker.CreateContainerOptions{Config: &config}, time.Minute)
 	if err == nil || strings.Index(err.Error(), "my hook net err") == -1 {
 		t.Fatalf("Expected hook error, got: %s", err)
 	}
@@ -2121,7 +2122,7 @@ func TestTopContainer(t *testing.T) {
 	config := docker.Config{Memory: 1000, Image: "myhost/somwhere/myimg"}
 	config.Cmd = []string{"tail", "-f"}
 	opts := docker.CreateContainerOptions{Config: &config}
-	_, container, err := cluster.CreateContainer(opts, server1.URL())
+	_, container, err := cluster.CreateContainer(opts, time.Minute, server1.URL())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2153,7 +2154,7 @@ func TestExecContainer(t *testing.T) {
 	config := docker.Config{Memory: 1000, Image: "myhost/somwhere/myimg"}
 	config.Cmd = []string{"tail", "-f"}
 	opts := docker.CreateContainerOptions{Config: &config}
-	_, container, err := cluster.CreateContainer(opts, server.URL())
+	_, container, err := cluster.CreateContainer(opts, time.Minute, server.URL())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2247,7 +2248,7 @@ func TestUploadToContainer(t *testing.T) {
 	config := docker.Config{Memory: 1000, Image: "myhost/somwhere/myimg"}
 	config.Cmd = []string{"tail", "-f"}
 	opts := docker.CreateContainerOptions{Config: &config}
-	_, container, err := cluster.CreateContainer(opts, server.URL())
+	_, container, err := cluster.CreateContainer(opts, time.Minute, server.URL())
 	if err != nil {
 		t.Fatal(err)
 	}
