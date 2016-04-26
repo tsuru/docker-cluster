@@ -114,9 +114,12 @@ func TestCreateContainerErrorImageInRepo(t *testing.T) {
 	}
 	config := docker.Config{Memory: 67108864, Image: "myserver/user/myimg"}
 	wait := registerErrorWait()
-	_, _, err = cluster.CreateContainer(docker.CreateContainerOptions{Config: &config}, time.Minute)
+	addr, _, err := cluster.CreateContainer(docker.CreateContainerOptions{Config: &config}, time.Minute)
 	if err == nil || strings.Index(err.Error(), "createImgErr") == -1 {
 		t.Fatalf("Expected pull image error, got: %s", err)
+	}
+	if addr != server1.URL() {
+		t.Errorf("CreateContainer: wrong node addr. Want %q. Got %q.", server1.URL(), addr)
 	}
 	wait()
 	nodes, err := cluster.UnfilteredNodes()
@@ -155,9 +158,12 @@ func TestCreateContainerErrorInCreateContainer(t *testing.T) {
 	}
 	wait := registerErrorWait()
 	config := docker.Config{Memory: 67108864, Image: "myserver/user/myimg"}
-	_, _, err = cluster.CreateContainer(docker.CreateContainerOptions{Config: &config}, time.Minute)
+	addr, _, err := cluster.CreateContainer(docker.CreateContainerOptions{Config: &config}, time.Minute)
 	if err == nil || strings.Index(err.Error(), "createContErr") == -1 {
 		t.Fatalf("Expected create container error, got: %s", err)
+	}
+	if addr != server1.URL() {
+		t.Errorf("CreateContainer: wrong node addr. Want %q. Got %q.", server1.URL(), addr)
 	}
 	wait()
 	nodes, err := cluster.UnfilteredNodes()
@@ -183,9 +189,12 @@ func TestCreateContainerErrorNetError(t *testing.T) {
 	server1.Stop()
 	config := docker.Config{Memory: 67108864, Image: "myserver/user/myimg"}
 	wait := registerErrorWait()
-	_, _, err = cluster.CreateContainer(docker.CreateContainerOptions{Config: &config}, time.Minute)
+	addr, _, err := cluster.CreateContainer(docker.CreateContainerOptions{Config: &config}, time.Minute)
 	if err == nil || strings.Index(err.Error(), "cannot connect to Docker endpoint") == -1 {
 		t.Fatalf("Expected create container error, got: %s", err)
+	}
+	if addr != server1.URL() {
+		t.Errorf("CreateContainer: wrong node addr. Want %q. Got %q.", server1.URL(), addr)
 	}
 	wait()
 	nodes, err := cluster.UnfilteredNodes()
@@ -198,17 +207,21 @@ func TestCreateContainerErrorNetError(t *testing.T) {
 }
 
 func TestCreateContainerErrorDialError(t *testing.T) {
+	serverAddr := "http://192.0.2.10:1234"
 	cluster, err := New(nil, &MapStorage{},
-		Node{Address: "http://192.0.2.10:1234"},
+		Node{Address: serverAddr},
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
 	config := docker.Config{Memory: 67108864, Image: "myserver/user/myimg"}
 	wait := registerErrorWait()
-	_, _, err = cluster.CreateContainer(docker.CreateContainerOptions{Config: &config}, time.Minute)
+	addr, _, err := cluster.CreateContainer(docker.CreateContainerOptions{Config: &config}, time.Minute)
 	if err == nil || strings.Index(err.Error(), "i/o timeout") == -1 {
 		t.Fatalf("Expected create container error, got: %s", err)
+	}
+	if addr != serverAddr {
+		t.Errorf("CreateContainer: wrong node addr. Want %q. Got %q.", serverAddr, addr)
 	}
 	wait()
 	nodes, err := cluster.UnfilteredNodes()
@@ -302,10 +315,13 @@ func TestCreateContainerFailure(t *testing.T) {
 		t.Fatal(err)
 	}
 	config := docker.Config{Memory: 67108864}
-	_, _, err = cluster.CreateContainer(docker.CreateContainerOptions{Config: &config}, time.Minute)
+	addr, _, err := cluster.CreateContainer(docker.CreateContainerOptions{Config: &config}, time.Minute)
 	expected := "no such image"
 	if err == nil || strings.Index(err.Error(), expected) == -1 {
 		t.Errorf("Expected error %q, got: %#v", expected, err)
+	}
+	if addr != server1.URL {
+		t.Errorf("CreateContainer: wrong node addr. Want %q. Got %q.", server1.URL, addr)
 	}
 }
 
