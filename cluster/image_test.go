@@ -761,6 +761,39 @@ func TestInspectImageNotFound(t *testing.T) {
 	}
 }
 
+func TestImageHistory(t *testing.T) {
+	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`[{"id": "id1"}]`))
+	}))
+	defer server1.Close()
+	server2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`[{"id": "id2"}]`))
+	}))
+	defer server2.Close()
+	stor := &MapStorage{}
+	err := stor.StoreImage("tsuru/ruby", "id1", server1.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cluster, err := New(nil, stor,
+		Node{Address: server1.URL},
+		Node{Address: server2.URL},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	historyData, err := cluster.ImageHistory("tsuru/ruby")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(historyData) != 1 {
+		t.Fatalf("Expected history len 1, got: %d", len(historyData))
+	}
+	if historyData[0].ID != "id1" {
+		t.Fatalf("Expected image id to be 'id1', got: %s", historyData[0].ID)
+	}
+}
+
 func TestRemoveImageFromRegistry(t *testing.T) {
 	var called bool
 	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
