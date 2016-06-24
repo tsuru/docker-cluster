@@ -17,7 +17,7 @@ import (
 )
 
 type Container struct {
-	Id   string `bson:"_id"`
+	Id   string `bson:"_id" json:"_id"`
 	Host string
 }
 
