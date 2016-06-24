@@ -19,7 +19,7 @@ import (
 // (in the form <scheme>://<host>:<port>/) and map with arbritary
 // metadata.
 type Node struct {
-	Address        string `bson:"_id" json:"_id"`
+	Address        string `bson:"_id"`
 	Healing        HealingData
 	Metadata       map[string]string
 	CreationStatus string

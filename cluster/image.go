@@ -24,7 +24,7 @@ type ImageHistory struct {
 }
 
 type Image struct {
-	Repository string `bson:"_id" json:"_id"`
+	Repository string `bson:"_id"`
 	LastNode   string
 	LastId     string
 	LastDigest string
