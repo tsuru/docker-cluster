@@ -7,6 +7,7 @@ package cluster
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"reflect"
 	"regexp"
 	"testing"
@@ -264,7 +265,7 @@ func TestNodeClient(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer server.Stop()
-	node := Node{Address: server.URL()}
+	node := Node{Address: server.URL(), cluster: &Cluster{}}
 	client, err := node.Client()
 	if err != nil {
 		t.Error(err)
@@ -272,5 +273,22 @@ func TestNodeClient(t *testing.T) {
 	err = client.Ping()
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestNodeTLSClient(t *testing.T) {
+	server, err := dtesting.NewServer("127.0.0.1:0", nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer server.Stop()
+	node := Node{Address: server.URL(), cluster: &Cluster{CAPath: "testdata"}}
+	client, err := node.Client()
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Printf("%#v", client.TLSConfig)
+	if client.TLSConfig == nil {
+		t.Fatal("docker client TLS not configured correctly.")
 	}
 }
