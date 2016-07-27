@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"path/filepath"
 	"reflect"
 	"sync"
 	"sync/atomic"
@@ -107,6 +108,7 @@ type Cluster struct {
 	monitoringDone chan bool
 	dryServer      *testing.DockerServer
 	hooks          map[HookEvent][]Hook
+	CAPath         string
 }
 
 type DockerNodeError struct {
@@ -145,7 +147,7 @@ func wrapErrorWithCmd(n node, err error, cmd string) error {
 // The scheduler parameter defines the scheduling strategy. It defaults
 // to round robin if nil.
 // The storage parameter is the storage the cluster instance will use.
-func New(scheduler Scheduler, storage Storage, nodes ...Node) (*Cluster, error) {
+func New(scheduler Scheduler, storage Storage, caPath string, nodes ...Node) (*Cluster, error) {
 	var (
 		c   Cluster
 		err error
@@ -155,6 +157,7 @@ func New(scheduler Scheduler, storage Storage, nodes ...Node) (*Cluster, error) 
 	}
 	c.stor = storage
 	c.scheduler = scheduler
+	c.CAPath = caPath
 	c.Healer = DefaultHealer{}
 	if scheduler == nil {
 		c.scheduler = &roundRobin{lastUsed: -1}
