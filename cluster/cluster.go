@@ -537,7 +537,13 @@ func (c *Cluster) getNodeByAddr(address string) (node, error) {
 		address = c.dryServer.URL()
 	}
 	var n node
-	client, err := docker.NewClient(address)
+	var client *docker.Client
+	var err error
+	if c.CAPath == "" {
+		client, err = docker.NewClient(address)
+	} else {
+		client, err = docker.NewTLSClient(address, filepath.Join(c.CAPath, "cert.pem"), filepath.Join(c.CAPath, "key.pem"), filepath.Join(c.CAPath, "/ca.pem"))
+	}
 	if err != nil {
 		return n, err
 	}
