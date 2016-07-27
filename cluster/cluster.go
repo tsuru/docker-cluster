@@ -232,7 +232,11 @@ func (c *Cluster) UnregisterNodes(addresses ...string) error {
 }
 
 func (c *Cluster) UnfilteredNodes() ([]Node, error) {
-	return c.storage().RetrieveNodes()
+	nodes, err := c.storage().RetrieveNodes()
+	if err != nil {
+		return nil, err
+	}
+	return c.setClusterInNodes(nodes), nil
 }
 
 func (c *Cluster) Nodes() ([]Node, error) {
@@ -240,7 +244,7 @@ func (c *Cluster) Nodes() ([]Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	return NodeList(nodes).filterDisabled(), nil
+	return NodeList(c.setClusterInNodes(nodes)).filterDisabled(), nil
 }
 
 func (c *Cluster) NodesForMetadata(metadata map[string]string) ([]Node, error) {
@@ -248,15 +252,31 @@ func (c *Cluster) NodesForMetadata(metadata map[string]string) ([]Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	return NodeList(nodes).filterDisabled(), nil
+	return NodeList(c.setClusterInNodes(nodes)).filterDisabled(), nil
 }
 
 func (c *Cluster) GetNode(address string) (Node, error) {
-	return c.storage().RetrieveNode(address)
+	n, err := c.storage().RetrieveNode(address)
+	if err != nil {
+		return Node{}, err
+	}
+	n.cluster = c
+	return n, nil
+}
+
+func (c *Cluster) setClusterInNodes(nodes []Node) []Node {
+	for _, n := range nodes {
+		n.cluster = c
+	}
+	return nodes
 }
 
 func (c *Cluster) UnfilteredNodesForMetadata(metadata map[string]string) ([]Node, error) {
-	return c.storage().RetrieveNodesByMetadata(metadata)
+	nodes, err := c.storage().RetrieveNodesByMetadata(metadata)
+	if err != nil {
+		return nil, err
+	}
+	return c.setClusterInNodes(nodes), nil
 }
 
 func (c *Cluster) StartActiveMonitoring(updateInterval time.Duration) {
