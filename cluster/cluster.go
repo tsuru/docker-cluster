@@ -265,8 +265,8 @@ func (c *Cluster) GetNode(address string) (Node, error) {
 }
 
 func (c *Cluster) setClusterInNodes(nodes []Node) []Node {
-	for _, n := range nodes {
-		n.cluster = c
+	for i, _ := range nodes {
+		nodes[i].cluster = c
 	}
 	return nodes
 }

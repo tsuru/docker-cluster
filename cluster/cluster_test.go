@@ -49,6 +49,17 @@ func TestNewCluster(t *testing.T) {
 	}
 }
 
+func TestClusterSetItselfInNodes(t *testing.T) {
+	c, err := New(nil, &MapStorage{}, "", []Node{{Address: "http://localhost:8888"}}...)
+	nodes, err := c.Nodes()
+	if err != nil {
+		t.Fatalf("Error getting nodes: %s", err)
+	}
+	if nodes[0].cluster == nil {
+		t.Fatal("Cluster not setted in node.")
+	}
+}
+
 func TestNewFailure(t *testing.T) {
 	_, err := New(&roundRobin{}, nil, "")
 	if err != errStorageMandatory {
@@ -139,7 +150,7 @@ func TestUpdateNode(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	expected := Node{Address: "http://localhost1:4243", Metadata: map[string]string{
+	expected := Node{Address: "http://localhost1:4243", cluster: cluster, Metadata: map[string]string{
 		"k1": "v1",
 		"k2": "v2",
 	}}
@@ -342,7 +353,7 @@ func TestNodesShouldGetClusterNodes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	expected := []Node{{Address: "http://localhost:4243", Metadata: map[string]string{}}}
+	expected := []Node{{Address: "http://localhost:4243", cluster: cluster, Metadata: map[string]string{}}}
 	if !reflect.DeepEqual(nodes, expected) {
 		t.Errorf("Expected nodes to be equal %+v, got %+v", expected, nodes)
 	}
@@ -395,7 +406,7 @@ func TestNodesShouldGetClusterNodesWithoutDisabledNodes(t *testing.T) {
 		t.Fatal(err)
 	}
 	expected := []Node{
-		{Address: "http://server2:4243", Metadata: map[string]string{}},
+		{Address: "http://server2:4243", cluster: cluster, Metadata: map[string]string{}},
 	}
 	if !reflect.DeepEqual(nodes, expected) {
 		t.Errorf("Expected nodes to be equal %#v, got %#v", expected, nodes)
@@ -426,8 +437,8 @@ func TestUnfilteredNodesReturnAllNodes(t *testing.T) {
 		t.Fatal(err)
 	}
 	expected := []Node{
-		{Address: "http://server1:4243", Metadata: map[string]string{}},
-		{Address: "http://server2:4243", Metadata: map[string]string{}},
+		{Address: "http://server1:4243", cluster: cluster, Metadata: map[string]string{}},
+		{Address: "http://server2:4243", cluster: cluster, Metadata: map[string]string{}},
 	}
 	sort.Sort(NodeList(nodes))
 	if len(nodes) != 2 {
@@ -464,7 +475,7 @@ func TestNodesForMetadataShouldGetClusterNodesWithMetadata(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	expected := []Node{{Address: "http://server2:4243", Metadata: map[string]string{"key1": "val2"}}}
+	expected := []Node{{Address: "http://server2:4243", cluster: cluster, Metadata: map[string]string{"key1": "val2"}}}
 	if !reflect.DeepEqual(nodes, expected) {
 		t.Errorf("Expected nodes to be equal %+v, got %+v", expected, nodes)
 	}
@@ -512,6 +523,7 @@ func TestUnfilteredNodesForMetadataShouldGetClusterNodesWithMetadata(t *testing.
 	}
 	expected := []Node{{
 		Address:        "http://server2:4243",
+		cluster:        cluster,
 		Metadata:       map[string]string{"key1": "val2"},
 		CreationStatus: NodeCreationStatusDisabled},
 	}
@@ -583,8 +595,8 @@ func TestClusterNodes(t *testing.T) {
 		t.Fatalf("unexpected error %s", err.Error())
 	}
 	nodes := []Node{
-		{Address: "http://localhost:8080", Metadata: map[string]string{}},
-		{Address: "http://localhost:8081", Metadata: map[string]string{}},
+		{Address: "http://localhost:8080", cluster: c, Metadata: map[string]string{}},
+		{Address: "http://localhost:8081", cluster: c, Metadata: map[string]string{}},
 	}
 	for _, n := range nodes {
 		c.Register(n)
@@ -615,7 +627,7 @@ func TestClusterNodesUnregister(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	expected := []Node{{Address: "http://localhost:8081", Metadata: map[string]string{}}}
+	expected := []Node{{Address: "http://localhost:8081", cluster: c, Metadata: map[string]string{}}}
 	if !reflect.DeepEqual(got, expected) {
 		t.Errorf("roundRobin.Nodes(): wrong result. Want %#v. Got %#v.", nodes, got)
 	}
