@@ -239,7 +239,7 @@ func TestUpdateNodeRemoveMetadata(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	expected := Node{Address: "http://localhost1:4243", Metadata: map[string]string{
+	expected := Node{Address: "http://localhost1:4243", cluster: cluster, Metadata: map[string]string{
 		"k2": "v9",
 		"k3": "v10",
 	}}

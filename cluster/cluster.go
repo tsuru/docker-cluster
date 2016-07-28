@@ -209,6 +209,7 @@ func (c *Cluster) UpdateNode(node Node) (Node, error) {
 			dbNode.Metadata[k] = v
 		}
 	}
+	dbNode.cluster = c
 	return dbNode, c.storage().UpdateNode(dbNode)
 }
 
