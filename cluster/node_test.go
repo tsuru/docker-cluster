@@ -7,7 +7,6 @@ package cluster
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"reflect"
 	"regexp"
 	"testing"
@@ -287,7 +286,6 @@ func TestNodeTLSClient(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Printf("%#v", client.TLSConfig)
 	if client.TLSConfig == nil {
 		t.Fatal("docker client TLS not configured correctly.")
 	}
