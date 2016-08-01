@@ -115,7 +115,7 @@ func (n *Node) Client() (*docker.Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	client.HTTPClient = clientWithTimeout(10*time.Second, 5*time.Minute, client.TLSConfig)
+	client.HTTPClient = clientWithTimeout(defaultDialTimeout, defaultTimeout, client.TLSConfig)
 	client.Dialer = timeout10Dialer
 	return client, nil
 }

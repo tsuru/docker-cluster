@@ -29,6 +29,11 @@ var (
 	errStorageMandatory = errors.New("Storage parameter is mandatory")
 	errHealerInProgress = errors.New("Healer already running")
 
+	defaultDialTimeout = 10 * time.Second
+	defaultTimeout     = 5 * time.Minute
+	shortDialTimeout   = 5 * time.Second
+	shortTimeout       = 1 * time.Minute
+
 	timeout10Dialer = &net.Dialer{
 		Timeout:   10 * time.Second,
 		KeepAlive: 30 * time.Second,
@@ -41,7 +46,7 @@ type node struct {
 }
 
 func (n *node) setPersistentClient() {
-	n.HTTPClient = clientWithTimeout(10*time.Second, 0, n.TLSConfig)
+	n.HTTPClient = clientWithTimeout(defaultDialTimeout, 0, n.TLSConfig)
 }
 
 // ContainerStorage provides methods to store and retrieve information about
@@ -330,7 +335,7 @@ func (c *Cluster) runPingForHost(addr string, wg *sync.WaitGroup) {
 		log.Errorf("[active-monitoring]: error creating client: %s", err.Error())
 		return
 	}
-	client.HTTPClient = clientWithTimeout(5*time.Second, 1*time.Minute, client.TLSConfig)
+	client.HTTPClient = clientWithTimeout(shortDialTimeout, shortTimeout, client.TLSConfig)
 	err = client.Ping()
 	if err == nil {
 		c.handleNodeSuccess(addr)
@@ -600,7 +605,7 @@ func (c *Cluster) getNodeByAddr(address string) (node, error) {
 	if err != nil {
 		return node{}, err
 	}
-	client.HTTPClient = clientWithTimeout(10*time.Second, 5*time.Minute, client.TLSConfig)
+	client.HTTPClient = clientWithTimeout(defaultDialTimeout, defaultTimeout, client.TLSConfig)
 	client.Dialer = timeout10Dialer
 	return node{addr: address, Client: client}, nil
 }
