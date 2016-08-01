@@ -7,6 +7,7 @@ package cluster
 import (
 	"encoding/json"
 	"errors"
+	"net/http"
 	"reflect"
 	"regexp"
 	"testing"
@@ -264,7 +265,7 @@ func TestNodeClient(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer server.Stop()
-	node := Node{Address: server.URL(), cluster: &Cluster{}}
+	node := Node{Address: server.URL()}
 	client, err := node.Client()
 	if err != nil {
 		t.Error(err)
@@ -276,17 +277,33 @@ func TestNodeClient(t *testing.T) {
 }
 
 func TestNodeTLSClient(t *testing.T) {
-	server, err := dtesting.NewServer("127.0.0.1:0", nil, nil)
+	dockerTLS := dtesting.TLSConfig{
+		CertPath:    "./testdata/server-cert.pem",
+		CertKeyPath: "./testdata/server-key.pem",
+		RootCAPath:  "./testdata/ca.pem",
+	}
+	var req string
+	server, err := dtesting.NewTLSServer("127.0.0.1:0", nil, func(r *http.Request) {
+		req = r.URL.Path
+	}, dockerTLS)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer server.Stop()
-	node := Node{Address: server.URL(), cluster: &Cluster{CAPath: "testdata"}}
+	tlsConfig, err := readTLSConfig("./testdata")
+	if err != nil {
+		t.Fatal(err)
+	}
+	node := Node{Address: server.URL(), tlsConfig: tlsConfig}
 	client, err := node.Client()
 	if err != nil {
 		t.Error(err)
 	}
 	if client.TLSConfig == nil {
 		t.Fatal("docker client TLS not configured correctly.")
+	}
+	client.Info()
+	if req != "/info" {
+		t.Fatal("unable to ping docker server using tls")
 	}
 }

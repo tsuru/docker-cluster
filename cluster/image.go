@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/fsouza/go-dockerclient"
 	"github.com/tsuru/tsuru/provision/docker/fix"
@@ -121,7 +122,7 @@ func deleteImage(url string) (*http.Response, error) {
 		return nil, err
 	}
 	request.Close = true
-	rsp, err := timeout10Client.Do(request)
+	rsp, err := clientWithTimeout(10*time.Second, 5*time.Minute, nil).Do(request)
 	if err == nil {
 		rsp.Body.Close()
 	}

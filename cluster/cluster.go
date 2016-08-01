@@ -8,8 +8,10 @@
 package cluster
 
 import (
+	"crypto/tls"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"path/filepath"
@@ -27,10 +29,7 @@ var (
 	errStorageMandatory = errors.New("Storage parameter is mandatory")
 	errHealerInProgress = errors.New("Healer already running")
 
-	pingClient       = clientWithTimeout(5*time.Second, 1*time.Minute)
-	timeout10Client  = clientWithTimeout(10*time.Second, 5*time.Minute)
-	persistentClient = clientWithTimeout(10*time.Second, 0)
-	timeout10Dialer  = &net.Dialer{
+	timeout10Dialer = &net.Dialer{
 		Timeout:   10 * time.Second,
 		KeepAlive: 30 * time.Second,
 	}
@@ -42,7 +41,7 @@ type node struct {
 }
 
 func (n *node) setPersistentClient() {
-	n.HTTPClient = persistentClient
+	n.HTTPClient = clientWithTimeout(10*time.Second, 0, n.TLSConfig)
 }
 
 // ContainerStorage provides methods to store and retrieve information about
@@ -108,13 +107,19 @@ type Cluster struct {
 	monitoringDone chan bool
 	dryServer      *testing.DockerServer
 	hooks          map[HookEvent][]Hook
-	CAPath         string
+	tlsConfig      *tlsConfig
 }
 
 type DockerNodeError struct {
 	node node
 	cmd  string
 	err  error
+}
+
+type tlsConfig struct {
+	certPEMBlock []byte
+	keyPEMBlock  []byte
+	caPEMCert    []byte
 }
 
 func (n DockerNodeError) Error() string {
@@ -157,7 +162,13 @@ func New(scheduler Scheduler, storage Storage, caPath string, nodes ...Node) (*C
 	}
 	c.stor = storage
 	c.scheduler = scheduler
-	c.CAPath = caPath
+	if caPath != "" {
+		tlsConfig, errTLS := readTLSConfig(caPath)
+		if errTLS != nil {
+			return nil, errTLS
+		}
+		c.tlsConfig = tlsConfig
+	}
 	c.Healer = DefaultHealer{}
 	if scheduler == nil {
 		c.scheduler = &roundRobin{lastUsed: -1}
@@ -173,12 +184,32 @@ func New(scheduler Scheduler, storage Storage, caPath string, nodes ...Node) (*C
 	return &c, err
 }
 
+func readTLSConfig(caPath string) (*tlsConfig, error) {
+	certPEMBlock, errCert := ioutil.ReadFile(filepath.Join(caPath, "cert.pem"))
+	if errCert != nil {
+		return nil, errCert
+	}
+	keyPEMBlock, errCert := ioutil.ReadFile(filepath.Join(caPath, "key.pem"))
+	if errCert != nil {
+		return nil, errCert
+	}
+	caPEMCert, errCert := ioutil.ReadFile(filepath.Join(caPath, "ca.pem"))
+	if errCert != nil {
+		return nil, errCert
+	}
+	return &tlsConfig{
+		certPEMBlock: certPEMBlock,
+		keyPEMBlock:  keyPEMBlock,
+		caPEMCert:    caPEMCert,
+	}, nil
+}
+
 // Register adds new nodes to the cluster.
 func (c *Cluster) Register(node Node) error {
 	if node.Address == "" {
 		return errors.New("Invalid address")
 	}
-	node.cluster = c
+	node.tlsConfig = c.tlsConfig
 	err := c.runHooks(HookEventBeforeNodeRegister, &node)
 	if err != nil {
 		return err
@@ -210,7 +241,7 @@ func (c *Cluster) UpdateNode(node Node) (Node, error) {
 			dbNode.Metadata[k] = v
 		}
 	}
-	dbNode.cluster = c
+	dbNode.tlsConfig = c.tlsConfig
 	return dbNode, c.storage().UpdateNode(dbNode)
 }
 
@@ -262,13 +293,13 @@ func (c *Cluster) GetNode(address string) (Node, error) {
 	if err != nil {
 		return Node{}, err
 	}
-	n.cluster = c
+	n.tlsConfig = c.tlsConfig
 	return n, nil
 }
 
 func (c *Cluster) setClusterInNodes(nodes []Node) []Node {
 	for i, _ := range nodes {
-		nodes[i].cluster = c
+		nodes[i].tlsConfig = c.tlsConfig
 	}
 	return nodes
 }
@@ -299,7 +330,7 @@ func (c *Cluster) runPingForHost(addr string, wg *sync.WaitGroup) {
 		log.Errorf("[active-monitoring]: error creating client: %s", err.Error())
 		return
 	}
-	client.HTTPClient = pingClient
+	client.HTTPClient = clientWithTimeout(5*time.Second, 1*time.Minute, client.TLSConfig)
 	err = client.Ping()
 	if err == nil {
 		c.handleNodeSuccess(addr)
@@ -479,7 +510,7 @@ func (c *Cluster) runOnNodes(fn nodeFunc, errNotFound error, wait bool, nodeAddr
 	}
 }
 
-func clientWithTimeout(dialTimeout time.Duration, fullTimeout time.Duration) *http.Client {
+func clientWithTimeout(dialTimeout time.Duration, fullTimeout time.Duration, tlsConfig *tls.Config) *http.Client {
 	transport := http.Transport{
 		Dial: (&net.Dialer{
 			Timeout:   dialTimeout,
@@ -488,6 +519,7 @@ func clientWithTimeout(dialTimeout time.Duration, fullTimeout time.Duration) *ht
 		TLSHandshakeTimeout: dialTimeout,
 		MaxIdleConnsPerHost: -1,
 		DisableKeepAlives:   true,
+		TLSClientConfig:     tlsConfig,
 	}
 	return &http.Client{
 		Transport: &transport,
@@ -555,21 +587,20 @@ func (c *Cluster) DryMode() error {
 }
 
 func (c *Cluster) getNodeByAddr(address string) (node, error) {
+	var client *docker.Client
+	var err error
 	if c.dryServer != nil {
 		address = c.dryServer.URL()
 	}
-	var n node
-	var client *docker.Client
-	var err error
-	if c.CAPath == "" {
-		client, err = docker.NewClient(address)
+	if c.tlsConfig != nil {
+		client, err = docker.NewTLSClientFromBytes(address, c.tlsConfig.certPEMBlock, c.tlsConfig.keyPEMBlock, c.tlsConfig.caPEMCert)
 	} else {
-		client, err = docker.NewTLSClient(address, filepath.Join(c.CAPath, "cert.pem"), filepath.Join(c.CAPath, "key.pem"), filepath.Join(c.CAPath, "/ca.pem"))
+		client, err = docker.NewClient(address)
 	}
 	if err != nil {
-		return n, err
+		return node{}, err
 	}
-	client.HTTPClient = timeout10Client
+	client.HTTPClient = clientWithTimeout(10*time.Second, 5*time.Minute, client.TLSConfig)
 	client.Dialer = timeout10Dialer
 	return node{addr: address, Client: client}, nil
 }

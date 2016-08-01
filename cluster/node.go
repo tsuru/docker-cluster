@@ -9,7 +9,6 @@ package cluster
 
 import (
 	"encoding/json"
-	"path/filepath"
 	"strconv"
 	"time"
 
@@ -24,7 +23,7 @@ type Node struct {
 	Healing        HealingData
 	Metadata       map[string]string
 	CreationStatus string
-	cluster        *Cluster
+	tlsConfig      *tlsConfig
 }
 
 type HealingData struct {
@@ -108,15 +107,15 @@ func (n *Node) ResetFailures() {
 func (n *Node) Client() (*docker.Client, error) {
 	var client *docker.Client
 	var err error
-	if n.cluster.CAPath == "" {
-		client, err = docker.NewClient(n.Address)
+	if n.tlsConfig != nil {
+		client, err = docker.NewTLSClientFromBytes(n.Address, n.tlsConfig.certPEMBlock, n.tlsConfig.keyPEMBlock, n.tlsConfig.caPEMCert)
 	} else {
-		client, err = docker.NewTLSClient(n.Address, filepath.Join(n.cluster.CAPath, "cert.pem"), filepath.Join(n.cluster.CAPath, "key.pem"), filepath.Join(n.cluster.CAPath, "/ca.pem"))
+		client, err = docker.NewClient(n.Address)
 	}
 	if err != nil {
 		return nil, err
 	}
-	client.HTTPClient = timeout10Client
+	client.HTTPClient = clientWithTimeout(10*time.Second, 5*time.Minute, client.TLSConfig)
 	client.Dialer = timeout10Dialer
 	return client, nil
 }
