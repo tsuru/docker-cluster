@@ -921,7 +921,7 @@ func TestClusterGetNodeByAddrWithTLS(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	node, err := cluster.getNodeByAddr("http://199.222.111.10")
+	node, err := cluster.getNodeByAddr("https://199.222.111.10")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -954,11 +954,11 @@ func TestNodeSetPersistentClient(t *testing.T) {
 }
 
 func TestNodeSetPersistentClientWithTLS(t *testing.T) {
-	cluster, err := New(nil, &MapStorage{}, "")
+	cluster, err := New(nil, &MapStorage{}, "./testdata")
 	if err != nil {
 		t.Fatal(err)
 	}
-	node, err := cluster.getNodeByAddr("http://199.222.111.10")
+	node, err := cluster.getNodeByAddr("https://199.222.111.10")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -967,7 +967,7 @@ func TestNodeSetPersistentClientWithTLS(t *testing.T) {
 		t.Fatalf("Expected timeout %#v, got %#v", 0, node.HTTPClient.Timeout)
 	}
 	tlsConfig := node.HTTPClient.Transport.(*http.Transport).TLSClientConfig
-	if tlsConfig != nil {
-		t.Fatalf("Expected tls config to be nil, got %#v", tlsConfig)
+	if tlsConfig == nil {
+		t.Fatalf("Expected tls config to be set")
 	}
 }
