@@ -9,6 +9,7 @@ package cluster
 
 import (
 	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -112,19 +113,13 @@ type Cluster struct {
 	monitoringDone chan bool
 	dryServer      *testing.DockerServer
 	hooks          map[HookEvent][]Hook
-	tlsConfig      *tlsConfig
+	tlsConfig      *tls.Config
 }
 
 type DockerNodeError struct {
 	node node
 	cmd  string
 	err  error
-}
-
-type tlsConfig struct {
-	certPEMBlock []byte
-	keyPEMBlock  []byte
-	caPEMCert    []byte
 }
 
 func (n DockerNodeError) Error() string {
@@ -189,7 +184,7 @@ func New(scheduler Scheduler, storage Storage, caPath string, nodes ...Node) (*C
 	return &c, err
 }
 
-func readTLSConfig(caPath string) (*tlsConfig, error) {
+func readTLSConfig(caPath string) (*tls.Config, error) {
 	certPEMBlock, errCert := ioutil.ReadFile(filepath.Join(caPath, "cert.pem"))
 	if errCert != nil {
 		return nil, errCert
@@ -202,10 +197,17 @@ func readTLSConfig(caPath string) (*tlsConfig, error) {
 	if errCert != nil {
 		return nil, errCert
 	}
-	return &tlsConfig{
-		certPEMBlock: certPEMBlock,
-		keyPEMBlock:  keyPEMBlock,
-		caPEMCert:    caPEMCert,
+	tlsCert, err := tls.X509KeyPair(certPEMBlock, keyPEMBlock)
+	if err != nil {
+		return nil, err
+	}
+	caPool := x509.NewCertPool()
+	if !caPool.AppendCertsFromPEM(caPEMCert) {
+		return nil, errors.New("Could not add RootCA pem")
+	}
+	return &tls.Config{
+		Certificates: []tls.Certificate{tlsCert},
+		RootCAs:      caPool,
 	}, nil
 }
 
@@ -592,21 +594,16 @@ func (c *Cluster) DryMode() error {
 }
 
 func (c *Cluster) getNodeByAddr(address string) (node, error) {
-	var client *docker.Client
-	var err error
 	if c.dryServer != nil {
 		address = c.dryServer.URL()
 	}
-	if c.tlsConfig != nil {
-		client, err = docker.NewTLSClientFromBytes(address, c.tlsConfig.certPEMBlock, c.tlsConfig.keyPEMBlock, c.tlsConfig.caPEMCert)
-	} else {
-		client, err = docker.NewClient(address)
-	}
+	client, err := docker.NewClient(address)
 	if err != nil {
 		return node{}, err
 	}
-	client.HTTPClient = clientWithTimeout(defaultDialTimeout, defaultTimeout, client.TLSConfig)
+	client.HTTPClient = clientWithTimeout(defaultDialTimeout, defaultTimeout, c.tlsConfig)
 	client.Dialer = timeout10Dialer
+	client.TLSConfig = c.tlsConfig
 	return node{addr: address, Client: client}, nil
 }
 

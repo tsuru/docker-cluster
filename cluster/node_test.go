@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"net/url"
 	"reflect"
 	"regexp"
 	"testing"
@@ -294,7 +295,12 @@ func TestNodeTLSClient(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	node := Node{Address: server.URL(), tlsConfig: tlsConfig}
+	url, err := url.Parse(server.URL())
+	if err != nil {
+		t.Fatal(err)
+	}
+	url.Scheme = "https"
+	node := Node{Address: url.String(), tlsConfig: tlsConfig}
 	client, err := node.Client()
 	if err != nil {
 		t.Error(err)

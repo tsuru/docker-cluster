@@ -8,6 +8,7 @@
 package cluster
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"strconv"
 	"time"
@@ -23,7 +24,7 @@ type Node struct {
 	Healing        HealingData
 	Metadata       map[string]string
 	CreationStatus string
-	tlsConfig      *tlsConfig
+	tlsConfig      *tls.Config
 }
 
 type HealingData struct {
@@ -105,17 +106,12 @@ func (n *Node) ResetFailures() {
 }
 
 func (n *Node) Client() (*docker.Client, error) {
-	var client *docker.Client
-	var err error
-	if n.tlsConfig != nil {
-		client, err = docker.NewTLSClientFromBytes(n.Address, n.tlsConfig.certPEMBlock, n.tlsConfig.keyPEMBlock, n.tlsConfig.caPEMCert)
-	} else {
-		client, err = docker.NewClient(n.Address)
-	}
+	client, err := docker.NewClient(n.Address)
 	if err != nil {
 		return nil, err
 	}
-	client.HTTPClient = clientWithTimeout(defaultDialTimeout, defaultTimeout, client.TLSConfig)
+	client.TLSConfig = n.tlsConfig
+	client.HTTPClient = clientWithTimeout(defaultDialTimeout, defaultTimeout, n.tlsConfig)
 	client.Dialer = timeout10Dialer
 	return client, nil
 }
