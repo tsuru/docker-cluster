@@ -276,7 +276,7 @@ func (c *Cluster) UnfilteredNodes() ([]Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	return c.setClusterInNodes(nodes), nil
+	return c.setTLSConfigInNodes(nodes), nil
 }
 
 func (c *Cluster) Nodes() ([]Node, error) {
@@ -284,7 +284,7 @@ func (c *Cluster) Nodes() ([]Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	return NodeList(c.setClusterInNodes(nodes)).filterDisabled(), nil
+	return NodeList(c.setTLSConfigInNodes(nodes)).filterDisabled(), nil
 }
 
 func (c *Cluster) NodesForMetadata(metadata map[string]string) ([]Node, error) {
@@ -292,7 +292,7 @@ func (c *Cluster) NodesForMetadata(metadata map[string]string) ([]Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	return NodeList(c.setClusterInNodes(nodes)).filterDisabled(), nil
+	return NodeList(c.setTLSConfigInNodes(nodes)).filterDisabled(), nil
 }
 
 func (c *Cluster) GetNode(address string) (Node, error) {
@@ -304,7 +304,7 @@ func (c *Cluster) GetNode(address string) (Node, error) {
 	return n, nil
 }
 
-func (c *Cluster) setClusterInNodes(nodes []Node) []Node {
+func (c *Cluster) setTLSConfigInNodes(nodes []Node) []Node {
 	for i, _ := range nodes {
 		nodes[i].tlsConfig = c.tlsConfig
 	}
@@ -316,7 +316,7 @@ func (c *Cluster) UnfilteredNodesForMetadata(metadata map[string]string) ([]Node
 	if err != nil {
 		return nil, err
 	}
-	return c.setClusterInNodes(nodes), nil
+	return c.setTLSConfigInNodes(nodes), nil
 }
 
 func (c *Cluster) StartActiveMonitoring(updateInterval time.Duration) {
