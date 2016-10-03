@@ -17,7 +17,7 @@ import (
 func TestRoundRobinScheduleIsRaceFree(t *testing.T) {
 	const tasks = 8
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(tasks))
-	c, err := New(&roundRobin{}, &MapStorage{}, "")
+	c, err := New(&roundRobin{}, &MapStorage{})
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err.Error())
 	}
