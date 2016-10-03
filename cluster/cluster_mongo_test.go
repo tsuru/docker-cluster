@@ -17,7 +17,7 @@ func TestUpdateNodeDoesNotExist(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	clu, err := cluster.New(nil, mongo, "")
+	clu, err := cluster.New(nil, mongo)
 	if err != nil {
 		t.Fatal(err)
 	}

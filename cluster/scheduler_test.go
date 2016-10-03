@@ -11,7 +11,7 @@ import (
 )
 
 func TestRoundRobinSchedule(t *testing.T) {
-	c, err := New(&roundRobin{}, &MapStorage{}, "")
+	c, err := New(&roundRobin{}, &MapStorage{})
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err.Error())
 	}
@@ -36,7 +36,7 @@ func TestRoundRobinSchedule(t *testing.T) {
 }
 
 func TestScheduleEmpty(t *testing.T) {
-	c, err := New(&roundRobin{}, &MapStorage{}, "")
+	c, err := New(&roundRobin{}, &MapStorage{})
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err.Error())
 	}

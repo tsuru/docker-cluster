@@ -7,6 +7,7 @@ package cluster
 import (
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"math/rand"
 	"net/http"
 	"net/http/httptest"
@@ -42,32 +43,15 @@ func TestNewCluster(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		_, err := New(nil, &MapStorage{}, "", tt.input...)
+		_, err := New(nil, &MapStorage{}, tt.input...)
 		if tt.fail && err == nil || !tt.fail && err != nil {
 			t.Errorf("cluster.New() for input %#v. Expect failure: %v. Got: %v.", tt.input, tt.fail, err)
 		}
 	}
 }
 
-func TestClusterSetTLSConfigInNodes(t *testing.T) {
-	c, err := New(nil, &MapStorage{}, "./testdata", []Node{{Address: "http://localhost:8888"}}...)
-	if err != nil {
-		t.Fatalf("error setting up cluster: %s", err)
-	}
-	nodes, err := c.Nodes()
-	if err != nil {
-		t.Fatalf("Error getting nodes: %s", err)
-	}
-	if c.tlsConfig == nil {
-		t.Fatalf("tlsConfig not setted in cluster.")
-	}
-	if nodes[0].tlsConfig == nil {
-		t.Fatal("tlsConfig not setted in node.")
-	}
-}
-
 func TestNewFailure(t *testing.T) {
-	_, err := New(&roundRobin{}, nil, "")
+	_, err := New(&roundRobin{}, nil)
 	if err != errStorageMandatory {
 		t.Fatalf("expected errStorageMandatory error, got: %#v", err)
 	}
@@ -75,7 +59,7 @@ func TestNewFailure(t *testing.T) {
 
 func TestRegister(t *testing.T) {
 	scheduler := &roundRobin{}
-	cluster, err := New(scheduler, &MapStorage{}, "")
+	cluster, err := New(scheduler, &MapStorage{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -116,7 +100,7 @@ func TestRegister(t *testing.T) {
 }
 
 func TestRegisterDoesNotAllowRepeatedAddresses(t *testing.T) {
-	cluster, err := New(nil, &MapStorage{}, "")
+	cluster, err := New(nil, &MapStorage{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -131,7 +115,7 @@ func TestRegisterDoesNotAllowRepeatedAddresses(t *testing.T) {
 }
 
 func TestRegisterFailure(t *testing.T) {
-	cluster, err := New(nil, &MapStorage{}, "")
+	cluster, err := New(nil, &MapStorage{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -142,7 +126,7 @@ func TestRegisterFailure(t *testing.T) {
 }
 
 func TestUpdateNode(t *testing.T) {
-	cluster, err := New(nil, &MapStorage{}, "")
+	cluster, err := New(nil, &MapStorage{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -175,7 +159,7 @@ func TestUpdateNode(t *testing.T) {
 }
 
 func TestUpdateNodeCreationStatus(t *testing.T) {
-	cluster, err := New(nil, &MapStorage{}, "")
+	cluster, err := New(nil, &MapStorage{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -199,7 +183,7 @@ func TestUpdateNodeCreationStatus(t *testing.T) {
 }
 
 func TestUpdateNodeCreationStatusDisabled(t *testing.T) {
-	cluster, err := New(nil, &MapStorage{}, "")
+	cluster, err := New(nil, &MapStorage{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -228,7 +212,7 @@ func TestUpdateNodeCreationStatusDisabled(t *testing.T) {
 }
 
 func TestUpdateNodeRemoveMetadata(t *testing.T) {
-	cluster, err := New(nil, &MapStorage{}, "")
+	cluster, err := New(nil, &MapStorage{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -264,7 +248,7 @@ func TestUpdateNodeRemoveMetadata(t *testing.T) {
 }
 
 func TestUpdateNodeStress(t *testing.T) {
-	cluster, err := New(nil, &MapStorage{}, "")
+	cluster, err := New(nil, &MapStorage{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -304,7 +288,7 @@ func TestUpdateNodeStress(t *testing.T) {
 }
 
 func TestGetNode(t *testing.T) {
-	cluster, err := New(nil, &MapStorage{}, "")
+	cluster, err := New(nil, &MapStorage{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -326,7 +310,7 @@ func TestGetNode(t *testing.T) {
 
 func TestUnregister(t *testing.T) {
 	scheduler := &roundRobin{}
-	cluster, err := New(scheduler, &MapStorage{}, "")
+	cluster, err := New(scheduler, &MapStorage{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -346,7 +330,7 @@ func TestUnregister(t *testing.T) {
 }
 
 func TestNodesShouldGetClusterNodes(t *testing.T) {
-	cluster, err := New(nil, &MapStorage{}, "")
+	cluster, err := New(nil, &MapStorage{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -366,7 +350,7 @@ func TestNodesShouldGetClusterNodes(t *testing.T) {
 }
 
 func TestNodesShouldGetClusterNodesWithoutDisabledNodes(t *testing.T) {
-	cluster, err := New(nil, &MapStorage{}, "")
+	cluster, err := New(nil, &MapStorage{})
 	stopChan := make(chan bool)
 	healer := &blockingHealer{stop: stopChan}
 	defer close(stopChan)
@@ -420,7 +404,7 @@ func TestNodesShouldGetClusterNodesWithoutDisabledNodes(t *testing.T) {
 }
 
 func TestUnfilteredNodesReturnAllNodes(t *testing.T) {
-	cluster, err := New(nil, &MapStorage{}, "")
+	cluster, err := New(nil, &MapStorage{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -457,7 +441,7 @@ func TestUnfilteredNodesReturnAllNodes(t *testing.T) {
 }
 
 func TestNodesForMetadataShouldGetClusterNodesWithMetadata(t *testing.T) {
-	cluster, err := New(nil, &MapStorage{}, "")
+	cluster, err := New(nil, &MapStorage{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -488,7 +472,7 @@ func TestNodesForMetadataShouldGetClusterNodesWithMetadata(t *testing.T) {
 }
 
 func TestNodesShouldReturnEmptyListWhenNoNodeIsFound(t *testing.T) {
-	cluster, err := New(nil, &MapStorage{}, "")
+	cluster, err := New(nil, &MapStorage{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -502,7 +486,7 @@ func TestNodesShouldReturnEmptyListWhenNoNodeIsFound(t *testing.T) {
 }
 
 func TestUnfilteredNodesForMetadataShouldGetClusterNodesWithMetadata(t *testing.T) {
-	cluster, err := New(nil, &MapStorage{}, "")
+	cluster, err := New(nil, &MapStorage{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -544,7 +528,7 @@ func TestRunOnNodesWhenReceiveingNodeShouldntLoadStorage(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		w.Write([]byte(body))
 	}))
-	cluster, err := New(nil, &MapStorage{}, "")
+	cluster, err := New(nil, &MapStorage{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -573,7 +557,7 @@ func TestRunOnNodesStress(t *testing.T) {
 	}))
 	defer server.Close()
 	id := "e90302"
-	cluster, err := New(nil, &MapStorage{}, "", Node{Address: server.URL})
+	cluster, err := New(nil, &MapStorage{}, Node{Address: server.URL})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -595,7 +579,7 @@ func TestRunOnNodesStress(t *testing.T) {
 }
 
 func TestClusterNodes(t *testing.T) {
-	c, err := New(&roundRobin{}, &MapStorage{}, "")
+	c, err := New(&roundRobin{}, &MapStorage{})
 	if err != nil {
 		t.Fatalf("unexpected error %s", err.Error())
 	}
@@ -616,7 +600,7 @@ func TestClusterNodes(t *testing.T) {
 }
 
 func TestClusterNodesUnregister(t *testing.T) {
-	c, err := New(&roundRobin{}, &MapStorage{}, "")
+	c, err := New(&roundRobin{}, &MapStorage{})
 	if err != nil {
 		t.Fatalf("unexpected error %s", err.Error())
 	}
@@ -662,7 +646,7 @@ func isDateSameMinute(dt1, dt2 string) bool {
 
 func TestClusterHandleNodeErrorStress(t *testing.T) {
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(100))
-	c, err := New(&roundRobin{}, &MapStorage{}, "")
+	c, err := New(&roundRobin{}, &MapStorage{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -750,7 +734,7 @@ func TestClusterHandleNodeErrorStress(t *testing.T) {
 }
 
 func TestClusterHandleNodeSuccess(t *testing.T) {
-	c, err := New(&roundRobin{}, &MapStorage{}, "")
+	c, err := New(&roundRobin{}, &MapStorage{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -779,7 +763,7 @@ func TestClusterHandleNodeSuccess(t *testing.T) {
 
 func TestClusterHandleNodeSuccessStressShouldntBlockNodes(t *testing.T) {
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(10))
-	c, err := New(&roundRobin{}, &MapStorage{}, "")
+	c, err := New(&roundRobin{}, &MapStorage{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -807,7 +791,7 @@ func TestClusterHandleNodeSuccessStressShouldntBlockNodes(t *testing.T) {
 }
 
 func TestClusterStartActiveMonitoring(t *testing.T) {
-	c, err := New(&roundRobin{}, &MapStorage{}, "")
+	c, err := New(&roundRobin{}, &MapStorage{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -899,7 +883,7 @@ func TestWrapErrorNil(t *testing.T) {
 }
 
 func TestClusterGetNodeByAddr(t *testing.T) {
-	cluster, err := New(nil, &MapStorage{}, "")
+	cluster, err := New(nil, &MapStorage{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -917,7 +901,24 @@ func TestClusterGetNodeByAddr(t *testing.T) {
 }
 
 func TestClusterGetNodeByAddrWithTLS(t *testing.T) {
-	cluster, err := New(nil, &MapStorage{}, "./testdata")
+	ca, err := ioutil.ReadFile("./testdata/ca.pem")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cert, err := ioutil.ReadFile("./testdata/cert.pem")
+	if err != nil {
+		t.Fatal(err)
+	}
+	key, err := ioutil.ReadFile("./testdata/key.pem")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cluster, err := New(nil, &MapStorage{}, Node{
+		Address:    "https://199.222.111.10",
+		CaCert:     ca,
+		ClientCert: cert,
+		ClientKey:  key,
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -935,7 +936,7 @@ func TestClusterGetNodeByAddrWithTLS(t *testing.T) {
 }
 
 func TestNodeSetPersistentClient(t *testing.T) {
-	cluster, err := New(nil, &MapStorage{}, "")
+	cluster, err := New(nil, &MapStorage{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -954,7 +955,24 @@ func TestNodeSetPersistentClient(t *testing.T) {
 }
 
 func TestNodeSetPersistentClientWithTLS(t *testing.T) {
-	cluster, err := New(nil, &MapStorage{}, "./testdata")
+	ca, err := ioutil.ReadFile("./testdata/ca.pem")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cert, err := ioutil.ReadFile("./testdata/cert.pem")
+	if err != nil {
+		t.Fatal(err)
+	}
+	key, err := ioutil.ReadFile("./testdata/key.pem")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cluster, err := New(nil, &MapStorage{}, Node{
+		Address:    "https://199.222.111.10",
+		CaCert:     ca,
+		ClientCert: cert,
+		ClientKey:  key,
+	})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -7,6 +7,7 @@ package cluster
 import (
 	"encoding/json"
 	"errors"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"reflect"
@@ -291,16 +292,29 @@ func TestNodeTLSClient(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer server.Stop()
-	tlsConfig, err := readTLSConfig("./testdata")
-	if err != nil {
-		t.Fatal(err)
-	}
 	url, err := url.Parse(server.URL())
 	if err != nil {
 		t.Fatal(err)
 	}
 	url.Scheme = "https"
-	node := Node{Address: url.String(), tlsConfig: tlsConfig}
+	ca, err := ioutil.ReadFile("./testdata/ca.pem")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cert, err := ioutil.ReadFile("./testdata/cert.pem")
+	if err != nil {
+		t.Fatal(err)
+	}
+	key, err := ioutil.ReadFile("./testdata/key.pem")
+	if err != nil {
+		t.Fatal(err)
+	}
+	node := Node{
+		Address:    url.String(),
+		CaCert:     ca,
+		ClientCert: cert,
+		ClientKey:  key,
+	}
 	client, err := node.Client()
 	if err != nil {
 		t.Error(err)
