@@ -221,7 +221,13 @@ func testStorageStoreRetrieveNodes(storage cluster.Storage, t *testing.T) {
 }
 
 func testStorageStoreRetrieveNode(storage cluster.Storage, t *testing.T) {
-	node1 := cluster.Node{Address: "my-addr-1", Metadata: map[string]string{"abc": "def"}}
+	node1 := cluster.Node{
+		Address:    "my-addr-1",
+		Metadata:   map[string]string{"abc": "def"},
+		CaCert:     []byte("ca"),
+		ClientCert: []byte("client cert"),
+		ClientKey:  []byte("client key"),
+	}
 	defer storage.RemoveNode("my-addr-1")
 	err := storage.StoreNode(node1)
 	assertIsNil(err, t)
@@ -237,7 +243,13 @@ func testStorageStoreRetrieveNode(storage cluster.Storage, t *testing.T) {
 }
 
 func testStorageStoreUpdateNode(storage cluster.Storage, t *testing.T) {
-	node1 := cluster.Node{Address: "my-addr-1", Metadata: map[string]string{"abc": "def", "x": "y"}}
+	node1 := cluster.Node{
+		Address:    "my-addr-1",
+		Metadata:   map[string]string{"abc": "def", "x": "y"},
+		CaCert:     []byte("ca"),
+		ClientCert: []byte("client cert"),
+		ClientKey:  []byte("client key"),
+	}
 	defer storage.RemoveNode("my-addr-1")
 	err := storage.StoreNode(node1)
 	assertIsNil(err, t)
