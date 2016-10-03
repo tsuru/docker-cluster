@@ -248,6 +248,7 @@ func TestUpdateNodeRemoveMetadata(t *testing.T) {
 }
 
 func TestUpdateNodeStress(t *testing.T) {
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(8))
 	cluster, err := New(nil, &MapStorage{})
 	if err != nil {
 		t.Fatal(err)
