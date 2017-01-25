@@ -1,4 +1,4 @@
-// Copyright 2016 docker-cluster authors. All rights reserved.
+// Copyright 2017 docker-cluster authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -625,6 +625,54 @@ func TestBuildImageWithNoNodes(t *testing.T) {
 	err = cluster.BuildImage(buildOptions)
 	if err == nil {
 		t.Error("Should return an error.")
+	}
+}
+
+func TestBuildImageRandomNode(t *testing.T) {
+	reqsServer1 := 0
+	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/images/tsuru/python/json" {
+			reqsServer1++
+			w.Write([]byte(`{"Id": "id1"}`))
+		}
+	}))
+	defer server1.Close()
+	reqsServer2 := 0
+	server2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/images/tsuru/python/json" {
+			reqsServer2++
+			w.Write([]byte(`{"Id": "id1"}`))
+		}
+	}))
+	defer server2.Close()
+	cluster, err := New(nil, &MapStorage{},
+		Node{Address: server1.URL},
+		Node{Address: server2.URL},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var buf bytes.Buffer
+	buildOptions := docker.BuildImageOptions{
+		Name:         "tsuru/python",
+		Remote:       "http://localhost/Dockerfile",
+		InputStream:  nil,
+		OutputStream: &buf,
+	}
+	for i := 0; i < 100; i++ {
+		err = cluster.BuildImage(buildOptions)
+		if err != nil {
+			t.Error(err)
+		}
+	}
+	if reqsServer1 == 0 {
+		t.Fatalf("Expected some reqs to server 1, got 0")
+	}
+	if reqsServer2 == 0 {
+		t.Fatalf("Expected some reqs to server 2, got 0")
+	}
+	if reqsServer1+reqsServer2 != 100 {
+		t.Fatalf("Expected 100 reqs to servers, got: %d", reqsServer1+reqsServer2)
 	}
 }
 
