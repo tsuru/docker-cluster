@@ -1,4 +1,4 @@
-// Copyright 2014 docker-cluster authors. All rights reserved.
+// Copyright 2017 docker-cluster authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -403,6 +403,49 @@ func TestCreateContainerSpecifyUnknownNode(t *testing.T) {
 	}
 	if container != nil {
 		t.Errorf("Got unexpected value for container. Want <nil>. Got %#v", container)
+	}
+}
+
+func TestCreateContainerRandonNodeFromSlice(t *testing.T) {
+	reqsServer1 := 0
+	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		reqsServer1++
+		body := `{"Id":"e90302"}`
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(body))
+	}))
+	defer server1.Close()
+	reqsServer2 := 0
+	server2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		reqsServer2++
+		body := `{"Id":"e90303"}`
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(body))
+	}))
+	defer server2.Close()
+	var storage MapStorage
+	cluster, err := New(nil, &storage,
+		Node{Address: server1.URL},
+		Node{Address: server2.URL},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	opts := docker.CreateContainerOptions{Config: &docker.Config{Memory: 67108864}}
+	for i := 0; i < 100; i++ {
+		_, _, err := cluster.CreateContainer(opts, time.Minute, server1.URL, server2.URL)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	if reqsServer1 == 0 {
+		t.Fatalf("Expected some reqs to server 1, got 0")
+	}
+	if reqsServer2 == 0 {
+		t.Fatalf("Expected some reqs to server 2, got 0")
+	}
+	if reqsServer1+reqsServer2 != 100 {
+		t.Fatalf("Expected 100 reqs to servers, got: %d", reqsServer1+reqsServer2)
 	}
 }
 
