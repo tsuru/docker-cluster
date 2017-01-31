@@ -327,3 +327,30 @@ func TestNodeTLSClient(t *testing.T) {
 		t.Fatal("unable to ping docker server using tls")
 	}
 }
+
+func TestNodeCleanMetadata(t *testing.T) {
+	node := Node{
+		Metadata: map[string]string{
+			"m1":            "v1",
+			"Failures":      "f1",
+			"m2":            "v2",
+			"DisabledUntil": "d1",
+		},
+	}
+	expectedClean := map[string]string{
+		"m1": "v1",
+		"m2": "v2",
+	}
+	cleanMetadata := node.CleanMetadata()
+	if !reflect.DeepEqual(cleanMetadata, expectedClean) {
+		t.Fatalf("expected node.CleanMetadata() == %#v. got %#v", expectedClean, cleanMetadata)
+	}
+	expectedExtra := map[string]string{
+		"Failures":      "f1",
+		"DisabledUntil": "d1",
+	}
+	extraMetadata := node.ExtraMetadata()
+	if !reflect.DeepEqual(extraMetadata, expectedExtra) {
+		t.Fatalf("expected node.ExtraMetadata() == %#v. got %#v", expectedExtra, extraMetadata)
+	}
+}
