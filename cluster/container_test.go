@@ -2325,3 +2325,44 @@ func TestUploadToContainer(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestDownloadFromContainer(t *testing.T) {
+	server, err := dtesting.NewServer("127.0.0.1:0", nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cluster, err := New(nil, &MapStorage{}, Node{Address: server.URL()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	config := docker.Config{Memory: 1000, Image: "myhost/somwhere/myimg"}
+	config.Cmd = []string{"tail", "-f"}
+	opts := docker.CreateContainerOptions{Config: &config}
+	_, container, err := cluster.CreateContainer(opts, time.Minute, server.URL())
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = cluster.StartContainer(container.ID, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := "test-test"
+	input := bytes.NewBufferString("test")
+	uploadOpts := docker.UploadToContainerOptions{
+		InputStream: input,
+		Path:        path,
+	}
+	err = cluster.UploadToContainer(container.ID, uploadOpts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	output := bytes.Buffer{}
+	downloadOpts := docker.DownloadFromContainerOptions{
+		OutputStream: &output,
+		Path:         path,
+	}
+	err = cluster.DownloadFromContainer(container.ID, downloadOpts)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
