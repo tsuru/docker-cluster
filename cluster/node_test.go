@@ -278,7 +278,43 @@ func TestNodeClient(t *testing.T) {
 	}
 }
 
-func TestNodeTLSClient(t *testing.T) {
+func TestNodeDefTLSClient(t *testing.T) {
+	dockerTLS := dtesting.TLSConfig{
+		CertPath:    "./testdata/server-cert.pem",
+		CertKeyPath: "./testdata/server-key.pem",
+		RootCAPath:  "./testdata/ca.pem",
+	}
+	var req string
+	server, err := dtesting.NewTLSServer("127.0.0.1:0", nil, func(r *http.Request) {
+		req = r.URL.Path
+	}, dockerTLS)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer server.Stop()
+	tlsConfig, err := readTLSConfig("./testdata")
+	if err != nil {
+		t.Fatal(err)
+	}
+	url, err := url.Parse(server.URL())
+	if err != nil {
+		t.Fatal(err)
+	}
+	url.Scheme = "https"
+	node := Node{Address: url.String(), defTLSConfig: tlsConfig}
+	client, err := node.Client()
+	if err != nil {
+		t.Error(err)
+	}
+	if !reflect.DeepEqual(client.TLSConfig, tlsConfig) {
+		t.Fatal("docker client TLS not configured correctly.")
+	}
+	client.Info()
+	if req != "/info" {
+		t.Fatal("unable to ping docker server using tls")
+	}
+}
+func TestNodeLocalTLSClient(t *testing.T) {
 	dockerTLS := dtesting.TLSConfig{
 		CertPath:    "./testdata/server-cert.pem",
 		CertKeyPath: "./testdata/server-key.pem",
