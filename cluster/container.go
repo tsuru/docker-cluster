@@ -33,6 +33,16 @@ func (c *Cluster) CreateContainer(opts docker.CreateContainerOptions, inactivity
 // Similar to CreateContainer but allows arbritary options to be passed to
 // the scheduler.
 func (c *Cluster) CreateContainerSchedulerOpts(opts docker.CreateContainerOptions, schedulerOpts SchedulerOptions, inactivityTimeout time.Duration, nodes ...string) (string, *docker.Container, error) {
+	return c.CreateContainerPullOptsSchedulerOpts(opts, docker.PullImageOptions{
+		Repository:        opts.Config.Image,
+		InactivityTimeout: inactivityTimeout,
+		Context:           opts.Context,
+	}, docker.AuthConfiguration{}, schedulerOpts, nodes...)
+}
+
+// Similar to CreateContainer but allows arbritary options to be passed to
+// the scheduler and to the pull image call.
+func (c *Cluster) CreateContainerPullOptsSchedulerOpts(opts docker.CreateContainerOptions, pullOpts docker.PullImageOptions, pullAuth docker.AuthConfiguration, schedulerOpts SchedulerOptions, nodes ...string) (string, *docker.Container, error) {
 	var (
 		addr      string
 		container *docker.Container
@@ -68,7 +78,7 @@ func (c *Cluster) CreateContainerSchedulerOpts(opts docker.CreateContainerOption
 			log.Errorf("Error in before create container hook in node %q: %s. Trying again in another node...", addr, err)
 		}
 		if err == nil {
-			container, err = c.createContainerInNode(opts, inactivityTimeout, addr)
+			container, err = c.createContainerInNode(opts, pullOpts, pullAuth, addr)
 			if err == nil {
 				c.handleNodeSuccess(addr)
 				break
@@ -101,14 +111,10 @@ func (c *Cluster) CreateContainerSchedulerOpts(opts docker.CreateContainerOption
 	return addr, container, err
 }
 
-func (c *Cluster) createContainerInNode(opts docker.CreateContainerOptions, inactivityTimeout time.Duration, nodeAddress string) (*docker.Container, error) {
+func (c *Cluster) createContainerInNode(opts docker.CreateContainerOptions, pullOpts docker.PullImageOptions, pullAuth docker.AuthConfiguration, nodeAddress string) (*docker.Container, error) {
 	registryServer, _ := parseImageRegistry(opts.Config.Image)
 	if registryServer != "" {
-		err := c.PullImage(docker.PullImageOptions{
-			Repository:        opts.Config.Image,
-			InactivityTimeout: inactivityTimeout,
-			Context:           opts.Context,
-		}, docker.AuthConfiguration{}, nodeAddress)
+		err := c.PullImage(pullOpts, pullAuth, nodeAddress)
 		if err != nil {
 			return nil, err
 		}
