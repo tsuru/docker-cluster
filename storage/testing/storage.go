@@ -550,6 +550,62 @@ func testRetrieveImages(storage cluster.Storage, t *testing.T) {
 	}
 }
 
+func testStoreRetrieveExec(storage cluster.Storage, t *testing.T) {
+	defer storage.RemoveContainer("cont1")
+	defer storage.RemoveContainer("cont2")
+	err := storage.StoreExec("exec1", "cont1")
+	assertIsNil(err, t)
+	err = storage.StoreExec("exec2", "cont1")
+	assertIsNil(err, t)
+	err = storage.StoreExec("exec3", "cont2")
+	assertIsNil(err, t)
+	containerID, err := storage.RetrieveExec("exec1")
+	assertIsNil(err, t)
+	if containerID != "cont1" {
+		t.Errorf("expected cont1, got %v", containerID)
+	}
+	containerID, err = storage.RetrieveExec("exec2")
+	assertIsNil(err, t)
+	if containerID != "cont1" {
+		t.Errorf("expected cont1, got %v", containerID)
+	}
+	containerID, err = storage.RetrieveExec("exec3")
+	assertIsNil(err, t)
+	if containerID != "cont2" {
+		t.Errorf("expected cont2, got %v", containerID)
+	}
+}
+
+func testExecDeleteOnContainer(storage cluster.Storage, t *testing.T) {
+	defer storage.RemoveContainer("cont1")
+	defer storage.RemoveContainer("cont2")
+	err := storage.StoreExec("exec1", "cont1")
+	assertIsNil(err, t)
+	err = storage.StoreExec("exec2", "cont1")
+	assertIsNil(err, t)
+	err = storage.StoreExec("exec3", "cont2")
+	assertIsNil(err, t)
+	err = storage.StoreContainer("cont1", "h1")
+	assertIsNil(err, t)
+	err = storage.StoreContainer("cont2", "h1")
+	assertIsNil(err, t)
+	err = storage.RemoveContainer("cont1")
+	assertIsNil(err, t)
+	_, err = storage.RetrieveExec("exec1")
+	if err != cstorage.ErrNoSuchExec {
+		t.Fatalf("expected no such exec, got: %v", err)
+	}
+	_, err = storage.RetrieveExec("exec2")
+	if err != cstorage.ErrNoSuchExec {
+		t.Fatalf("expected no such exec, got: %v", err)
+	}
+	containerID, err := storage.RetrieveExec("exec3")
+	assertIsNil(err, t)
+	if containerID != "cont2" {
+		t.Errorf("expected cont2, got %v", containerID)
+	}
+}
+
 func RunTestsForStorage(storage cluster.Storage, t *testing.T) {
 	testStorageStoreRetrieveContainer(storage, t)
 	testRetrieveContainers(storage, t)
@@ -573,4 +629,6 @@ func RunTestsForStorage(storage cluster.Storage, t *testing.T) {
 	testStorageExtendNodeLock(storage, t)
 	testStorageUnlockNode(storage, t)
 	testRetrieveImages(storage, t)
+	testStoreRetrieveExec(storage, t)
+	testExecDeleteOnContainer(storage, t)
 }

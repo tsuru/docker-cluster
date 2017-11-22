@@ -339,17 +339,29 @@ func (c *Cluster) getNodeForContainer(container string) (node, error) {
 	return c.getNodeByAddr(addr)
 }
 
+func (c *Cluster) getNodeForExec(execID string) (node, error) {
+	containerID, err := c.storage().RetrieveExec(execID)
+	if err != nil {
+		return node{}, err
+	}
+	return c.getNodeForContainer(containerID)
+}
+
 func (c *Cluster) CreateExec(opts docker.CreateExecOptions) (*docker.Exec, error) {
 	node, err := c.getNodeForContainer(opts.Container)
 	if err != nil {
 		return nil, err
 	}
 	exec, err := node.CreateExec(opts)
-	return exec, wrapError(node, err)
+	if err != nil {
+		return nil, wrapError(node, err)
+	}
+	err = c.storage().StoreExec(exec.ID, opts.Container)
+	return exec, err
 }
 
-func (c *Cluster) StartExec(execId, containerId string, opts docker.StartExecOptions) error {
-	node, err := c.getNodeForContainer(containerId)
+func (c *Cluster) StartExec(execId string, opts docker.StartExecOptions) error {
+	node, err := c.getNodeForExec(execId)
 	if err != nil {
 		return err
 	}
@@ -357,16 +369,16 @@ func (c *Cluster) StartExec(execId, containerId string, opts docker.StartExecOpt
 	return wrapError(node, node.StartExec(execId, opts))
 }
 
-func (c *Cluster) ResizeExecTTY(execId, containerId string, height, width int) error {
-	node, err := c.getNodeForContainer(containerId)
+func (c *Cluster) ResizeExecTTY(execId string, height, width int) error {
+	node, err := c.getNodeForExec(execId)
 	if err != nil {
 		return err
 	}
 	return wrapError(node, node.ResizeExecTTY(execId, height, width))
 }
 
-func (c *Cluster) InspectExec(execId, containerId string) (*docker.ExecInspect, error) {
-	node, err := c.getNodeForContainer(containerId)
+func (c *Cluster) InspectExec(execId string) (*docker.ExecInspect, error) {
+	node, err := c.getNodeForExec(execId)
 	if err != nil {
 		return nil, err
 	}

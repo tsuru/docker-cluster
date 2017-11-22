@@ -2264,11 +2264,11 @@ func TestExecContainer(t *testing.T) {
 		ErrorStream:  nil,
 		RawTerminal:  true,
 	}
-	err = cluster.StartExec(exec.ID, container.ID, startExecOptions)
+	err = cluster.StartExec(exec.ID, startExecOptions)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = cluster.ResizeExecTTY(exec.ID, container.ID, 10, 10)
+	err = cluster.ResizeExecTTY(exec.ID, 10, 10)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2299,19 +2299,30 @@ func TestInspectExec(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	execId := "d34db33f"
-	exec, err := cluster.InspectExec(execId, contId)
+	createExecOpts := docker.CreateExecOptions{
+		AttachStdin:  false,
+		AttachStdout: true,
+		AttachStderr: true,
+		Tty:          false,
+		Cmd:          []string{"ls"},
+		Container:    contId,
+	}
+	exec, err := cluster.CreateExec(createExecOpts)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if exec.ID != execId {
-		t.Errorf("InspectExec: Wrong ID. Want %q. Got %q.", execId, exec.ID)
+	execInspect, err := cluster.InspectExec(exec.ID)
+	if err != nil {
+		t.Fatal(err)
 	}
-	if exec.Running {
+	if execInspect.ID != exec.ID {
+		t.Errorf("InspectExec: Wrong ID. Want %q. Got %q.", exec.ID, execInspect.ID)
+	}
+	if execInspect.Running {
 		t.Errorf("InspectExec: Wrong Running. Want false. Got true.")
 	}
-	if exec.ExitCode != 1 {
-		t.Errorf("InspectExec: Wrong Running. Want %d. Got %d.", 1, exec.ExitCode)
+	if execInspect.ExitCode != 1 {
+		t.Errorf("InspectExec: Wrong Running. Want %d. Got %d.", 1, execInspect.ExitCode)
 	}
 	if count > 0 {
 		t.Errorf("InspectExec: should not send request to all servers, but did.")
