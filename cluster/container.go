@@ -207,7 +207,16 @@ func (c *Cluster) StartContainer(id string, hostConfig *docker.HostConfig) error
 	if err != nil {
 		return err
 	}
-	return wrapError(node, node.StartContainer(id, hostConfig))
+	err = node.StartContainer(id, hostConfig)
+	if err != nil {
+		switch err.(type) {
+		case *docker.NoSuchContainer:
+		case *docker.ContainerAlreadyRunning:
+		default:
+			c.handleNodeError(node.addr, err, false)
+		}
+	}
+	return wrapError(node, err)
 }
 
 // StopContainer stops a container, killing it after the given timeout, if it
