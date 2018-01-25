@@ -122,6 +122,30 @@ func TestRemoveImageServerUnavailable(t *testing.T) {
 	}
 }
 
+func TestRemoveImageServerConnectionRefused(t *testing.T) {
+	addr := "http://localhost:61117"
+	name := "tsuru/python"
+	stor := &MapStorage{}
+	err := stor.StoreImage(name, "id1", addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cluster, err := New(nil, stor, "",
+		Node{Address: addr},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = cluster.RemoveImage(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = cluster.storage().RetrieveImage(name)
+	if err != storage.ErrNoSuchImage {
+		t.Errorf("RemoveImage(%q): wrong error. Want %#v. Got %#v.", name, storage.ErrNoSuchImage, err)
+	}
+}
+
 func TestRemoveImageNodeNotInStorage(t *testing.T) {
 	called := false
 	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
