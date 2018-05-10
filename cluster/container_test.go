@@ -2559,3 +2559,39 @@ func TestDownloadFromContainer(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestResizeContainerTTY(t *testing.T) {
+	body := `{"Id":"e90302"}`
+	var reqs []*http.Request
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		reqs = append(reqs, r)
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(body))
+	}))
+	defer server.Close()
+	cluster, err := New(nil, &MapStorage{}, "", Node{Address: server.URL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	config := docker.Config{Memory: 1000, Image: "myhost/somwhere/myimg"}
+	config.Cmd = []string{"tail", "-f"}
+	opts := docker.CreateContainerOptions{Config: &config}
+	_, container, err := cluster.CreateContainer(opts, time.Minute, server.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = cluster.StartContainer(container.ID, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = cluster.ResizeContainerTTY(container.ID, 10, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(reqs) != 6 {
+		t.Fatalf("ResizeContainerTTY: expected 6 requests, got %d", len(reqs))
+	}
+	if reqs[5].URL.Path != "/containers/e90302/resize" {
+		t.Fatalf("ResizeContainerTTY: expected resize request, got %s", reqs[5].URL.Path)
+	}
+}
