@@ -222,11 +222,16 @@ func (s *MapStorage) RetrieveNodesByMetadata(metadata map[string]string) ([]Node
 	defer s.nMut.Unlock()
 	filteredNodes := []Node{}
 	for _, node := range s.nodes {
-		for key, value := range metadata {
-			nodeVal, ok := node.Metadata[key]
-			if ok && nodeVal == value {
-				filteredNodes = append(filteredNodes, node)
+		if func(nodeMetadata map[string]string) bool {
+			for key, value := range metadata {
+				nodeVal := nodeMetadata[key]
+				if nodeVal != value {
+					return false
+				}
 			}
+			return true
+		}(node.Metadata) {
+			filteredNodes = append(filteredNodes, node)
 		}
 	}
 	return filteredNodes, nil

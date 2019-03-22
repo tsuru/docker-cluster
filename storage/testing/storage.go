@@ -349,6 +349,22 @@ func testStorageStoreRetrieveNodesForMetadata(storage cluster.Storage, t *testin
 	if !reflect.DeepEqual(node2.Metadata, nodes[1].Metadata) {
 		t.Errorf("unexpected node metadata. expected: %#v got: %#v", node2.Metadata, nodes[1].Metadata)
 	}
+	nodes, err = storage.RetrieveNodesByMetadata(map[string]string{"foo": "bar", "region": "reg1"})
+	assertIsNil(err, t)
+	if len(nodes) != 1 {
+		t.Fatalf("unexpected nodes len: %d", len(nodes))
+	}
+	if nodes[0].Address != node1.Address {
+		t.Errorf("unexpected node: %s", nodes[0].Address)
+	}
+	if !reflect.DeepEqual(node1.Metadata, nodes[0].Metadata) {
+		t.Errorf("unexpected node metadata. expected: %#v got: %#v", node1.Metadata, nodes[0].Metadata)
+	}
+	nodes, err = storage.RetrieveNodesByMetadata(map[string]string{"foo": "bar", "region": "reg3"})
+	assertIsNil(err, t)
+	if len(nodes) != 0 {
+		t.Fatalf("unexpected nodes len: %d", len(nodes))
+	}
 }
 
 func testStorageStoreRemoveNode(storage cluster.Storage, t *testing.T) {
