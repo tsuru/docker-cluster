@@ -346,7 +346,7 @@ func TestCreateContainerFailure(t *testing.T) {
 	}
 	config := docker.Config{Memory: 67108864}
 	addr, _, err := cluster.CreateContainer(docker.CreateContainerOptions{Config: &config}, time.Minute)
-	expected := "no such image"
+	expected := "NoSuchImage"
 	if err == nil || strings.Index(err.Error(), expected) == -1 {
 		t.Errorf("Expected error %q, got: %#v", expected, err)
 	}
